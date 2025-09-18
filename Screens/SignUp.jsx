@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, Image, TouchableOpacity, TextInput, Alert } from 'react-native'
+import { View, Text, StyleSheet, Image, TouchableOpacity, TextInput, Alert, Keyboard } from 'react-native'
 import { useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import {FontAwesome as Icon} from 'react-native-vector-icons';
@@ -31,7 +31,10 @@ function SignUp() {
         phone: phone,
         createdAt: new Date(),
       });
-      Alert.alert('Success, Account registered successfully')
+      Keyboard.dismiss();
+      Alert.alert('Success', 'Account registered successfully', [
+        { text: 'OK', onPress: () => navigation.navigate('Home')}
+      ])
     }catch(error){
       Alert.alert('Error creating account:', error.message);
     }

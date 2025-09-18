@@ -54,7 +54,7 @@ function SignUp() {
         </View>
 
         {/* Welcome Text */}
-        <Text style={styles.welcomeText}>WELCOME TO FINDSOS</Text>
+        <Text style={styles.welcomeText}>WELCOME BACK TO FINDSOS</Text>
 
         {/* Form Section with Icons */}
         <View style={styles.formContainer}>
@@ -120,13 +120,13 @@ function SignUp() {
 
           {/* Sign Up Button */}
           <TouchableOpacity style={styles.signUpBtn} onPress={handleSignUp}>
-            <Text style={styles.signUpText}>Sign Up</Text>
+            <Text style={styles.signUpText}>Log In</Text>
           </TouchableOpacity>
 
           {/* Login Prompt */}
           <View style={styles.loginContainer}>
-            <Text style={styles.loginText}>Have an Account? </Text>
-            <TouchableOpacity onPress={() => navigation.navigate('LogIn')}>
+            <Text style={styles.loginText}>Don't have an Account? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
               <Text style={styles.loginLink}>Log In</Text>
             </TouchableOpacity>
           </View>
@@ -135,7 +135,7 @@ function SignUp() {
         {/* Divider */}
         <View style={styles.dividerContainer}>
           <View style={styles.divider} />
-          <Text style={styles.dividerText}>Or Sign Up With</Text>
+          <Text style={styles.dividerText}>Or Log In With</Text>
           <View style={styles.divider} />
         </View>
 

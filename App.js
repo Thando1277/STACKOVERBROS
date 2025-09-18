@@ -5,12 +5,12 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { DataProvider } from "./context/DataContext";
 
-import HomeScreen from "./screens/HomeScreen";
+import HomeScreen from "./Screens/HomeScreen";
 import ReportScreen from "./Screens/ReportScreen";
 import DetailsScreen from "./Screens/DetailsScreen";
-import ChatbotScreen from "./screens/ChatbotScreen";
-import SignUp from "./screens/SignUp";
-import LogIn from "./screens/LogIn";
+import ChatbotScreen from "./Screens/ChatbotScreen";
+import SignUp from "./Screens/SignUp";
+import LogIn from "./Screens/LogIn";
 
 const Stack = createNativeStackNavigator();
 

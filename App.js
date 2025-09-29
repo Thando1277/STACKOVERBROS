@@ -11,6 +11,11 @@ import DetailsScreen from "./Screens/DetailsScreen";
 import ChatbotScreen from "./Screens/ChatbotScreen";
 import SignUp from "./Screens/SignUp";
 import LogIn from "./Screens/LogIn";
+import SettingsScreen from "./Screens/SettingsScreens";
+import ContactUs from "./Screens/ContactUs"
+import TermsPrivacyScreen from "./Screens/TermsPrivacyScreen";
+import EditProfileScreen from "./Screens/EditProfile";
+
 
 const Stack = createNativeStackNavigator();
 
@@ -30,6 +35,11 @@ export default function App() {
             <Stack.Screen name="Home" component={HomeScreen} />
             <Stack.Screen name="Report" component={ReportScreen} />
             <Stack.Screen name="Details" component={DetailsScreen} />
+            <Stack.Screen name="Settings" component={SettingsScreen}/>
+            <Stack.Screen name="Contact" component={ContactUs}/>
+            <Stack.Screen name ="Terms" component={TermsPrivacyScreen}/>
+            <Stack.Screen name="Profile" component={EditProfileScreen}/> 
+          
           </Stack.Navigator>
 
           {/* Floating Chat Button */}

@@ -1,38 +1,33 @@
-import { View, Text, StyleSheet, Image, TouchableOpacity, TextInput, Alert } from 'react-native'
+import { View, Text, StyleSheet, Image, TouchableOpacity, TextInput, Alert, ActivityIndicator } from 'react-native'
 import { useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import Icon from 'react-native-vector-icons/FontAwesome';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
-import { auth, db } from '../Firebase/firebaseConfig';
-import { doc, setDoc } from 'firebase/firestore';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '../Firebase/firebaseConfig';
 import { useNavigation } from '@react-navigation/native';
 
-function SignUp() {
+function LogIn() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [fullname, setFullname] = useState('');
-  const [phone, setPhone] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const navigation = useNavigation();
 
-  const handleSignUp = async () => {
-    if (password !== confirmPassword){
-      Alert.alert('Passwords do not match');
+  const handleLogIn = async () => {
+    if (!email || !password){
+      Alert.alert('Please enter email and password');
       return;
     }
+    setLoading(true);
+
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-      await setDoc(doc(db, 'users', user.uid), {
-        fullname: fullname,
-        email: user.email,
-        phone: phone,
-        createdAt: new Date(),
-      });
-      Alert.alert('Success, Account registered successfully')
+      await signInWithEmailAndPassword(auth, email, password);
+      Alert.alert('Success', 'Logged in');
+      navigation.navigate('Home');
     }catch(error){
-      Alert.alert('Error creating account:', error.message);
+      Alert.alert('Login failed', 'Email or password incorrect!');
+    }finally{
+      setLoading(false);
     }
   }
 
@@ -44,7 +39,6 @@ function SignUp() {
       style={styles.gradient}
     >
       <View style={styles.container}>
-        {/* Logo Section */}
         <View style={styles.logoContainer}>
           <Image 
             source={require('../assets/FINDSOS-LOGO2.png')}
@@ -53,21 +47,10 @@ function SignUp() {
           />
         </View>
 
-        {/* Welcome Text */}
         <Text style={styles.welcomeText}>WELCOME BACK TO FINDSOS</Text>
 
-        {/* Form Section with Icons */}
+
         <View style={styles.formContainer}>
-          <View style={styles.inputContainer}>
-            <Icon name="user" size={16} color="#666" style={styles.icon} />
-            <TextInput
-              style={styles.input}
-              placeholder='Fullname'
-              placeholderTextColor="#999"
-              value={fullname}
-              onChangeText={setFullname}
-            />
-          </View>
 
           <View style={styles.inputContainer}>
             <Icon name="envelope" size={16} color="#666" style={styles.icon} />
@@ -83,18 +66,6 @@ function SignUp() {
           </View>
 
           <View style={styles.inputContainer}>
-            <Icon name="phone" size={16} color="#666" style={styles.icon} />
-            <TextInput
-              style={styles.input}
-              placeholder='Phone'
-              keyboardType="phone-pad"
-              placeholderTextColor="#999"
-              value={phone}
-              onChangeText={setPhone}
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
             <Icon name="lock" size={16} color="#666" style={styles.icon} />
             <TextInput
               style={styles.input}
@@ -106,40 +77,30 @@ function SignUp() {
             />
           </View>
 
-          <View style={styles.inputContainer}>
-            <Icon name="lock" size={16} color="#666" style={styles.icon} />
-            <TextInput
-              style={styles.input}
-              placeholder='Confirm Password'
-              secureTextEntry={true}
-              placeholderTextColor="#999"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-            />
-          </View>
-
-          {/* Sign Up Button */}
-          <TouchableOpacity style={styles.signUpBtn} onPress={handleSignUp}>
-            <Text style={styles.signUpText}>Log In</Text>
+          <TouchableOpacity style={styles.LogInBtn} onPress={handleLogIn}>
+            <Text style={styles.logIn}>Log In</Text>
           </TouchableOpacity>
 
-          {/* Login Prompt */}
+          {loading && (
+            <View style={styles.loadingOverlay}>
+              <ActivityIndicator size='large' color='black'/>
+            </View>
+          )}
+
           <View style={styles.loginContainer}>
             <Text style={styles.loginText}>Don't have an Account? </Text>
             <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
-              <Text style={styles.loginLink}>Log In</Text>
+              <Text style={styles.loginLink}>Sign Up</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Divider */}
         <View style={styles.dividerContainer}>
           <View style={styles.divider} />
           <Text style={styles.dividerText}>Or Log In With</Text>
           <View style={styles.divider} />
         </View>
 
-        {/* Social Sign Up Options */}
         <View style={styles.socialContainer}>
           <TouchableOpacity style={styles.socialButton}>
             <Text style={styles.socialText}><Icon name="google" size={16} color="black" style={styles.icon} />  Google</Text>
@@ -154,7 +115,7 @@ function SignUp() {
   )
 }
 
-export default SignUp
+export default LogIn
 
 const styles = StyleSheet.create({
     gradient: {
@@ -212,7 +173,7 @@ const styles = StyleSheet.create({
         color: '#333',
         fontSize: 14,
     },
-    signUpBtn: {
+    LogInBtn: {
         backgroundColor: 'black',
         borderRadius: 5,
         width: '90%',
@@ -222,7 +183,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         marginTop: 8,
     },
-    signUpText: {
+    logIn: {
         color: 'white',
         fontWeight: 'bold',
         fontSize: 14,
@@ -279,5 +240,12 @@ const styles = StyleSheet.create({
     socialText: {
         fontWeight: 'bold',
         fontSize: 13,
+    },
+    loadingOverlay: {
+      position: 'absolute',
+      top: 0, left: 0, right: 0, bottom: 0,
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 10,
     }
 })

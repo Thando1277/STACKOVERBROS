@@ -12,6 +12,8 @@ import ChatbotScreen from "./Screens/ChatbotScreen";
 import SignUp from "./Screens/SignUp";
 import LogIn from "./Screens/LogIn";
 import ProfilePage from "./Screens/ProfilePage";
+import CommentsScreen from "./Screens/CommentsScreen";
+
 
 const Stack = createNativeStackNavigator();
 
@@ -22,7 +24,10 @@ export default function App() {
     <DataProvider>
       <NavigationContainer>
         <View style={{ flex: 1 }}>
-          <Stack.Navigator initialRouteName="SignUp" screenOptions={{ headerShown: false }}>
+          <Stack.Navigator
+            initialRouteName="SignUp"
+            screenOptions={{ headerShown: false }}
+          >
             {/* Authentication Screens */}
             <Stack.Screen name="SignUp" component={SignUp} />
             <Stack.Screen name="LogIn" component={LogIn} />
@@ -32,6 +37,10 @@ export default function App() {
             <Stack.Screen name="Report" component={ReportScreen} />
             <Stack.Screen name="Details" component={DetailsScreen} />
             <Stack.Screen name="Profile" component={ProfilePage} />
+
+            {/* Comments Screen for adding/viewing comments */}
+            <Stack.Screen name="Comments" component={CommentsScreen} />
+
           </Stack.Navigator>
 
           {/* Floating Chat Button */}

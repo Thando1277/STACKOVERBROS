@@ -1,8 +1,7 @@
-import { View, Text, StyleSheet, Image, TouchableOpacity, TextInput, Alert, Keyboard } from 'react-native'
+import { View, Text, StyleSheet, Image, TouchableOpacity, TextInput, Alert, Keyboard, ActivityIndicator } from 'react-native'
 import { useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import {FontAwesome as Icon} from 'react-native-vector-icons';
-// import { FontAwesome } from '@expo/vector-icons' 
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth, db } from '../Firebase/firebaseConfig';
 import { doc, setDoc } from 'firebase/firestore';
@@ -14,14 +13,20 @@ function SignUp() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [fullname, setFullname] = useState('');
   const [phone, setPhone] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const navigation = useNavigation();
 
   const handleSignUp = async () => {
+    if (!fullname || !email || !phone || !password || !confirmPassword){
+      Alert.alert('SignUp Failed', 'Fill out all the fields');
+      return;
+    }
     if (password !== confirmPassword){
       Alert.alert('Passwords do not match');
       return;
     }
+    setLoading(true)
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
@@ -36,7 +41,9 @@ function SignUp() {
         { text: 'OK', onPress: () => navigation.navigate('Home')}
       ])
     }catch(error){
-      Alert.alert('Error creating account:', error.message);
+      Alert.alert('Error creating account:', 'Fill in all the fields');
+    }finally{
+      setLoading(false)
     }
   }
 
@@ -122,7 +129,12 @@ function SignUp() {
             />
           </View>
 
-          {/* Sign Up Button */}
+          {loading && (
+            <View style={styles.loadingOverlay}>
+              <ActivityIndicator size='large' color='black'/>
+            </View>
+          )}
+
           <TouchableOpacity style={styles.signUpBtn} onPress={handleSignUp}>
             <Text style={styles.signUpText}>Sign Up</Text>
           </TouchableOpacity>
@@ -283,5 +295,12 @@ const styles = StyleSheet.create({
     socialText: {
         fontWeight: 'bold',
         fontSize: 13,
+    },
+    loadingOverlay: {
+      position: 'absolute',
+      top: 0, left: 0, right: 0, bottom: 0,
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 10,
     }
 })

@@ -6,6 +6,7 @@ const DataContext = createContext();
 export const DataProvider = ({ children }) => {
   const [reports, setReports] = useState([]);
 
+  // Load reports from AsyncStorage on app start
   useEffect(() => {
     (async () => {
       try {
@@ -17,6 +18,7 @@ export const DataProvider = ({ children }) => {
     })();
   }, []);
 
+  // Persist reports to AsyncStorage
   const persist = async (next) => {
     try {
       await AsyncStorage.setItem("reports", JSON.stringify(next));
@@ -25,13 +27,16 @@ export const DataProvider = ({ children }) => {
     }
   };
 
+  // Add a new report
   const addReport = (payload) => {
     const record = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       createdAt: new Date().toISOString(),
-      status: "search", 
+      status: "search",
+      comments: [], // start with empty comments array
       ...payload,
     };
+
     setReports((prev) => {
       const next = [record, ...prev];
       persist(next);
@@ -39,6 +44,7 @@ export const DataProvider = ({ children }) => {
     });
   };
 
+  // Update existing report fields
   const updateReport = (id, changes) => {
     setReports((prev) => {
       const next = prev.map((r) => (r.id === id ? { ...r, ...changes } : r));
@@ -47,11 +53,33 @@ export const DataProvider = ({ children }) => {
     });
   };
 
+  // Add a new comment to a report with id and timestamp
+  const addComment = (reportId, commentText) => {
+    const newComment = {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      text: commentText,
+      createdAt: new Date().toISOString(),
+    };
+
+    setReports((prev) => {
+      const next = prev.map((r) =>
+        r.id === reportId
+          ? { ...r, comments: [...(r.comments || []), newComment] }
+          : r
+      );
+      persist(next);
+      return next;
+    });
+  };
+
   return (
-    <DataContext.Provider value={{ reports, addReport, updateReport }}>
+    <DataContext.Provider
+      value={{ reports, addReport, updateReport, addComment }}
+    >
       {children}
     </DataContext.Provider>
   );
 };
 
+// Custom hook to access the context
 export const useData = () => useContext(DataContext);

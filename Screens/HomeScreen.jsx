@@ -97,28 +97,25 @@ export default function HomeScreen() {
       <View style={styles.header}>
         <Image source={require("../assets/log.png")} style={styles.logo} />
         <View style={styles.headerIcons}>
-        <TextInput
-                    placeholder="Search..."
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    style={{
-                      borderWidth: 1,
-                      borderRadius: 15,
-                      borderColor: "#ccc",
-                      width: 150,
-                      fontSize: 14,
-                      paddingVertical: 2,
-                    }}
-                  />
-
-
+          <TextInput
+            placeholder="Search..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            style={{
+              borderWidth: 1,
+              borderRadius: 15,
+              borderColor: "#ccc",
+              width: 150,
+              fontSize: 14,
+              paddingVertical: 2,
+            }}
+          />
           <Ionicons
             name="search-outline"
             size={26}
             color="black"
             style={{ marginRight: 8 }}
           />
-         
           <Ionicons
             name="chatbubble-ellipses-outline"
             size={26}
@@ -169,7 +166,7 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Category Buttons Person,Pet, etc.*/}
+      {/* Category Buttons */}
       <View style={styles.categories}>
         <TouchableOpacity
           onPress={() => setSelectedCategory("Person")}
@@ -227,12 +224,10 @@ export default function HomeScreen() {
         />
       </View>
 
-      {/* List */}
+      {/* Report List */}
       <ScrollView style={styles.list}>
         {filtered.length === 0 ? (
-          <Text
-            style={{ textAlign: "center", color: "#666", marginTop: 16 }}
-          >
+          <Text style={{ textAlign: "center", color: "#666", marginTop: 16 }}>
             No reports found
           </Text>
         ) : (
@@ -263,6 +258,17 @@ export default function HomeScreen() {
                 >
                   <Text style={styles.viewText}>View Details</Text>
                 </TouchableOpacity>
+
+                {/* Add/View Comments Button */}
+                <TouchableOpacity
+                  style={[styles.viewBtn, { marginTop: 8 }]}
+                  onPress={() =>
+                    navigation.navigate("Comments", { reportId: r.id })
+                  }
+                >
+                  <Text style={styles.viewText}>Add/View Comments</Text>
+                </TouchableOpacity>
+
                 <Text style={styles.time}>
                   {new Date(r.createdAt).toLocaleString()}
                 </Text>
@@ -272,7 +278,7 @@ export default function HomeScreen() {
         )}
       </ScrollView>
 
-      {/* Bottom navigation Home,Reports etc..*/}
+      {/* Bottom Navigation */}
       <View style={styles.bottomNav}>
         <TouchableOpacity style={styles.navItem}>
           <Ionicons name="home-outline" size={24} color="#7CC242" />
@@ -305,7 +311,6 @@ export default function HomeScreen() {
   );
 }
 
-
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
 
@@ -325,7 +330,13 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 5,
   },
-  tabBtn: { flex: 1, alignItems: "center", paddingVertical: 8, borderRadius: 8, marginHorizontal: 5 },
+  tabBtn: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 8,
+    borderRadius: 8,
+    marginHorizontal: 5,
+  },
 
   activeTab: { backgroundColor: "#7CC242" },
   inactiveTab: { backgroundColor: "#e0e0e0" },
@@ -372,28 +383,31 @@ const styles = StyleSheet.create({
   },
   filterText: { color: "#444", fontWeight: "500" },
 
-  // modal overlay helpers used by Select
-  modalCover: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 ,},
+  modalCover: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
   backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)" },
   modalSheet: {
     backgroundColor: "white",
     borderRadius: 16,
-   
-   
     padding: 16,
     position: "absolute",
     left: 0,
     right: 0,
     top: 50,
     zIndex: 100,
-   borderWidth: 2,
-   borderColor: "#7CC242",
-  
+    borderWidth: 2,
+    borderColor: "#7CC242",
   },
   modalTitle: { fontSize: 16, fontWeight: "700", marginBottom: 8 },
   optionRow: { paddingVertical: 12, borderBottomColor: "#eee", borderBottomWidth: 1 },
   optionText: { fontSize: 15, color: "#222" },
-  clearBtn: { marginTop: 10, alignSelf: "flex-end", backgroundColor: "#e0e0e0", borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12 },
+  clearBtn: {
+    marginTop: 10,
+    alignSelf: "flex-end",
+    backgroundColor: "#e0e0e0",
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
   clearText: { color: "#444", fontWeight: "600" },
 
   list: { flex: 1, paddingHorizontal: 20, marginTop: 5 },
@@ -423,7 +437,7 @@ const styles = StyleSheet.create({
     width: "75%",
   },
   viewText: { color: "white", fontWeight: "bold", fontSize: 14 },
-  time: { fontSize: 12, color: "gray", marginTop: 8, marginLeft:0, },
+  time: { fontSize: 12, color: "gray", marginTop: 8, marginLeft: 0 },
 
   bottomNav: {
     flexDirection: "row",

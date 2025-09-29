@@ -11,11 +11,7 @@ import DetailsScreen from "./Screens/DetailsScreen";
 import ChatbotScreen from "./Screens/ChatbotScreen";
 import SignUp from "./Screens/SignUp";
 import LogIn from "./Screens/LogIn";
-import SettingsScreen from "./Screens/SettingsScreens";
-import ContactUs from "./Screens/ContactUs"
-import TermsPrivacyScreen from "./Screens/TermsPrivacyScreen";
-import EditProfileScreen from "./Screens/EditProfile";
-
+import CommentsScreen from "./Screens/CommentsScreen";
 
 const Stack = createNativeStackNavigator();
 
@@ -26,7 +22,10 @@ export default function App() {
     <DataProvider>
       <NavigationContainer>
         <View style={{ flex: 1 }}>
-          <Stack.Navigator initialRouteName="SignUp" screenOptions={{ headerShown: false }}>
+          <Stack.Navigator
+            initialRouteName="SignUp"
+            screenOptions={{ headerShown: false }}
+          >
             {/* Authentication Screens */}
             <Stack.Screen name="SignUp" component={SignUp} />
             <Stack.Screen name="LogIn" component={LogIn} />
@@ -35,11 +34,10 @@ export default function App() {
             <Stack.Screen name="Home" component={HomeScreen} />
             <Stack.Screen name="Report" component={ReportScreen} />
             <Stack.Screen name="Details" component={DetailsScreen} />
-            <Stack.Screen name="Settings" component={SettingsScreen}/>
-            <Stack.Screen name="Contact" component={ContactUs}/>
-            <Stack.Screen name ="Terms" component={TermsPrivacyScreen}/>
-            <Stack.Screen name="Profile" component={EditProfileScreen}/> 
-          
+
+            {/* Comments Screen for adding/viewing comments */}
+            <Stack.Screen name="Comments" component={CommentsScreen} />
+
           </Stack.Navigator>
 
           {/* Floating Chat Button */}

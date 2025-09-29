@@ -296,7 +296,7 @@ export default function HomeScreen() {
           <Text style={styles.navText}>Map</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity style={styles.navItem} onpress = {() => navigation.navigate("Profile")}>
           <Ionicons name="person-outline" size={24} color="black" />
           <Text style={styles.navText}>Profile</Text>
         </TouchableOpacity>

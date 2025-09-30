@@ -11,7 +11,9 @@ import DetailsScreen from "./Screens/DetailsScreen";
 import ChatbotScreen from "./Screens/ChatbotScreen";
 import SignUp from "./Screens/SignUp";
 import LogIn from "./Screens/LogIn";
+import ProfilePage from "./Screens/ProfilePage";
 import CommentsScreen from "./Screens/CommentsScreen";
+
 
 const Stack = createNativeStackNavigator();
 
@@ -34,6 +36,7 @@ export default function App() {
             <Stack.Screen name="Home" component={HomeScreen} />
             <Stack.Screen name="Report" component={ReportScreen} />
             <Stack.Screen name="Details" component={DetailsScreen} />
+            <Stack.Screen name="Profile" component={ProfilePage} />
 
             {/* Comments Screen for adding/viewing comments */}
             <Stack.Screen name="Comments" component={CommentsScreen} />

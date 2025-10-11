@@ -13,6 +13,8 @@ import SignUp from "./Screens/SignUp";
 import LogIn from "./Screens/LogIn";
 import ProfilePage from "./Screens/ProfilePage";
 import CommentsScreen from "./Screens/CommentsScreen";
+import ResetPasswordScreen from "./Screens/ResetPasswordScreen";
+import SettingsScreen from "./Screens/SettingsScreens";
 
 
 const Stack = createNativeStackNavigator();
@@ -31,15 +33,17 @@ export default function App() {
             {/* Authentication Screens */}
             <Stack.Screen name="SignUp" component={SignUp} />
             <Stack.Screen name="LogIn" component={LogIn} />
+            <Stack.Screen name="ResetPassword" component={ResetPasswordScreen}/>
 
             {/* Main App Screens */}
             <Stack.Screen name="Home" component={HomeScreen} />
             <Stack.Screen name="Report" component={ReportScreen} />
             <Stack.Screen name="Details" component={DetailsScreen} />
-            <Stack.Screen name="Profile" component={ProfilePage} />
+            <Stack.Screen name="ProfilePage" component={ProfilePage} />
 
             {/* Comments Screen for adding/viewing comments */}
             <Stack.Screen name="Comments" component={CommentsScreen} />
+            <Stack.Screen name="SettingsScreen" component={SettingsScreen} />
 
           </Stack.Navigator>
 
@@ -53,7 +57,7 @@ export default function App() {
               padding: 16,
               borderRadius: 50,
               elevation: 4,
-              marginBottom: 35,
+              marginBottom: 65,
             }}
             onPress={() => setChatVisible(true)}
           >

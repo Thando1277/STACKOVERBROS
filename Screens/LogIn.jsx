@@ -93,6 +93,14 @@ function LogIn() {
               <Text style={styles.loginLink}>Sign Up</Text>
             </TouchableOpacity>
           </View>
+
+          <View style={styles.loginContainer}>
+            <Text style={styles.loginText}>Forgot Password? </Text>
+            <TouchableOpacity onPress={() => navigation.navigate('ResetPassword')}>
+              <Text style={styles.loginLink}>Reset</Text>
+            </TouchableOpacity>
+          </View>
+
         </View>
 
         <View style={styles.dividerContainer}>

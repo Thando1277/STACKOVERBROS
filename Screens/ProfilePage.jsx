@@ -40,7 +40,7 @@ export default function ProfileScreen() {
       <ScrollView contentContainerStyle={styles.scroll}>
         <View style={styles.headerRow}>
           <Text style={styles.title}>Profile</Text>
-          <TouchableOpacity onPress={() => navigation.navigate("Settings")}> 
+          <TouchableOpacity onPress={() => navigation.navigate("SettingsScreen")}> 
             <Ionicons name="settings-outline" size={26} color="#222" />
           </TouchableOpacity>
         </View>

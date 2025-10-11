@@ -302,7 +302,7 @@ export default function HomeScreen() {
           <Text style={styles.navText}>Map</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.navItem} onpress = {() => navigation.navigate("Profile")}>
+        <TouchableOpacity style={styles.navItem} onPress = {() => navigation.navigate("ProfilePage")}>
           <Ionicons name="person-outline" size={24} color="black" />
           <Text style={styles.navText}>Profile</Text>
         </TouchableOpacity>

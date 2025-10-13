@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   SafeAreaView,
   View,
@@ -7,53 +7,181 @@ import {
   Image,
   TouchableOpacity,
   ScrollView,
-  Dimensions,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import { useNavigation } from "@react-navigation/native";
-import { useData } from "../context/DataContext";
-
-const { width, height } = Dimensions.get("window");
+import { auth, db, storage } from "../Firebase/firebaseConfig";
+import { doc, getDoc, collection, getDocs, query, where, updateDoc } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
+import * as FileSystem from 'expo-file-system';
 
 export default function ProfileScreen() {
   const navigation = useNavigation();
-  const { user, reports } = useData();
 
-  // fallback user when DataContext doesn't provide one
-  const currentUser =
-    user ||
-    ({
-      fullName: "Guest User",
-      email: "guest@example.com",
-      phone: "",
-      avatar: null,
-      bio: "",
+  const [currentUser, setCurrentUser] = useState({
+    fullName: "",
+    email: "",
+    avatar: null,
+    bio: "",
+    id: "",
+  });
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
+
+  // Fetch user info & reports
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const userId = auth.currentUser?.uid;
+        if (!userId) return;
+
+        const userDoc = await getDoc(doc(db, "users", userId));
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+          setCurrentUser({
+            fullName: data.fullname || "No Name",
+            email: data.email || "No Email",
+            avatar: data.avatar || null,
+            bio: data.bio || "",
+            id: userId,
+          });
+        }
+
+        const reportsQuery = query(
+          collection(db, "reports"),
+          where("reportedBy", "==", userId)
+        );
+        const reportsSnapshot = await getDocs(reportsQuery);
+        const reportsList = reportsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setReports(reportsList);
+      } catch (error) {
+        console.log("Error fetching data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserData();
+  }, []);
+
+  // Pick and edit image from gallery
+  const pickImage = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission denied", "We need access to your gallery to upload an image.");
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true, // enable editing
+      aspect: [1, 1],      // square crop
+      quality: 0.8,
     });
 
-  const avatarSource = currentUser.avatar
-    ? { uri: currentUser.avatar } : require("../assets/dude.webp");
+    if (!result.canceled && result.assets[0].uri) {
+      setSelectedImage(result.assets[0].uri);
+    }
+  };
 
-  const myReports = reports ? reports.filter((r) => r.reportedBy === currentUser.id) : [];
+  // Save picked image to Firebase
+  const saveImage = async () => {
+    if (!selectedImage) return;
+    try {
+      setUploading(true);
+
+      const fileUri = selectedImage;
+      const fileInfo = await FileSystem.getInfoAsync(fileUri);
+      if (!fileInfo.exists) throw new Error("File does not exist");
+
+      const blob = await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.onload = function () {
+          resolve(xhr.response);
+        };
+        xhr.onerror = function () {
+          reject(new Error("Failed to convert file to blob"));
+        };
+        xhr.responseType = "blob";
+        xhr.open("GET", fileUri, true);
+        xhr.send(null);
+      });
+
+      const storageRef = ref(storage, `avatars/${currentUser.id}.jpg`);
+      await uploadBytes(storageRef, blob);
+
+      const downloadURL = await getDownloadURL(storageRef);
+      await updateDoc(doc(db, "users", currentUser.id), { avatar: downloadURL });
+      setCurrentUser(prev => ({ ...prev, avatar: downloadURL }));
+      setSelectedImage(null);
+    } catch (error) {
+      console.log("Upload error:", error);
+      Alert.alert("Upload Failed", "Could not save image. Make sure it's a valid image file.");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Remove avatar
+  const removeImage = async () => {
+    try {
+      const storageRef = ref(storage, `avatars/${currentUser.id}.jpg`);
+      await deleteObject(storageRef);
+      await updateDoc(doc(db, "users", currentUser.id), { avatar: null });
+      setCurrentUser(prev => ({ ...prev, avatar: null }));
+      setSelectedImage(null);
+    } catch (error) {
+      console.log("Remove image error:", error);
+      Alert.alert("Error", "Could not remove image.");
+    }
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#7CC242" />
+      </View>
+    );
+  }
+
+  const avatarSource = selectedImage
+    ? { uri: selectedImage }
+    : currentUser.avatar
+    ? { uri: currentUser.avatar }
+    : null;
 
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll}>
+        {/* Header */}
         <View style={styles.headerRow}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+            <Ionicons name="chevron-back" size={28} color="#7CC242" />
+          </TouchableOpacity>
           <Text style={styles.title}>Profile</Text>
-          <TouchableOpacity onPress={() => navigation.navigate("SettingsScreen")}> 
-            <Ionicons name="settings-outline" size={26} color="#222" />
+          <TouchableOpacity onPress={() => navigation.navigate("SettingsScreen")}>
+            <Ionicons name="settings-outline" size={26} color="#7CC242" />
           </TouchableOpacity>
         </View>
 
+        {/* User Card */}
         <View style={styles.card}>
-          <Image source={avatarSource} style={styles.avatar} />
+          <TouchableOpacity onPress={pickImage} style={styles.avatarWrapper}>
+            {avatarSource ? (
+              <Image source={avatarSource} style={styles.avatar} />
+            ) : (
+              <Ionicons name="person-circle-outline" size={96} color="#7CC242" />
+            )}
+          </TouchableOpacity>
+
           <View style={{ flex: 1, marginLeft: 12 }}>
             <Text style={styles.name}>{currentUser.fullName}</Text>
-            {currentUser.bio ? (
-              <Text style={styles.bio}>{currentUser.bio}</Text>
-            ) : (
-              <Text style={styles.email}>{currentUser.email}</Text>
-            )}
+            <Text style={styles.email}>{currentUser.email}</Text>
 
             <View style={styles.actionRow}>
               <TouchableOpacity
@@ -65,21 +193,36 @@ export default function ProfileScreen() {
 
               <TouchableOpacity
                 style={styles.logoutBtn}
-                onPress={() => navigation.navigate("LogIn")}
+                onPress={() => auth.signOut().then(() => navigation.navigate("LogIn"))}
               >
                 <Text style={styles.logoutTxt}>Log Out</Text>
               </TouchableOpacity>
             </View>
+
+            {/* Save button */}
+            {selectedImage && (
+              <TouchableOpacity style={styles.saveBtn} onPress={saveImage}>
+                <Text style={styles.saveTxt}>Save Image</Text>
+              </TouchableOpacity>
+            )}
+
+            {/* Remove button */}
+            {currentUser.avatar && !selectedImage && (
+              <TouchableOpacity style={styles.removeBtn} onPress={removeImage}>
+                <Text style={styles.removeTxt}>Remove Image</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
+        {/* Stats */}
         <View style={styles.statsRow}>
           <View style={styles.statBox}>
-            <Text style={styles.statNum}>{myReports.length}</Text>
+            <Text style={styles.statNum}>{reports.length}</Text>
             <Text style={styles.statLabel}>My Reports</Text>
           </View>
           <View style={styles.statBox}>
-            <Text style={styles.statNum}>{reports ? reports.length : 0}</Text>
+            <Text style={styles.statNum}>--</Text>
             <Text style={styles.statLabel}>Total Reports</Text>
           </View>
           <View style={styles.statBox}>
@@ -88,20 +231,27 @@ export default function ProfileScreen() {
           </View>
         </View>
 
+        {/* Recent Activity */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Recent activity</Text>
-          {myReports.length === 0 ? (
+          <Text style={styles.sectionTitle}>Recent Activity</Text>
+          {reports.length === 0 ? (
             <Text style={styles.emptyText}>You haven't reported anything yet.</Text>
           ) : (
-            myReports.slice(0, 5).map((r) => (
+            reports.slice(0, 5).map((r) => (
               <View key={r.id} style={styles.activityRow}>
                 <View style={styles.activityLeft}>
-                  <Image source={r.photo ? { uri: r.photo } : require("../assets/dude.webp")} style={styles.actImg} />
+                  {r.photo ? (
+                    <Image source={{ uri: r.photo }} style={styles.actImg} />
+                  ) : (
+                    <Ionicons name="person-circle-outline" size={64} color="#7CC242" />
+                  )}
                 </View>
                 <View style={styles.activityRight}>
-                  <Text style={styles.activityTitle}>{r.fullName}</Text>
-                  <Text style={styles.activitySubtitle}>{r.lastSeenLocation}</Text>
-                  <Text style={styles.activityTime}>{new Date(r.createdAt).toLocaleString()}</Text>
+                  <Text style={styles.activityTitle}>{r.title || "Report"}</Text>
+                  <Text style={styles.activitySubtitle}>{r.location || "Unknown Location"}</Text>
+                  <Text style={styles.activityTime}>
+                    {r.createdAt ? new Date(r.createdAt.seconds * 1000).toLocaleString() : ""}
+                  </Text>
                 </View>
               </View>
             ))
@@ -110,53 +260,59 @@ export default function ProfileScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {uploading && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#7CC242" />
+        </View>
+      )}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: { flex: 1, backgroundColor: "#121212" },
   scroll: { padding: 18, paddingBottom: 40 },
-  headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
-  title: { fontSize: 22, fontWeight: "700", color: "#222" },
 
-  card: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 14,
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    marginBottom: 14,
-  },
+  headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
+  backBtn: { padding: 6 },
+  title: { fontSize: 22, fontWeight: "700", color: "#7CC242" },
+
+  card: { flexDirection: "row", alignItems: "center", backgroundColor: "#1e1e1e", borderRadius: 12, padding: 14, elevation: 3, shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 6, marginBottom: 14 },
+  avatarWrapper: { justifyContent: "center", alignItems: "center" },
   avatar: { width: 96, height: 96, borderRadius: 12 },
-  name: { fontSize: 18, fontWeight: "800", color: "#222" },
-  bio: { color: "#666", marginTop: 6 },
-  email: { color: "#666", marginTop: 6 },
+  name: { fontSize: 18, fontWeight: "800", color: "#fff" },
+  email: { color: "#ddd", marginTop: 6 },
 
   actionRow: { flexDirection: "row", marginTop: 12 },
   editBtn: { backgroundColor: "#7CC242", paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8, marginRight: 8 },
   editTxt: { color: "white", fontWeight: "700" },
-  logoutBtn: { borderWidth: 1, borderColor: "#ddd", paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8 },
-  logoutTxt: { color: "#333", fontWeight: "700" },
+  logoutBtn: { borderWidth: 1, borderColor: "#555", paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8 },
+  logoutTxt: { color: "#fff", fontWeight: "700" },
+
+  saveBtn: { marginTop: 8, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 6, backgroundColor: "#7CC242", alignSelf: "flex-start" },
+  saveTxt: { color: "white", fontWeight: "700", fontSize: 12 },
+
+  removeBtn: { marginTop: 8, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 6, backgroundColor: "#ff4444", alignSelf: "flex-start" },
+  removeTxt: { color: "white", fontWeight: "700", fontSize: 12 },
 
   statsRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 8 },
-  statBox: { flex: 1, backgroundColor: "#f7f7f7", marginHorizontal: 4, paddingVertical: 14, borderRadius: 10, alignItems: "center" },
-  statNum: { fontSize: 18, fontWeight: "800", color: "#222" },
-  statLabel: { fontSize: 12, color: "#666", marginTop: 4 },
+  statBox: { flex: 1, backgroundColor: "#1e1e1e", marginHorizontal: 4, paddingVertical: 14, borderRadius: 10, alignItems: "center" },
+  statNum: { fontSize: 18, fontWeight: "800", color: "#fff" },
+  statLabel: { fontSize: 12, color: "#aaa", marginTop: 4 },
 
   section: { marginTop: 18 },
-  sectionTitle: { fontSize: 16, fontWeight: "700", marginBottom: 8 },
-  emptyText: { color: "#666" },
+  sectionTitle: { fontSize: 16, fontWeight: "700", marginBottom: 8, color: "#7CC242" },
+  emptyText: { color: "#aaa" },
 
-  activityRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#eee" },
+  activityRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#333" },
   activityLeft: { marginRight: 12 },
   actImg: { width: 64, height: 64, borderRadius: 8 },
   activityRight: { flex: 1 },
-  activityTitle: { fontWeight: "700", fontSize: 15 },
-  activitySubtitle: { color: "#666", marginTop: 4 },
+  activityTitle: { fontWeight: "700", fontSize: 15, color: "#fff" },
+  activitySubtitle: { color: "#aaa", marginTop: 4 },
   activityTime: { color: "#999", marginTop: 6, fontSize: 12 },
+
+  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#121212" },
+  loadingOverlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, justifyContent: "center", alignItems: "center", backgroundColor: "#00000080", zIndex: 10 },
 });

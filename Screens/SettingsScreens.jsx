@@ -15,20 +15,19 @@ export default function SettingsScreen({ navigation }) {
       <ScrollView contentContainerStyle={styles.scroll}>
         {/* Header */}
         <View style={styles.headerRow}>
-          <Icon name="chevron-left" size={28} color="#000" />
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Icon name="chevron-left" size={28} color="#7CC242" />
+          </TouchableOpacity>
           <Text style={styles.headerTitle}>Settings</Text>
         </View>
 
         {/* Profile */}
         <View style={styles.profileSection}>
           <Image
-            source={require('../assets/FINDSOS-LOGO2.png')} // add your placeholder image
+            source={require('../assets/FINDSOS-LOGO2.png')} // placeholder image
             style={styles.avatar}
           />
-          <View>
-            <Text style={styles.name}>Alice Smith</Text>
-            <Text style={styles.bio}>Bio</Text>
-          </View>
+          {/* Removed static name and bio */}
         </View>
 
         {/* Follow Up */}
@@ -41,13 +40,29 @@ export default function SettingsScreen({ navigation }) {
 
         {/* Help & Support */}
         <SectionTitle text="Help & Support" />
-        <SettingsItem icon="help-circle-outline" label="FAQ/Help Center" />
-        <SettingsItem icon="phone-outline" label="Contact Support" onPress={() => navigation.navigate('ContactUs')}/>
-        <SettingsItem icon="lock-outline" label="Terms of service and Privacy Policy" onPress={() => navigation.navigate('TermsPrivacyScreen')} />
+        <SettingsItem
+          icon="help-circle-outline"
+          label="FAQ/Help Center"
+          onPress={() => navigation.navigate('FAQScreen')}
+        />
+        <SettingsItem
+          icon="phone-outline"
+          label="Contact Support"
+          onPress={() => navigation.navigate('ContactUs')}
+        />
+        <SettingsItem
+          icon="lock-outline"
+          label="Terms of service and Privacy Policy"
+          onPress={() => navigation.navigate('TermsPrivacyScreen')}
+        />
 
         {/* Account & Profile Management */}
         <SectionTitle text="Account & Profile Management" />
-        <SettingsItem icon="account-circle-outline" label="Edit Profile" onPress={() => navigation.navigate('EditProfile')} />
+        <SettingsItem
+          icon="account-circle-outline"
+          label="Edit Profile"
+          onPress={() => navigation.navigate('EditProfile')}
+        />
         <SettingsItem icon="logout" label="Sign Out" />
       </ScrollView>
     </View>
@@ -59,9 +74,9 @@ const SectionTitle = ({ text }) => (
   <Text style={styles.sectionTitle}>{text}</Text>
 );
 
-const SettingsItem = ({ icon, label }) => (
-  <TouchableOpacity style={styles.item} onPress>
-    <Icon name={icon} size={22} color="#000" style={styles.itemIcon} />
+const SettingsItem = ({ icon, label, onPress }) => (
+  <TouchableOpacity style={styles.item} onPress={onPress}>
+    <Icon name={icon} size={22} color="#7CC242" style={styles.itemIcon} />
     <Text style={styles.itemLabel}>{label}</Text>
   </TouchableOpacity>
 );
@@ -70,7 +85,7 @@ const SettingsItem = ({ icon, label }) => (
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#d9d9d9', // light gray background like your screenshot
+    backgroundColor: '#121212',
     paddingTop: 50,
   },
   scroll: {
@@ -85,9 +100,10 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     marginLeft: 8,
+    color: 'white',
   },
   profileSection: {
-    backgroundColor: '#fff',
+    backgroundColor: '#1e1e1e',
     borderRadius: 12,
     padding: 16,
     flexDirection: 'row',
@@ -98,34 +114,26 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#ccc',
+    backgroundColor: '#333',
     marginRight: 12,
-  },
-  name: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  bio: {
-    fontSize: 14,
-    color: '#666',
   },
   sectionTitle: {
     fontSize: 14,
     fontWeight: '700',
     marginTop: 15,
     marginBottom: 6,
-    color: '#333',
+    color: '#7CC242',
   },
   item: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: '#1e1e1e',
     borderRadius: 8,
     paddingVertical: 14,
     paddingHorizontal: 12,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#d0d0d0',
+    borderColor: '#333',
   },
   itemIcon: {
     marginRight: 10,
@@ -133,5 +141,6 @@ const styles = StyleSheet.create({
   itemLabel: {
     fontSize: 16,
     flexShrink: 1,
+    color: '#fff',
   },
 });

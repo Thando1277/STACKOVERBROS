@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useData } from "../context/DataContext";
+import * as NavigationBar from 'expo-navigation-bar';
 
 const { width, height } = Dimensions.get("window");
 
@@ -68,6 +69,12 @@ export default function HomeScreen() {
   const [gender, setGender] = useState("");
   const [ageGroup, setAgeGroup] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+
+  // Hide Android navigation bar
+  useEffect(() => {
+    NavigationBar.setVisibilityAsync('hidden'); // hides soft keys
+    NavigationBar.setBackgroundColorAsync('transparent'); // optional
+  }, []);
 
   const filtered = useMemo(() => {
     return reports.filter((r) => {

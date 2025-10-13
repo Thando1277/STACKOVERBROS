@@ -5,6 +5,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { DataProvider } from "./context/DataContext";
 
+// Main Screens
 import HomeScreen from "./Screens/HomeScreen";
 import ReportScreen from "./Screens/ReportScreen";
 import DetailsScreen from "./Screens/DetailsScreen";
@@ -16,6 +17,11 @@ import CommentsScreen from "./Screens/CommentsScreen";
 import ResetPasswordScreen from "./Screens/ResetPasswordScreen";
 import SettingsScreen from "./Screens/SettingsScreens";
 
+// Settings Sub-Screens
+import FAQScreen from "./Screens/FAQScreen";
+import ContactUs from "./Screens/ContactUs";
+import TermsPrivacyScreen from "./Screens/TermsPrivacyScreen";
+import EditProfile from "./Screens/EditProfile";
 
 const Stack = createNativeStackNavigator();
 
@@ -30,24 +36,30 @@ export default function App() {
             initialRouteName="SignUp"
             screenOptions={{ headerShown: false }}
           >
-            {/* Authentication Screens */}
+            {/* 🔐 Authentication Screens */}
             <Stack.Screen name="SignUp" component={SignUp} />
             <Stack.Screen name="LogIn" component={LogIn} />
-            <Stack.Screen name="ResetPassword" component={ResetPasswordScreen}/>
+            <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
 
-            {/* Main App Screens */}
+            {/* 🏠 Main App Screens */}
             <Stack.Screen name="Home" component={HomeScreen} />
             <Stack.Screen name="Report" component={ReportScreen} />
             <Stack.Screen name="Details" component={DetailsScreen} />
             <Stack.Screen name="ProfilePage" component={ProfilePage} />
-
-            {/* Comments Screen for adding/viewing comments */}
             <Stack.Screen name="Comments" component={CommentsScreen} />
             <Stack.Screen name="SettingsScreen" component={SettingsScreen} />
 
+            {/* ⚙️ Settings Sub-Screens */}
+            <Stack.Screen name="FAQScreen" component={FAQScreen} />
+            <Stack.Screen name="ContactUs" component={ContactUs} />
+            <Stack.Screen
+              name="TermsPrivacyScreen"
+              component={TermsPrivacyScreen}
+            />
+            <Stack.Screen name="EditProfile" component={EditProfile} />
           </Stack.Navigator>
 
-          {/* Floating Chat Button */}
+          {/* 💬 Floating Chat Button */}
           <TouchableOpacity
             style={{
               position: "absolute",
@@ -64,7 +76,7 @@ export default function App() {
             <Ionicons name="chatbubble-ellipses" size={28} color="#fff" />
           </TouchableOpacity>
 
-          {/* Chatbot Modal */}
+          {/* 🤖 Chatbot Modal */}
           <Modal visible={chatVisible} animationType="slide">
             <ChatbotScreen />
             <TouchableOpacity

@@ -1,7 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 
-export default function TermsPrivacyScreen() {
+export default function TermsPrivacyScreen({ navigation }) {
   const ShadowBox = ({ children }) => (
     <View style={styles.shadowBox}>
       <Text style={styles.paragraph}>{children}</Text>
@@ -11,10 +11,16 @@ export default function TermsPrivacyScreen() {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll}>
+        {/* Back Button inside scroll */}
+        <TouchableOpacity
+          style={styles.backButtonInline}
+          onPress={() => navigation.goBack()}
+        >
+          <Text style={styles.backButtonText}>← Back</Text>
+        </TouchableOpacity>
+
+        {/* Terms of Service */}
         <Text style={styles.title}>Terms of Service</Text>
-
-
-
         <ShadowBox>
           Welcome to FindSOS (“we,” “our,” or “us”). By downloading, accessing,
           or using our mobile application or related services (the “Service”),
@@ -89,34 +95,42 @@ export default function TermsPrivacyScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f2f2f2',
-    paddingTop: 50,
+    backgroundColor: '#121212', // dark background
   },
   scroll: {
     paddingHorizontal: 20,
     paddingBottom: 40,
+    paddingTop: 20,
+  },
+  backButtonInline: {
+    marginBottom: 15,
+  },
+  backButtonText: {
+    color: '#7CC242',
+    fontSize: 16,
+    fontWeight: '600',
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
     marginTop: 20,
     marginBottom: 10,
-    color: '#000',
+    color: '#fff',
   },
   section: {
     fontSize: 18,
     fontWeight: '600',
     marginTop: 16,
     marginBottom: 6,
-    color: '#333',
+    color: '#7CC242',
   },
   paragraph: {
     fontSize: 16,
     lineHeight: 24,
-    color: '#444',
+    color: '#ccc',
   },
   shadowBox: {
-    backgroundColor: '#fff',
+    backgroundColor: '#1e1e1e', // dark box
     borderRadius: 10,
     padding: 12,
     marginBottom: 14,
@@ -124,7 +138,7 @@ const styles = StyleSheet.create({
     // iOS shadow
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.3,
     shadowRadius: 4,
 
     // Android shadow

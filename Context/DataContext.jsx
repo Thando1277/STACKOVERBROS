@@ -33,7 +33,7 @@ export const DataProvider = ({ children }) => {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       createdAt: new Date().toISOString(),
       status: "search",
-      comments: [], // start with empty comments array
+      comments: [],
       ...payload,
     };
 
@@ -53,7 +53,7 @@ export const DataProvider = ({ children }) => {
     });
   };
 
-  // Add a new comment to a report with id and timestamp
+  // Add a new comment
   const addComment = (reportId, commentText) => {
     const newComment = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -72,9 +72,20 @@ export const DataProvider = ({ children }) => {
     });
   };
 
+  // Mark a report as found
+  const markAsFound = (id) => {
+    setReports((prev) => {
+      const next = prev.map((r) =>
+        r.id === id ? { ...r, status: "found" } : r
+      );
+      persist(next);
+      return next;
+    });
+  };
+
   return (
     <DataContext.Provider
-      value={{ reports, addReport, updateReport, addComment }}
+      value={{ reports, addReport, updateReport, addComment, markAsFound }}
     >
       {children}
     </DataContext.Provider>

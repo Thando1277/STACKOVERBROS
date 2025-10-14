@@ -95,10 +95,7 @@ function StatusSelect({ value, onChange }) {
                   setOpen(false);
                 }}
               >
-                {/* Fix: Wrap icon + text in a View to ensure it's a single component */}
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <Text style={styles.optionText}>{String(opt.label)}</Text>
-                </View>
+                <Text style={styles.optionText}>{String(opt.label)}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -120,6 +117,7 @@ export default function HomeScreen() {
 
   const filtered = useMemo(() => {
     return reports.filter((r) => {
+      if (!r) return false;
       if (selectedCategory !== r.type) return false;
       if (activeTab === "search" && r.status !== "search") return false;
       if (activeTab === "found" && r.status !== "found") return false;
@@ -137,9 +135,10 @@ export default function HomeScreen() {
     });
   }, [reports, selectedCategory, activeTab, gender, ageGroup, searchQuery]);
 
-  const imgFor = (r) => (r.photo ? { uri: r.photo } : require("../assets/dude.webp"));
+  const imgFor = (r) => (r?.photo ? { uri: r.photo } : require("../assets/dude.webp"));
 
   const handleStatusChange = (r, status) => {
+    if (!r || !r.id) return;
     if (status === "delete") {
       deleteReport(r.id);
     } else {
@@ -154,16 +153,16 @@ export default function HomeScreen() {
         <Image source={require("../assets/log.png")} style={styles.logo} />
         <View style={styles.headerIcons}>
           <TextInput
-            placeholder="Search..."
+            placeholder=" Search..."
             value={searchQuery}
             onChangeText={setSearchQuery}
             style={{
               borderWidth: 1,
-              borderRadius: 15,
+              borderRadius: 10,
               borderColor: "#ccc",
-              width: 150,
+              width: 245,
               fontSize: 14,
-              paddingVertical: 2,
+              paddingVertical: 6,
             }}
           />
           <Ionicons name="search-outline" size={26} color="black" style={{ marginRight: 8 }} />
@@ -241,11 +240,11 @@ export default function HomeScreen() {
 
       {/* Report List */}
       <ScrollView style={styles.list}>
-        {filtered.length === 0 ? (
+        {filtered.filter(r => r).length === 0 ? (
           <Text style={{ textAlign: "center", color: "#666", marginTop: 16 }}>No reports found</Text>
         ) : (
-          filtered.map((r) => (
-            <View key={String(r.id)} style={styles.card}>
+          filtered.filter(r => r).map((r) => (
+            <View key={r.id} style={styles.card}>
               <Image source={imgFor(r)} style={styles.avatar} />
               <View style={{ flex: 1 }}>
                 <View style={styles.cardHeader}>
@@ -257,12 +256,23 @@ export default function HomeScreen() {
                 </View>
                 <Text style={styles.details}>{String(r.age)} • {String(r.gender)}</Text>
                 <Text style={styles.details}>{String(r.lastSeenLocation)}</Text>
+
+                {/* View Details Button */}
                 <TouchableOpacity
                   style={styles.viewBtn}
                   onPress={() => navigation.navigate("Details", { report: r })}
                 >
                   <Text style={styles.viewText}>View Details</Text>
                 </TouchableOpacity>
+
+                {/* Add/View Comments Button */}
+                <TouchableOpacity
+                  style={styles.viewBtn}
+                  onPress={() => navigation.navigate("Comments", { reportId: r.id })}
+                >
+                  <Text style={styles.viewText}>Add/View Comments</Text>
+                </TouchableOpacity>
+
                 <Text style={styles.time}>{new Date(r.createdAt).toLocaleString()}</Text>
               </View>
             </View>
@@ -287,7 +297,7 @@ export default function HomeScreen() {
           <Ionicons name="map-outline" size={24} color="black" />
           <Text style={styles.navText}>Map</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}>
+        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate("ProfilePage")}>
           <Ionicons name="person-outline" size={24} color="black" />
           <Text style={styles.navText}>Profile</Text>
         </TouchableOpacity>
@@ -296,8 +306,7 @@ export default function HomeScreen() {
   );
 }
 
-
-// Styles
+// Styles (unchanged)
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
   header: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 15, paddingTop: 10, alignItems: "center" },
@@ -325,12 +334,25 @@ const styles = StyleSheet.create({
   clearBtn: { marginTop: 10, alignSelf: "flex-end", backgroundColor: "#e0e0e0", borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12 },
   clearText: { color: "#444", fontWeight: "600" },
   list: { flex: 1, paddingHorizontal: 20, marginTop: 5 },
-  card: { flexDirection: "row", backgroundColor: "#fff", borderRadius: 12, padding: 14, marginBottom: 20, elevation: 3, shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 4, height: height * 0.25 },
+  card: {
+    flexDirection: "row",
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 20,
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
+    height: height * 0.25,
+    borderWidth: 0.2,
+    borderColor: "#02c048ff",
+  },
   avatar: { width: 100, height: "100%", borderRadius: 12, marginRight: 12 },
   cardHeader: { flexDirection: "row", justifyContent: "space-between" },
   name: { fontSize: 18, fontWeight: "bold", color: "#222" },
   details: { fontSize: 14, color: "gray", marginTop: 3 },
-  viewBtn: { backgroundColor: "#7CC242", borderRadius: 6, marginTop: 30, paddingVertical: 8, alignItems: "center", width: "75%" },
+  viewBtn: { backgroundColor: "#7CC242", borderRadius: 10, marginTop: 20, paddingVertical: 8, alignItems: "center", width: "80%" },
   viewText: { color: "white", fontWeight: "bold", fontSize: 14 },
   time: { fontSize: 12, color: "gray", marginTop: 8, marginLeft: 0 },
   bottomNav: { flexDirection: "row", justifyContent: "space-around", paddingVertical: 10, borderTopWidth: 1, borderColor: "#ddd", backgroundColor: "#fff" },

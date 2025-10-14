@@ -9,8 +9,11 @@ import {
   Image,
   Pressable,
   Modal,
+  Platform,
+  Alert,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useNavigation } from "@react-navigation/native";
 import { useData } from "../context/DataContext";
 import SuccessCheck from "../components/SuccessCheck";
@@ -56,7 +59,6 @@ function Select({ label, value, onSelect, options }) {
                 <Text style={styles.optionText}>{String(opt.label)}</Text>
               </TouchableOpacity>
             ))}
-
             <TouchableOpacity
               style={styles.clearBtn}
               onPress={() => {
@@ -78,19 +80,17 @@ export default function ReportScreen() {
   const navigation = useNavigation();
   const { addReport } = useData();
 
-  // Personal info
   const [fullName, setFullName] = useState("");
   const [age, setAge] = useState("");
   const [gender, setGender] = useState("");
   const [type, setType] = useState("Person");
   const [photo, setPhoto] = useState(null);
 
-  // Last seen
-  const [lastSeenDate, setLastSeenDate] = useState("");
+  const [lastSeenDate, setLastSeenDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [lastSeenLocation, setLastSeenLocation] = useState("");
   const [description, setDescription] = useState("");
 
-  // Contact
   const [contactName, setContactName] = useState("");
   const [contactNumber, setContactNumber] = useState("");
 
@@ -115,15 +115,15 @@ export default function ReportScreen() {
 
   // ===== Validation =====
   const validate = () => {
-    if (
-      !fullName.trim() ||
-      !age.trim() ||
-      !gender ||
-      !type ||
-      !photo ||
-      !lastSeenDate.trim() ||
-      !lastSeenLocation.trim()
-    ) {
+    if (!fullName.trim() || !age.trim() || !gender || !type || !photo || !lastSeenDate || !lastSeenLocation.trim()) {
+      return false;
+    }
+    if (contactNumber && contactNumber.length !== 10) {
+      alert("Contact number must be exactly 10 digits.");
+      return false;
+    }
+    if (lastSeenDate > new Date()) {
+      alert("Last Seen Date cannot be in the future.");
       return false;
     }
     return true;
@@ -131,10 +131,8 @@ export default function ReportScreen() {
 
   // ===== Submit =====
   const submit = async () => {
-    if (!validate()) {
-      alert("Please fill all required fields (*)");
-      return;
-    }
+    if (!validate()) return;
+
     setSubmitting(true);
 
     const payload = {
@@ -162,14 +160,21 @@ export default function ReportScreen() {
 
     addReport(payload);
 
-    // play success animation for when report is submitted
     if (successRef.current) successRef.current.play();
 
-    // short delay then navigate back
     setTimeout(() => {
       setSubmitting(false);
       navigation.goBack();
     }, 900);
+  };
+
+  const handleDateChange = (event, selectedDate) => {
+    setShowDatePicker(Platform.OS === "ios");
+    if (selectedDate && selectedDate <= new Date()) {
+      setLastSeenDate(selectedDate);
+    } else if (selectedDate) {
+      Alert.alert("Invalid Date", "Please select today or a past date.");
+    }
   };
 
   return (
@@ -229,12 +234,18 @@ export default function ReportScreen() {
         <Text style={styles.cardTitle}>Last Seen Information</Text>
 
         <Text style={styles.label}>Last Seen Date & Time*</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="2025-09-02 14:00"
-          value={lastSeenDate}
-          onChangeText={setLastSeenDate}
-        />
+        <TouchableOpacity style={styles.inputBox} onPress={() => setShowDatePicker(true)}>
+          <Text style={styles.placeholder}>{lastSeenDate.toLocaleString()}</Text>
+        </TouchableOpacity>
+        {showDatePicker && (
+          <DateTimePicker
+            value={lastSeenDate}
+            mode="datetime"
+            display="default"
+            maximumDate={new Date()}
+            onChange={handleDateChange}
+          />
+        )}
 
         <Text style={styles.label}>Last Seen Location*</Text>
         <TextInput
@@ -273,6 +284,7 @@ export default function ReportScreen() {
           keyboardType="phone-pad"
           value={contactNumber}
           onChangeText={setContactNumber}
+          maxLength={10}
         />
       </View>
 
@@ -280,7 +292,6 @@ export default function ReportScreen() {
         <Text style={styles.submitText}>Submit Report</Text>
       </TouchableOpacity>
 
-      {/* Success Check Overlay */}
       <SuccessCheck ref={successRef} />
     </ScrollView>
   );
@@ -289,32 +300,11 @@ export default function ReportScreen() {
 // ===== Styles =====
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff", padding: 16 },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 14,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: "#eee",
-  },
+  card: { backgroundColor: "#fff", borderRadius: 12, padding: 14, marginBottom: 14, elevation: 2, borderWidth: 1, borderColor: "#eee" },
   cardTitle: { fontSize: 16, fontWeight: "800", color: "#7CC242", marginBottom: 10 },
   label: { fontSize: 14, fontWeight: "700", marginBottom: 6, color: "#222" },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 12,
-    backgroundColor: "#fafafa",
-  },
-  inputBox: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
-    backgroundColor: "#fafafa",
-  },
+  input: { borderWidth: 1, borderColor: "#ddd", borderRadius: 8, padding: 10, marginBottom: 12, backgroundColor: "#fafafa" },
+  inputBox: { borderWidth: 1, borderColor: "#ddd", borderRadius: 8, padding: 12, backgroundColor: "#fafafa" },
   placeholder: { color: "#666", fontWeight: "600" },
   uploadBtn: { backgroundColor: "#7CC242", padding: 12, borderRadius: 10, alignItems: "center", marginTop: 8 },
   uploadText: { color: "#fff", fontWeight: "800" },

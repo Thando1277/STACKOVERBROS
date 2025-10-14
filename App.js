@@ -1,11 +1,13 @@
-import React, { useState } from "react";
-import { View, TouchableOpacity, Modal } from "react-native";
+import React, { useState, useEffect } from "react";
+import { View, TouchableOpacity, Modal, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "./Firebase/firebaseConfig";
 import { DataProvider } from "./context/DataContext";
 
-// Main Screens
+// Screens
 import HomeScreen from "./Screens/HomeScreen";
 import ReportScreen from "./Screens/ReportScreen";
 import DetailsScreen from "./Screens/DetailsScreen";
@@ -16,8 +18,6 @@ import ProfilePage from "./Screens/ProfilePage";
 import CommentsScreen from "./Screens/CommentsScreen";
 import ResetPasswordScreen from "./Screens/ResetPasswordScreen";
 import SettingsScreen from "./Screens/SettingsScreens";
-
-// Settings Sub-Screens
 import FAQScreen from "./Screens/FAQScreen";
 import ContactUs from "./Screens/ContactUs";
 import TermsPrivacyScreen from "./Screens/TermsPrivacyScreen";
@@ -26,22 +26,43 @@ import EditProfile from "./Screens/EditProfile";
 const Stack = createNativeStackNavigator();
 
 export default function App() {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true); // ✅ Wait while Firebase checks the user
   const [chatVisible, setChatVisible] = useState(false);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      console.log("Current user:", currentUser ? currentUser.email : "None");
+      setUser(currentUser);
+      setLoading(false); // ✅ Only render screens after Firebase is ready
+    });
+
+    return unsubscribe;
+  }, []);
+
+  if (loading) {
+    // ✅ Show this while waiting for Firebase to restore the session
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#fff" }}>
+        <ActivityIndicator size="large" color="#0FC436" />
+      </View>
+    );
+  }
 
   return (
     <DataProvider>
       <NavigationContainer>
         <View style={{ flex: 1 }}>
           <Stack.Navigator
-            initialRouteName="SignUp"
+            initialRouteName={user ? "Home" : "LogIn"} // ✅ Automatically redirect
             screenOptions={{ headerShown: false }}
           >
-            {/* 🔐 Authentication Screens */}
+            {/* Auth */}
             <Stack.Screen name="SignUp" component={SignUp} />
             <Stack.Screen name="LogIn" component={LogIn} />
             <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
 
-            {/* 🏠 Main App Screens */}
+            {/* Main */}
             <Stack.Screen name="Home" component={HomeScreen} />
             <Stack.Screen name="Report" component={ReportScreen} />
             <Stack.Screen name="Details" component={DetailsScreen} />
@@ -49,17 +70,14 @@ export default function App() {
             <Stack.Screen name="Comments" component={CommentsScreen} />
             <Stack.Screen name="SettingsScreen" component={SettingsScreen} />
 
-            {/* ⚙️ Settings Sub-Screens */}
+            {/* Settings Sub-Screens */}
             <Stack.Screen name="FAQScreen" component={FAQScreen} />
             <Stack.Screen name="ContactUs" component={ContactUs} />
-            <Stack.Screen
-              name="TermsPrivacyScreen"
-              component={TermsPrivacyScreen}
-            />
+            <Stack.Screen name="TermsPrivacyScreen" component={TermsPrivacyScreen} />
             <Stack.Screen name="EditProfile" component={EditProfile} />
           </Stack.Navigator>
 
-          {/* 💬 Floating Chat Button */}
+          {/* Floating Chat Button */}
           <TouchableOpacity
             style={{
               position: "absolute",
@@ -76,7 +94,7 @@ export default function App() {
             <Ionicons name="chatbubble-ellipses" size={28} color="#fff" />
           </TouchableOpacity>
 
-          {/* 🤖 Chatbot Modal */}
+          {/* Chatbot Modal */}
           <Modal visible={chatVisible} animationType="slide">
             <ChatbotScreen />
             <TouchableOpacity

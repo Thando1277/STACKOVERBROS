@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   Image,
   ScrollView,
-  SafeAreaView,
   Dimensions,
   Pressable,
   TextInput,
@@ -14,6 +13,7 @@ import {
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useData } from "../context/DataContext";
+import { SafeAreaView } from "react-native-safe-area-context";
 import * as NavigationBar from 'expo-navigation-bar';
 
 const { width, height } = Dimensions.get("window");

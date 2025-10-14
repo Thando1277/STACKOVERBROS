@@ -10,15 +10,18 @@ import {
   StyleSheet,
   Pressable,
   Modal,
+  Platform,
+  Alert,
 } from "react-native";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
-import * as FileSystem from "expo-file-system/legacy"; // ✅ Only legacy import
+import * as FileSystem from "expo-file-system/legacy"; // ✅ use legacy API
 import { db } from "../Firebase/firebaseConfig";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { useNavigation } from "@react-navigation/native";
 import SuccessCheck from "../components/SuccessCheck";
 
-// Dropdown component
+// ---------- Dropdown Component ----------
 function Select({ label, value, onSelect, options }) {
   const [open, setOpen] = useState(false);
   const currentLabel = options.find((o) => o.value === value)?.label || label;
@@ -66,8 +69,10 @@ function Select({ label, value, onSelect, options }) {
   );
 }
 
+// ---------- ReportScreen ----------
 export default function ReportScreen() {
   const navigation = useNavigation();
+  const successRef = useRef();
 
   const [fullName, setFullName] = useState("");
   const [age, setAge] = useState("");
@@ -83,9 +88,8 @@ export default function ReportScreen() {
   const [contactName, setContactName] = useState("");
   const [contactNumber, setContactNumber] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const successRef = useRef();
 
-  // Pick image
+  // ---------- Pick Image ----------
   const pickImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
@@ -103,15 +107,15 @@ export default function ReportScreen() {
     }
   };
 
-  // Validate all required fields
+  // ---------- Validate ----------
   const validate = () => {
     const missing = [];
     if (!fullName.trim()) missing.push("Full Name");
     if (!age.trim()) missing.push("Age");
     if (!gender) missing.push("Gender");
     if (!type) missing.push("Type");
-    if (!photo) missing.push("Photo"); // ✅ check URI, not Base64
-    if (!lastSeenDate.trim()) missing.push("Last Seen Date");
+    if (!photo) missing.push("Photo");
+    if (!lastSeenDate) missing.push("Last Seen Date");
     if (!lastSeenLocation.trim()) missing.push("Last Seen Location");
 
     if (missing.length) {
@@ -121,18 +125,17 @@ export default function ReportScreen() {
     return true;
   };
 
-  // Submit report to Firestore
+  // ---------- Submit ----------
   const submit = async () => {
     if (!validate()) return;
 
     setSubmitting(true);
 
     try {
-      // Convert photo to Base64 before saving
       let photoBase64 = "";
       if (photo) {
         photoBase64 = await FileSystem.readAsStringAsync(photo, {
-          encoding: "base64",
+          encoding: FileSystem.EncodingType.Base64, // ✅ fixed
         });
       }
 
@@ -147,6 +150,7 @@ export default function ReportScreen() {
         description,
         contactName,
         contactNumber,
+        status: "search",
         createdAt: serverTimestamp(),
       };
 
@@ -165,6 +169,7 @@ export default function ReportScreen() {
     }
   };
 
+  // ---------- Date Picker ----------
   const handleDateChange = (event, selectedDate) => {
     setShowDatePicker(Platform.OS === "ios");
     if (selectedDate && selectedDate <= new Date()) {
@@ -174,6 +179,7 @@ export default function ReportScreen() {
     }
   };
 
+  // ---------- UI ----------
   return (
     <ScrollView
       style={styles.container}
@@ -237,7 +243,10 @@ export default function ReportScreen() {
         <Text style={styles.cardTitle}>Last Seen Information</Text>
 
         <Text style={styles.label}>Last Seen Date & Time*</Text>
-        <TouchableOpacity style={styles.inputBox} onPress={() => setShowDatePicker(true)}>
+        <TouchableOpacity
+          style={styles.inputBox}
+          onPress={() => setShowDatePicker(true)}
+        >
           <Text style={styles.placeholder}>{lastSeenDate.toLocaleString()}</Text>
         </TouchableOpacity>
         {showDatePicker && (
@@ -309,19 +318,66 @@ export default function ReportScreen() {
 // ---------- STYLES ----------
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff", padding: 16 },
-  card: { backgroundColor: "#fff", borderRadius: 12, padding: 14, marginBottom: 14, elevation: 2, borderWidth: 1, borderColor: "#eee" },
-  cardTitle: { fontSize: 16, fontWeight: "800", color: "#7CC242", marginBottom: 10 },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 14,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: "#eee",
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#7CC242",
+    marginBottom: 10,
+  },
   label: { fontSize: 14, fontWeight: "700", marginBottom: 6, color: "#222" },
-  input: { borderWidth: 1, borderColor: "#ddd", borderRadius: 8, padding: 10, marginBottom: 12, backgroundColor: "#fafafa" },
-  inputBox: { borderWidth: 1, borderColor: "#ddd", borderRadius: 8, padding: 12, backgroundColor: "#fafafa" },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 12,
+    backgroundColor: "#fafafa",
+  },
+  inputBox: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    padding: 12,
+    backgroundColor: "#fafafa",
+  },
   placeholder: { color: "#666", fontWeight: "600" },
-  uploadBtn: { backgroundColor: "#7CC242", padding: 12, borderRadius: 10, alignItems: "center", marginTop: 8 },
+  uploadBtn: {
+    backgroundColor: "#7CC242",
+    padding: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 8,
+  },
   uploadText: { color: "#fff", fontWeight: "800" },
   preview: { width: "100%", height: 220, marginTop: 10, borderRadius: 8 },
-  submitBtn: { backgroundColor: "#7CC242", paddingVertical: 14, borderRadius: 12, alignItems: "center", marginTop: 8 },
+  submitBtn: {
+    backgroundColor: "#7CC242",
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    marginTop: 8,
+  },
   submitText: { color: "#fff", fontWeight: "800", fontSize: 16 },
-  modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
-  modalSheet: { backgroundColor: "#fff", borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16 },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "flex-end",
+  },
+  modalSheet: {
+    backgroundColor: "#fff",
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    padding: 16,
+  },
   modalTitle: { fontSize: 16, fontWeight: "700", marginBottom: 8 },
   optionRow: { paddingVertical: 12, borderBottomColor: "#eee", borderBottomWidth: 1 },
   optionText: { fontSize: 15, color: "#222" },

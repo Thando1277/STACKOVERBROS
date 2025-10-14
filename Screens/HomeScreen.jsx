@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   Image,
   ScrollView,
+  SafeAreaView,
   Dimensions,
   Pressable,
   TextInput,
@@ -13,8 +14,6 @@ import {
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useData } from "../context/DataContext";
-import { SafeAreaView } from "react-native-safe-area-context";
-import * as NavigationBar from 'expo-navigation-bar';
 
 const { width, height } = Dimensions.get("window");
 
@@ -63,7 +62,7 @@ function Select({ label, value, onSelect, options }) {
 }
 
 // Status Select Component (Missing / Found / Delete)
-function StatusSelect({ value, onChange, isOwner }) {
+function StatusSelect({ value, onChange }) {
   const [open, setOpen] = useState(false);
   const options = [
     { label: "Missing", value: "search" },
@@ -71,15 +70,6 @@ function StatusSelect({ value, onChange, isOwner }) {
     { label: "Delete", value: "delete" },
   ];
   const currentLabel = String(options.find((o) => o.value === value)?.label || "Missing");
-
-  // Prevent non-owners from changing status
-  if (!isOwner) {
-    return (
-      <Text style={{ fontWeight: "bold", color: value === "search" ? "red" : "#7CC242" }}>
-        {currentLabel}
-      </Text>
-    );
-  }
 
   return (
     <>
@@ -105,9 +95,7 @@ function StatusSelect({ value, onChange, isOwner }) {
                   setOpen(false);
                 }}
               >
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
-                  <Text style={styles.optionText}>{String(opt.label)}</Text>
-                </View>
+                <Text style={styles.optionText}>{String(opt.label)}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -119,7 +107,7 @@ function StatusSelect({ value, onChange, isOwner }) {
 
 export default function HomeScreen() {
   const navigation = useNavigation();
-  const { reports, updateReportStatus, deleteReport, currentUser } = useData();
+  const { reports, updateReportStatus, deleteReport } = useData();
 
   const [activeTab, setActiveTab] = useState("search");
   const [selectedCategory, setSelectedCategory] = useState("Person");
@@ -129,6 +117,7 @@ export default function HomeScreen() {
 
   const filtered = useMemo(() => {
     return reports.filter((r) => {
+      if (!r) return false;
       if (selectedCategory !== r.type) return false;
       if (activeTab === "search" && r.status !== "search") return false;
       if (activeTab === "found" && r.status !== "found") return false;
@@ -146,9 +135,10 @@ export default function HomeScreen() {
     });
   }, [reports, selectedCategory, activeTab, gender, ageGroup, searchQuery]);
 
-  const imgFor = (r) => (r.photo ? { uri: r.photo } : require("../assets/dude.webp"));
+  const imgFor = (r) => (r?.photo ? { uri: r.photo } : require("../assets/dude.webp"));
 
   const handleStatusChange = (r, status) => {
+    if (!r || !r.id) return;
     if (status === "delete") {
       deleteReport(r.id);
     } else {
@@ -250,11 +240,11 @@ export default function HomeScreen() {
 
       {/* Report List */}
       <ScrollView style={styles.list}>
-        {filtered.length === 0 ? (
+        {filtered.filter(r => r).length === 0 ? (
           <Text style={{ textAlign: "center", color: "#666", marginTop: 16 }}>No reports found</Text>
         ) : (
-          filtered.map((r) => (
-            <View key={String(r.id)} style={styles.card}>
+          filtered.filter(r => r).map((r) => (
+            <View key={r.id} style={styles.card}>
               <Image source={imgFor(r)} style={styles.avatar} />
               <View style={{ flex: 1 }}>
                 <View style={styles.cardHeader}>
@@ -262,7 +252,6 @@ export default function HomeScreen() {
                   <StatusSelect
                     value={r.status}
                     onChange={(status) => handleStatusChange(r, status)}
-                    isOwner={currentUser ? r.userId === currentUser.id : false} // <-- SAFETY FIX
                   />
                 </View>
                 <Text style={styles.details}>{String(r.age)} • {String(r.gender)}</Text>
@@ -278,7 +267,7 @@ export default function HomeScreen() {
 
                 {/* Add/View Comments Button */}
                 <TouchableOpacity
-                  style={styles.viewBtn}  // same styling as View Details
+                  style={styles.viewBtn}
                   onPress={() => navigation.navigate("Comments", { reportId: r.id })}
                 >
                   <Text style={styles.viewText}>Add/View Comments</Text>
@@ -317,7 +306,7 @@ export default function HomeScreen() {
   );
 }
 
-// Styles
+// Styles (unchanged)
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
   header: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 15, paddingTop: 10, alignItems: "center" },

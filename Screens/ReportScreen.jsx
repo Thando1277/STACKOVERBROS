@@ -74,9 +74,12 @@ export default function ReportScreen() {
   const [gender, setGender] = useState("");
   const [type, setType] = useState("Person");
   const [photo, setPhoto] = useState(null);
-  const [lastSeenDate, setLastSeenDate] = useState("");
+
+  const [lastSeenDate, setLastSeenDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [lastSeenLocation, setLastSeenLocation] = useState("");
   const [description, setDescription] = useState("");
+
   const [contactName, setContactName] = useState("");
   const [contactNumber, setContactNumber] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -162,6 +165,15 @@ export default function ReportScreen() {
     }
   };
 
+  const handleDateChange = (event, selectedDate) => {
+    setShowDatePicker(Platform.OS === "ios");
+    if (selectedDate && selectedDate <= new Date()) {
+      setLastSeenDate(selectedDate);
+    } else if (selectedDate) {
+      Alert.alert("Invalid Date", "Please select today or a past date.");
+    }
+  };
+
   return (
     <ScrollView
       style={styles.container}
@@ -225,12 +237,18 @@ export default function ReportScreen() {
         <Text style={styles.cardTitle}>Last Seen Information</Text>
 
         <Text style={styles.label}>Last Seen Date & Time*</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="2025-09-02 14:00"
-          value={lastSeenDate}
-          onChangeText={setLastSeenDate}
-        />
+        <TouchableOpacity style={styles.inputBox} onPress={() => setShowDatePicker(true)}>
+          <Text style={styles.placeholder}>{lastSeenDate.toLocaleString()}</Text>
+        </TouchableOpacity>
+        {showDatePicker && (
+          <DateTimePicker
+            value={lastSeenDate}
+            mode="datetime"
+            display="default"
+            maximumDate={new Date()}
+            onChange={handleDateChange}
+          />
+        )}
 
         <Text style={styles.label}>Last Seen Location*</Text>
         <TextInput
@@ -240,7 +258,7 @@ export default function ReportScreen() {
           onChangeText={setLastSeenLocation}
         />
 
-        <Text style={styles.label}>Description</Text>
+        <Text style={styles.label}>Person Description</Text>
         <TextInput
           style={[styles.input, { height: 90 }]}
           placeholder="Short description (height, clothing, marks...)"
@@ -269,6 +287,7 @@ export default function ReportScreen() {
           keyboardType="phone-pad"
           value={contactNumber}
           onChangeText={setContactNumber}
+          maxLength={10}
         />
       </View>
 
@@ -290,49 +309,16 @@ export default function ReportScreen() {
 // ---------- STYLES ----------
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff", padding: 16 },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 14,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: "#eee",
-  },
+  card: { backgroundColor: "#fff", borderRadius: 12, padding: 14, marginBottom: 14, elevation: 2, borderWidth: 1, borderColor: "#eee" },
   cardTitle: { fontSize: 16, fontWeight: "800", color: "#7CC242", marginBottom: 10 },
   label: { fontSize: 14, fontWeight: "700", marginBottom: 6, color: "#222" },
-  input: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 10,
-    marginBottom: 12,
-    backgroundColor: "#fafafa",
-  },
-  inputBox: {
-    borderWidth: 1,
-    borderColor: "#ddd",
-    borderRadius: 8,
-    padding: 12,
-    backgroundColor: "#fafafa",
-  },
+  input: { borderWidth: 1, borderColor: "#ddd", borderRadius: 8, padding: 10, marginBottom: 12, backgroundColor: "#fafafa" },
+  inputBox: { borderWidth: 1, borderColor: "#ddd", borderRadius: 8, padding: 12, backgroundColor: "#fafafa" },
   placeholder: { color: "#666", fontWeight: "600" },
-  uploadBtn: {
-    backgroundColor: "#7CC242",
-    padding: 12,
-    borderRadius: 10,
-    alignItems: "center",
-    marginTop: 8,
-  },
+  uploadBtn: { backgroundColor: "#7CC242", padding: 12, borderRadius: 10, alignItems: "center", marginTop: 8 },
   uploadText: { color: "#fff", fontWeight: "800" },
   preview: { width: "100%", height: 220, marginTop: 10, borderRadius: 8 },
-  submitBtn: {
-    backgroundColor: "#7CC242",
-    paddingVertical: 14,
-    borderRadius: 12,
-    alignItems: "center",
-    marginTop: 8,
-  },
+  submitBtn: { backgroundColor: "#7CC242", paddingVertical: 14, borderRadius: 12, alignItems: "center", marginTop: 8 },
   submitText: { color: "#fff", fontWeight: "800", fontSize: 16 },
   modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
   modalSheet: { backgroundColor: "#fff", borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16 },

@@ -249,6 +249,7 @@ export default function ReportScreen() {
           value={contactNumber}
           onChangeText={setContactNumber}
           maxLength={10}
+          
         />
       </View>
 

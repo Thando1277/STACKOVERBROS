@@ -9,39 +9,61 @@ import {
   Image,
   Pressable,
   Modal,
-  Animated,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { useNavigation } from "@react-navigation/native";
 import { useData } from "../context/DataContext";
 import SuccessCheck from "../components/SuccessCheck";
 
+// ===== Fixed Select Component =====
 function Select({ label, value, onSelect, options }) {
   const [open, setOpen] = useState(false);
-  const currentLabel = options.find((o) => o.value === value)?.label || label;
+
+  // Ensure current label is always a string
+  const currentLabel = String(
+    options.find((o) => o.value === value)?.label || label
+  );
+
   return (
     <>
+      {/* Pressable box */}
       <Pressable style={styles.inputBox} onPress={() => setOpen(true)}>
-        <Text style={styles.placeholder}>{currentLabel} ▼</Text>
+        <Text style={styles.placeholder}>
+          {currentLabel} ▼
+        </Text>
       </Pressable>
 
-      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+      {/* Modal dropdown */}
+      <Modal
+        visible={open}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setOpen(false)}
+      >
         <Pressable style={styles.modalBackdrop} onPress={() => setOpen(false)}>
           <View style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>{label}</Text>
+            <Text style={styles.modalTitle}>{String(label)}</Text>
+
             {options.map((opt) => (
               <TouchableOpacity
-                key={opt.value}
+                key={String(opt.value)}
                 style={styles.optionRow}
                 onPress={() => {
                   onSelect(opt.value);
                   setOpen(false);
                 }}
               >
-                <Text style={styles.optionText}>{opt.label}</Text>
+                <Text style={styles.optionText}>{String(opt.label)}</Text>
               </TouchableOpacity>
             ))}
-            <TouchableOpacity style={styles.clearBtn} onPress={() => { onSelect(""); setOpen(false); }}>
+
+            <TouchableOpacity
+              style={styles.clearBtn}
+              onPress={() => {
+                onSelect("");
+                setOpen(false);
+              }}
+            >
               <Text style={styles.clearText}>Clear</Text>
             </TouchableOpacity>
           </View>
@@ -51,6 +73,7 @@ function Select({ label, value, onSelect, options }) {
   );
 }
 
+// ===== Main Report Screen =====
 export default function ReportScreen() {
   const navigation = useNavigation();
   const { addReport } = useData();
@@ -74,6 +97,7 @@ export default function ReportScreen() {
   const [submitting, setSubmitting] = useState(false);
   const successRef = useRef();
 
+  // ===== Pick Image =====
   const pickImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
@@ -85,17 +109,27 @@ export default function ReportScreen() {
       quality: 0.8,
     });
     if (!result.canceled && result.assets?.[0]?.uri) {
-      setPhoto(result.assets[0].uri);
+      setPhoto(String(result.assets[0].uri));
     }
   };
 
+  // ===== Validation =====
   const validate = () => {
-    if (!fullName.trim() || !age.trim() || !gender || !type || !photo || !lastSeenDate.trim() || !lastSeenLocation.trim()) {
+    if (
+      !fullName.trim() ||
+      !age.trim() ||
+      !gender ||
+      !type ||
+      !photo ||
+      !lastSeenDate.trim() ||
+      !lastSeenLocation.trim()
+    ) {
       return false;
     }
     return true;
   };
 
+  // ===== Submit =====
   const submit = async () => {
     if (!validate()) {
       alert("Please fill all required fields (*)");
@@ -128,7 +162,7 @@ export default function ReportScreen() {
 
     addReport(payload);
 
-    // play success animation for when report is submittted
+    // play success animation for when report is submitted
     if (successRef.current) successRef.current.play();
 
     // short delay then navigate back
@@ -145,10 +179,21 @@ export default function ReportScreen() {
         <Text style={styles.cardTitle}>Personal Information</Text>
 
         <Text style={styles.label}>Full Names*</Text>
-        <TextInput style={styles.input} placeholder="Bob Smith" value={fullName} onChangeText={setFullName} />
+        <TextInput
+          style={styles.input}
+          placeholder="Bob Smith"
+          value={fullName}
+          onChangeText={setFullName}
+        />
 
         <Text style={styles.label}>Age*</Text>
-        <TextInput style={styles.input} placeholder="30" keyboardType="numeric" value={age} onChangeText={setAge} />
+        <TextInput
+          style={styles.input}
+          placeholder="30"
+          keyboardType="numeric"
+          value={age}
+          onChangeText={setAge}
+        />
 
         <Text style={styles.label}>Gender*</Text>
         <Select
@@ -184,13 +229,29 @@ export default function ReportScreen() {
         <Text style={styles.cardTitle}>Last Seen Information</Text>
 
         <Text style={styles.label}>Last Seen Date & Time*</Text>
-        <TextInput style={styles.input} placeholder="2025-09-02 14:00" value={lastSeenDate} onChangeText={setLastSeenDate} />
+        <TextInput
+          style={styles.input}
+          placeholder="2025-09-02 14:00"
+          value={lastSeenDate}
+          onChangeText={setLastSeenDate}
+        />
 
         <Text style={styles.label}>Last Seen Location*</Text>
-        <TextInput style={styles.input} placeholder="Brixton, Johannesburg" value={lastSeenLocation} onChangeText={setLastSeenLocation} />
+        <TextInput
+          style={styles.input}
+          placeholder="Brixton, Johannesburg"
+          value={lastSeenLocation}
+          onChangeText={setLastSeenLocation}
+        />
 
         <Text style={styles.label}>Person Description</Text>
-        <TextInput style={[styles.input, { height: 90 }]} placeholder="Short description (height, clothing, marks...)" multiline value={description} onChangeText={setDescription} />
+        <TextInput
+          style={[styles.input, { height: 90 }]}
+          placeholder="Short description (height, clothing, marks...)"
+          multiline
+          value={description}
+          onChangeText={setDescription}
+        />
       </View>
 
       {/* Contact Information */}
@@ -198,104 +259,68 @@ export default function ReportScreen() {
         <Text style={styles.cardTitle}>Contact Information</Text>
 
         <Text style={styles.label}>Contact Name</Text>
-        <TextInput style={styles.input} placeholder="John Doe" value={contactName} onChangeText={setContactName} />
+        <TextInput
+          style={styles.input}
+          placeholder="John Doe"
+          value={contactName}
+          onChangeText={setContactName}
+        />
 
         <Text style={styles.label}>Contact Number</Text>
-        <TextInput style={styles.input} placeholder="+27 71 000 0000" keyboardType="phone-pad" value={contactNumber} onChangeText={setContactNumber} />
+        <TextInput
+          style={styles.input}
+          placeholder="+27 71 000 0000"
+          keyboardType="phone-pad"
+          value={contactNumber}
+          onChangeText={setContactNumber}
+        />
       </View>
 
       <TouchableOpacity style={styles.submitBtn} onPress={submit} disabled={submitting}>
         <Text style={styles.submitText}>Submit Report</Text>
       </TouchableOpacity>
 
-      {/* Success Check being overlay */}
+      {/* Success Check Overlay */}
       <SuccessCheck ref={successRef} />
     </ScrollView>
   );
 }
 
+// ===== Styles =====
 const styles = StyleSheet.create({
-  container: {
-    flex: 1, 
-    backgroundColor: "#fff", 
-    padding: 16 
+  container: { flex: 1, backgroundColor: "#fff", padding: 16 },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 14,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: "#eee",
   },
-  card: { 
-    backgroundColor: "#fff", 
-    borderRadius: 12, 
-    padding: 14, 
-    marginBottom: 14, 
-    elevation: 2, 
-    borderWidth: 1, 
-    borderColor: "#eee" 
+  cardTitle: { fontSize: 16, fontWeight: "800", color: "#7CC242", marginBottom: 10 },
+  label: { fontSize: 14, fontWeight: "700", marginBottom: 6, color: "#222" },
+  input: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 12,
+    backgroundColor: "#fafafa",
   },
-
-  cardTitle: { 
-    fontSize: 16, 
-    fontWeight: "800", 
-    color: "#7CC242", 
-    marginBottom: 10 
+  inputBox: {
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 8,
+    padding: 12,
+    backgroundColor: "#fafafa",
   },
-
-  label: { 
-    fontSize: 14, 
-    fontWeight: "700", 
-    marginBottom: 6, 
-    color: "#222" 
-  },
-
-  input: { 
-    borderWidth: 1, 
-    borderColor: "#ddd", 
-    borderRadius: 8, 
-    padding: 10, 
-    marginBottom: 12, 
-    backgroundColor: "#fafafa" 
-  },
-
-  inputBox: { 
-    borderWidth: 1, 
-    borderColor: "#ddd", 
-    borderRadius: 8, 
-    padding: 12, 
-    backgroundColor: "#fafafa" 
-  },
-
-  placeholder: { 
-    color: "#666", 
-    fontWeight: "600" 
-  },
-  uploadBtn: { backgroundColor: "#7CC242", 
-    padding: 12, 
-    borderRadius: 10, 
-    alignItems: "center", 
-    marginTop: 8 },
-
-  uploadText: { 
-    color: "#fff", 
-    fontWeight: "800" 
-  },
-  preview: { width: "100%", 
-    height: 220, 
-    marginTop: 10, 
-    borderRadius: 8 
-  },
-
-  submitBtn: { 
-    backgroundColor: "#7CC242", 
-    paddingVertical: 14, 
-    borderRadius: 12, 
-    alignItems: "center", 
-    marginTop: 8 
-  },
-
-  submitText: { 
-    color: "#fff", 
-    fontWeight: "800", 
-    fontSize: 16 
-  },
-
-  // modal dropdown (shared) portion
+  placeholder: { color: "#666", fontWeight: "600" },
+  uploadBtn: { backgroundColor: "#7CC242", padding: 12, borderRadius: 10, alignItems: "center", marginTop: 8 },
+  uploadText: { color: "#fff", fontWeight: "800" },
+  preview: { width: "100%", height: 220, marginTop: 10, borderRadius: 8 },
+  submitBtn: { backgroundColor: "#7CC242", paddingVertical: 14, borderRadius: 12, alignItems: "center", marginTop: 8 },
+  submitText: { color: "#fff", fontWeight: "800", fontSize: 16 },
   modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
   modalSheet: { backgroundColor: "#fff", borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 16 },
   modalTitle: { fontSize: 16, fontWeight: "700", marginBottom: 8 },
@@ -304,3 +329,4 @@ const styles = StyleSheet.create({
   clearBtn: { marginTop: 10, alignSelf: "flex-end", backgroundColor: "#e0e0e0", borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12 },
   clearText: { color: "#444", fontWeight: "600" },
 });
+

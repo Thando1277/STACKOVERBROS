@@ -59,7 +59,7 @@ export default function App() {
               <Ionicons name="chatbubble-ellipses" size={28} color="#fff" />
             </TouchableOpacity>
 
-            {/* Chatbot Modal */}
+          
             <Modal visible={chatVisible} animationType="slide">
               <ChatbotScreen />
               <TouchableOpacity

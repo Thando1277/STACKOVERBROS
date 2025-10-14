@@ -16,18 +16,18 @@ import SignUp from "./Screens/SignUp";
 import LogIn from "./Screens/LogIn";
 import ProfilePage from "./Screens/ProfilePage";
 import CommentsScreen from "./Screens/CommentsScreen";
-import ResetPasswordScreen from "./Screens/ResetPasswordScreen";
 import SettingsScreen from "./Screens/SettingsScreens";
 import FAQScreen from "./Screens/FAQScreen";
 import ContactUs from "./Screens/ContactUs";
 import TermsPrivacyScreen from "./Screens/TermsPrivacyScreen";
 import EditProfile from "./Screens/EditProfile";
+import ResetPasswordScreen from "./Screens/ResetPasswordScreen";
 
 const Stack = createNativeStackNavigator();
 
 export default function App() {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true); // ✅ Wait while Firebase checks the user
+  const [loading, setLoading] = useState(true);
   const [chatVisible, setChatVisible] = useState(false);
 
   useEffect(() => {
@@ -60,7 +60,6 @@ export default function App() {
             {/* Auth */}
             <Stack.Screen name="SignUp" component={SignUp} />
             <Stack.Screen name="LogIn" component={LogIn} />
-            <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
 
             {/* Main */}
             <Stack.Screen name="Home" component={HomeScreen} />
@@ -69,6 +68,7 @@ export default function App() {
             <Stack.Screen name="ProfilePage" component={ProfilePage} />
             <Stack.Screen name="Comments" component={CommentsScreen} />
             <Stack.Screen name="SettingsScreen" component={SettingsScreen} />
+            <Stack.Screen name="ResetPasswordScreen" component={ResetPasswordScreen} />
 
             {/* Settings Sub-Screens */}
             <Stack.Screen name="FAQScreen" component={FAQScreen} />

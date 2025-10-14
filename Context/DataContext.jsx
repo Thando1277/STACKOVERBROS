@@ -27,13 +27,12 @@ export const DataProvider = ({ children }) => {
     }
   };
 
-  // Add a new report
   const addReport = (payload) => {
     const record = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       createdAt: new Date().toISOString(),
       status: "search",
-      comments: [], // start with empty comments array
+      comments: [],
       ...payload,
     };
 
@@ -44,7 +43,6 @@ export const DataProvider = ({ children }) => {
     });
   };
 
-  // Update existing report fields
   const updateReport = (id, changes) => {
     setReports((prev) => {
       const next = prev.map((r) => (r.id === id ? { ...r, ...changes } : r));
@@ -53,7 +51,6 @@ export const DataProvider = ({ children }) => {
     });
   };
 
-  // Add a new comment to a report with id and timestamp
   const addComment = (reportId, commentText) => {
     const newComment = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -72,14 +69,37 @@ export const DataProvider = ({ children }) => {
     });
   };
 
+  // **New functions**
+  const updateReportStatus = (id, status) => {
+    setReports((prev) => {
+      const next = prev.map((r) => (r.id === id ? { ...r, status } : r));
+      persist(next);
+      return next;
+    });
+  };
+
+  const deleteReport = (id) => {
+    setReports((prev) => {
+      const next = prev.filter((r) => r.id !== id);
+      persist(next);
+      return next;
+    });
+  };
+
   return (
     <DataContext.Provider
-      value={{ reports, addReport, updateReport, addComment }}
+      value={{
+        reports,
+        addReport,
+        updateReport,
+        addComment,
+        updateReportStatus,
+        deleteReport,
+      }}
     >
       {children}
     </DataContext.Provider>
   );
 };
 
-// Custom hook to access the context
 export const useData = () => useContext(DataContext);

@@ -5,23 +5,25 @@ import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./Firebase/firebaseConfig";
-import { DataProvider } from "./context/DataContext";
+import { DataProvider } from "./context/DataContext.jsx";
 
-// Screens
-import HomeScreen from "./Screens/HomeScreen";
-import ReportScreen from "./Screens/ReportScreen";
-import DetailsScreen from "./Screens/DetailsScreen";
-import ChatbotScreen from "./Screens/ChatbotScreen";
-import SignUp from "./Screens/SignUp";
-import LogIn from "./Screens/LogIn";
-import ProfilePage from "./Screens/ProfilePage";
-import CommentsScreen from "./Screens/CommentsScreen";
-import SettingsScreen from "./Screens/SettingsScreens";
-import FAQScreen from "./Screens/FAQScreen";
-import ContactUs from "./Screens/ContactUs";
-import TermsPrivacyScreen from "./Screens/TermsPrivacyScreen";
-import EditProfile from "./Screens/EditProfile";
-import ResetPasswordScreen from "./Screens/ResetPasswordScreen";
+// Main Screens
+import HomeScreen from "./Screens/HomeScreen.jsx";
+import ReportScreen from "./Screens/ReportScreen.jsx";
+import DetailsScreen from "./Screens/DetailsScreen.jsx";
+import ChatbotScreen from "./Screens/ChatbotScreen.jsx";
+import SignUp from "./Screens/SignUp.jsx";
+import LogIn from "./Screens/LogIn.jsx";
+import ProfilePage from "./Screens/ProfilePage.jsx";
+import CommentsScreen from "./Screens/CommentsScreen.jsx";
+import ResetPasswordScreen from "./Screens/ResetPasswordScreen.jsx";
+import SettingsScreen from "./Screens/SettingsScreens.jsx";
+
+// Settings Sub-Screens
+import FAQScreen from "./Screens/FAQScreen.jsx";
+import ContactUs from "./Screens/ContactUs.jsx";
+import TermsPrivacyScreen from "./Screens/TermsPrivacyScreen.jsx";
+import EditProfile from "./Screens/EditProfile.jsx";
 
 const Stack = createNativeStackNavigator();
 

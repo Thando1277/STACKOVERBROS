@@ -1,33 +1,40 @@
-import React, { useRef, useState } from "react";
+// ReportScreen.js
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
-  StyleSheet,
-  TouchableOpacity,
   TextInput,
+  TouchableOpacity,
   ScrollView,
   Image,
+  StyleSheet,
   Pressable,
   Modal,
-  Platform,
-  Alert,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import DateTimePicker from "@react-native-community/datetimepicker";
+import * as FileSystem from "expo-file-system/legacy"; // ✅ Only legacy import
+import { db } from "../Firebase/firebaseConfig";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { useNavigation } from "@react-navigation/native";
-import { useData } from "../context/DataContext";
 import SuccessCheck from "../components/SuccessCheck";
 
+// Dropdown component
 function Select({ label, value, onSelect, options }) {
   const [open, setOpen] = useState(false);
   const currentLabel = options.find((o) => o.value === value)?.label || label;
+
   return (
     <>
       <Pressable style={styles.inputBox} onPress={() => setOpen(true)}>
         <Text style={styles.placeholder}>{currentLabel} ▼</Text>
       </Pressable>
 
-      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+      <Modal
+        visible={open}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setOpen(false)}
+      >
         <Pressable style={styles.modalBackdrop} onPress={() => setOpen(false)}>
           <View style={styles.modalSheet}>
             <Text style={styles.modalTitle}>{label}</Text>
@@ -61,91 +68,98 @@ function Select({ label, value, onSelect, options }) {
 
 export default function ReportScreen() {
   const navigation = useNavigation();
-  const { addReport } = useData();
 
   const [fullName, setFullName] = useState("");
   const [age, setAge] = useState("");
   const [gender, setGender] = useState("");
   const [type, setType] = useState("Person");
   const [photo, setPhoto] = useState(null);
-
-  const [lastSeenDate, setLastSeenDate] = useState(new Date());
-  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [lastSeenDate, setLastSeenDate] = useState("");
   const [lastSeenLocation, setLastSeenLocation] = useState("");
   const [description, setDescription] = useState("");
-
   const [contactName, setContactName] = useState("");
   const [contactNumber, setContactNumber] = useState("");
-
   const [submitting, setSubmitting] = useState(false);
   const successRef = useRef();
 
+  // Pick image
   const pickImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
       alert("Permission required to access photos.");
       return;
     }
+
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.8,
+      quality: 0.6,
     });
+
     if (!result.canceled && result.assets?.[0]?.uri) {
       setPhoto(result.assets[0].uri);
     }
   };
 
+  // Validate all required fields
   const validate = () => {
-    if (!fullName.trim() || !age.trim() || !gender || !type || !photo || !lastSeenDate || !lastSeenLocation.trim()) {
-      return false;
-    }
-    if (contactNumber && contactNumber.length !== 10) {
-      alert("Contact number must be exactly 10 digits.");
-      return false;
-    }
-    if (lastSeenDate > new Date()) {
-      alert("Last Seen Date cannot be in the future.");
+    const missing = [];
+    if (!fullName.trim()) missing.push("Full Name");
+    if (!age.trim()) missing.push("Age");
+    if (!gender) missing.push("Gender");
+    if (!type) missing.push("Type");
+    if (!photo) missing.push("Photo"); // ✅ check URI, not Base64
+    if (!lastSeenDate.trim()) missing.push("Last Seen Date");
+    if (!lastSeenLocation.trim()) missing.push("Last Seen Location");
+
+    if (missing.length) {
+      alert("Please fill all required fields: " + missing.join(", "));
       return false;
     }
     return true;
   };
 
+  // Submit report to Firestore
   const submit = async () => {
     if (!validate()) return;
 
     setSubmitting(true);
 
-    const payload = {
-      fullName: fullName.trim(),
-      age: age.trim(),
-      gender,
-      type,
-      photo,
-      lastSeenDate,
-      lastSeenLocation,
-      description,
-      contactName,
-      contactNumber,
-      ageGroup: (() => {
-        const n = parseInt(age, 10);
-        if (!isNaN(n)) {
-          if (n <= 12) return "child";
-          if (n <= 19) return "teen";
-          if (n <= 40) return "adult";
-          return "senior";
-        }
-        return "";
-      })(),
-    };
+    try {
+      // Convert photo to Base64 before saving
+      let photoBase64 = "";
+      if (photo) {
+        photoBase64 = await FileSystem.readAsStringAsync(photo, {
+          encoding: "base64",
+        });
+      }
 
-    addReport(payload);
+      const payload = {
+        fullName: fullName.trim(),
+        age: Number(age),
+        gender,
+        type,
+        photoBase64,
+        lastSeenDate,
+        lastSeenLocation,
+        description,
+        contactName,
+        contactNumber,
+        createdAt: serverTimestamp(),
+      };
 
-    if (successRef.current) successRef.current.play();
+      await addDoc(collection(db, "reports"), payload);
 
-    setTimeout(() => {
+      if (successRef.current) successRef.current.play();
+
+      setTimeout(() => {
+        setSubmitting(false);
+        navigation.goBack();
+      }, 900);
+    } catch (error) {
+      console.error("Firestore error:", error);
+      alert("Error saving report. Check your internet or Firebase setup.");
       setSubmitting(false);
-      navigation.goBack();
-    }, 900);
+    }
   };
 
   const handleDateChange = (event, selectedDate) => {
@@ -158,16 +172,31 @@ export default function ReportScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
-      {/* Personal Information Card */}
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={{ paddingBottom: 40 }}
+      keyboardShouldPersistTaps="handled"
+    >
+      {/* Personal Information */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Personal Information</Text>
 
-        <Text style={styles.label}>Full Names*</Text>
-        <TextInput style={styles.input} placeholder="Bob Smith" value={fullName} onChangeText={setFullName} />
+        <Text style={styles.label}>Full Name*</Text>
+        <TextInput
+          style={styles.input}
+          placeholder="Bob Smith"
+          value={fullName}
+          onChangeText={setFullName}
+        />
 
         <Text style={styles.label}>Age*</Text>
-        <TextInput style={styles.input} placeholder="30" keyboardType="numeric" value={age} onChangeText={setAge} />
+        <TextInput
+          style={styles.input}
+          placeholder="30"
+          keyboardType="numeric"
+          value={age}
+          onChangeText={setAge}
+        />
 
         <Text style={styles.label}>Gender*</Text>
         <Select
@@ -193,7 +222,9 @@ export default function ReportScreen() {
 
         <Text style={[styles.label, { marginTop: 12 }]}>Recent Photo*</Text>
         <TouchableOpacity style={styles.uploadBtn} onPress={pickImage}>
-          <Text style={styles.uploadText}>{photo ? "Change Photo" : "Upload Recent Photo"}</Text>
+          <Text style={styles.uploadText}>
+            {photo ? "Change Photo" : "Upload Recent Photo"}
+          </Text>
         </TouchableOpacity>
         {photo && <Image source={{ uri: photo }} style={styles.preview} />}
       </View>
@@ -224,7 +255,7 @@ export default function ReportScreen() {
           onChangeText={setLastSeenLocation}
         />
 
-        <Text style={styles.label}>Person Description</Text>
+        <Text style={styles.label}>Description</Text>
         <TextInput
           style={[styles.input, { height: 90 }]}
           placeholder="Short description (height, clothing, marks...)"
@@ -234,12 +265,17 @@ export default function ReportScreen() {
         />
       </View>
 
-      {/* Contact Information */}
+      {/* Reporter Contact */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Contact Information</Text>
+        <Text style={styles.cardTitle}>Reporter Contact</Text>
 
         <Text style={styles.label}>Contact Name</Text>
-        <TextInput style={styles.input} placeholder="John Doe" value={contactName} onChangeText={setContactName} />
+        <TextInput
+          style={styles.input}
+          placeholder="John Doe"
+          value={contactName}
+          onChangeText={setContactName}
+        />
 
         <Text style={styles.label}>Contact Number</Text>
         <TextInput
@@ -253,8 +289,14 @@ export default function ReportScreen() {
         />
       </View>
 
-      <TouchableOpacity style={styles.submitBtn} onPress={submit} disabled={submitting}>
-        <Text style={styles.submitText}>Submit Report</Text>
+      <TouchableOpacity
+        style={styles.submitBtn}
+        onPress={submit}
+        disabled={submitting}
+      >
+        <Text style={styles.submitText}>
+          {submitting ? "Submitting..." : "Submit Report"}
+        </Text>
       </TouchableOpacity>
 
       <SuccessCheck ref={successRef} />
@@ -262,6 +304,7 @@ export default function ReportScreen() {
   );
 }
 
+// ---------- STYLES ----------
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff", padding: 16 },
   card: { backgroundColor: "#fff", borderRadius: 12, padding: 14, marginBottom: 14, elevation: 2, borderWidth: 1, borderColor: "#eee" },
@@ -280,6 +323,13 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 16, fontWeight: "700", marginBottom: 8 },
   optionRow: { paddingVertical: 12, borderBottomColor: "#eee", borderBottomWidth: 1 },
   optionText: { fontSize: 15, color: "#222" },
-  clearBtn: { marginTop: 10, alignSelf: "flex-end", backgroundColor: "#e0e0e0", borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12 },
+  clearBtn: {
+    marginTop: 10,
+    alignSelf: "flex-end",
+    backgroundColor: "#e0e0e0",
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
   clearText: { color: "#444", fontWeight: "600" },
 });

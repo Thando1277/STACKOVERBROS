@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
-import * as FileSystem from "expo-file-system/legacy"; // ✅ use legacy API
+import * as FileSystem from "expo-file-system/legacy";
 import { db } from "../Firebase/firebaseConfig";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { useNavigation } from "@react-navigation/native";
@@ -79,7 +79,8 @@ export default function ReportScreen() {
   const [gender, setGender] = useState("");
   const [type, setType] = useState("Person");
   const [photo, setPhoto] = useState(null);
-  const [lastSeenDate, setLastSeenDate] = useState("");
+  const [lastSeenDate, setLastSeenDate] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [lastSeenLocation, setLastSeenLocation] = useState("");
   const [description, setDescription] = useState("");
   const [contactName, setContactName] = useState("");
@@ -132,7 +133,7 @@ export default function ReportScreen() {
       let photoBase64 = "";
       if (photo) {
         photoBase64 = await FileSystem.readAsStringAsync(photo, {
-          encoding: FileSystem.EncodingType.Base64, // ✅ fixed
+          encoding: FileSystem.EncodingType.Base64,
         });
       }
 
@@ -142,7 +143,7 @@ export default function ReportScreen() {
         gender,
         type,
         photoBase64,
-        lastSeenDate,
+        lastSeenDate: lastSeenDate.toISOString(),
         lastSeenLocation,
         description,
         contactName,
@@ -166,13 +167,29 @@ export default function ReportScreen() {
     }
   };
 
-  // ---------- Date Picker ----------
+  // ---------- Handle Date Change ----------
   const handleDateChange = (event, selectedDate) => {
-    setShowDatePicker(Platform.OS === "ios");
-    if (selectedDate && selectedDate <= new Date()) {
-      setLastSeenDate(selectedDate);
-    } else if (selectedDate) {
-      Alert.alert("Invalid Date", "Please select today or a past date.");
+    // On Android, hide the picker immediately
+    if (Platform.OS === "android") {
+      setShowDatePicker(false);
+    }
+
+    // Handle user confirmation or cancellation
+    if (event.type === "set" && selectedDate) {
+      // User confirmed the date
+      if (selectedDate <= new Date()) {
+        setLastSeenDate(selectedDate);
+      } else {
+        Alert.alert("Invalid Date", "Please select today or a past date.");
+      }
+    } else if (event.type === "dismissed") {
+      // User cancelled the picker (Android back button)
+      setShowDatePicker(false);
+    }
+
+    // On iOS, hide picker after selection
+    if (Platform.OS === "ios" && event.type === "set") {
+      setShowDatePicker(false);
     }
   };
 
@@ -229,7 +246,7 @@ export default function ReportScreen() {
         <Text style={[styles.label, { marginTop: 12 }]}>Recent Photo*</Text>
         <TouchableOpacity style={styles.uploadBtn} onPress={pickImage}>
           <Text style={styles.uploadText}>
-            {photo ? "Change Photo" : "Upload Recent Photo"}
+            {photo ? "Change Photo" : "Upload Recent Photo"}6
           </Text>
         </TouchableOpacity>
         {photo && <Image source={{ uri: photo }} style={styles.preview} />}
@@ -244,8 +261,11 @@ export default function ReportScreen() {
           style={styles.inputBox}
           onPress={() => setShowDatePicker(true)}
         >
-          <Text style={styles.placeholder}>{lastSeenDate.toLocaleString()}</Text>
+          <Text style={styles.placeholder}>
+            {lastSeenDate.toLocaleString()}
+          </Text>
         </TouchableOpacity>
+
         {showDatePicker && (
           <DateTimePicker
             value={lastSeenDate}
@@ -294,7 +314,6 @@ export default function ReportScreen() {
           value={contactNumber}
           onChangeText={setContactNumber}
           maxLength={10}
-          
         />
       </View>
 

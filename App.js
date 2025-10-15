@@ -6,22 +6,25 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./Firebase/firebaseConfig";
 import { DataProvider } from "./context/DataContext";
+import { AuthProvider } from "./context/AuthContext";
 
-// Screens
-import HomeScreen from "./Screens/HomeScreen";
-import ReportScreen from "./Screens/ReportScreen";
-import DetailsScreen from "./Screens/DetailsScreen";
-import ChatbotScreen from "./Screens/ChatbotScreen";
-import SignUp from "./Screens/SignUp";
-import LogIn from "./Screens/LogIn";
-import ProfilePage from "./Screens/ProfilePage";
-import CommentsScreen from "./Screens/CommentsScreen";
-import SettingsScreen from "./Screens/SettingsScreens";
-import FAQScreen from "./Screens/FAQScreen";
-import ContactUs from "./Screens/ContactUs";
-import TermsPrivacyScreen from "./Screens/TermsPrivacyScreen";
-import EditProfile from "./Screens/EditProfile";
-import ResetPasswordScreen from "./Screens/ResetPasswordScreen";
+// Main Screens
+import HomeScreen from "./Screens/HomeScreen.jsx";
+import ReportScreen from "./Screens/ReportScreen.jsx";
+import DetailsScreen from "./Screens/DetailsScreen.jsx";
+import ChatbotScreen from "./Screens/ChatbotScreen.jsx";
+import SignUp from "./Screens/SignUp.jsx";
+import LogIn from "./Screens/LogIn.jsx";
+import ProfilePage from "./Screens/ProfilePage.jsx";
+import CommentsScreen from "./Screens/CommentsScreen.jsx";
+import ResetPasswordScreen from "./Screens/ResetPasswordScreen.jsx";
+import SettingsScreen from "./Screens/SettingsScreens.jsx";
+
+
+import FAQScreen from "./Screens/FAQScreen.jsx";
+import ContactUs from "./Screens/ContactUs.jsx";
+import TermsPrivacyScreen from "./Screens/TermsPrivacyScreen.jsx";
+import EditProfile from "./Screens/EditProfile.jsx";
 
 const Stack = createNativeStackNavigator();
 
@@ -34,14 +37,12 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       console.log("Current user:", currentUser ? currentUser.email : "None");
       setUser(currentUser);
-      setLoading(false); // ✅ Only render screens after Firebase is ready
+      setLoading(false);
     });
-
     return unsubscribe;
   }, []);
 
   if (loading) {
-    // ✅ Show this while waiting for Firebase to restore the session
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#fff" }}>
         <ActivityIndicator size="large" color="#0FC436" />
@@ -50,69 +51,73 @@ export default function App() {
   }
 
   return (
-    <DataProvider>
-      <NavigationContainer>
-        <View style={{ flex: 1 }}>
-          <Stack.Navigator
-            initialRouteName={user ? "Home" : "LogIn"} // ✅ Automatically redirect
-            screenOptions={{ headerShown: false }}
-          >
-            {/* Auth */}
-            <Stack.Screen name="SignUp" component={SignUp} />
-            <Stack.Screen name="LogIn" component={LogIn} />
+    <AuthProvider>
+      <DataProvider>
+        <NavigationContainer>
+          <View style={{ flex: 1 }}>
+            <Stack.Navigator
+              initialRouteName={user ? "Home" : "LogIn"}
+              screenOptions={{ headerShown: false }}
+            >
+              {/* Auth */}
+              <Stack.Screen name="SignUp" component={SignUp} />
+              <Stack.Screen name="LogIn" component={LogIn} />
+              <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
 
-            {/* Main */}
-            <Stack.Screen name="Home" component={HomeScreen} />
-            <Stack.Screen name="Report" component={ReportScreen} />
-            <Stack.Screen name="Details" component={DetailsScreen} />
-            <Stack.Screen name="ProfilePage" component={ProfilePage} />
-            <Stack.Screen name="Comments" component={CommentsScreen} />
-            <Stack.Screen name="SettingsScreen" component={SettingsScreen} />
-            <Stack.Screen name="ResetPasswordScreen" component={ResetPasswordScreen} />
+              {/* Main */}
+              <Stack.Screen name="Home" component={HomeScreen} />
+              <Stack.Screen name="Report" component={ReportScreen} />
+              <Stack.Screen name="Details" component={DetailsScreen} />
+              <Stack.Screen name="ProfilePage" component={ProfilePage} />
+              <Stack.Screen name="Comments" component={CommentsScreen} />
+              <Stack.Screen name="SettingsScreen" component={SettingsScreen} />
 
-            {/* Settings Sub-Screens */}
-            <Stack.Screen name="FAQScreen" component={FAQScreen} />
-            <Stack.Screen name="ContactUs" component={ContactUs} />
-            <Stack.Screen name="TermsPrivacyScreen" component={TermsPrivacyScreen} />
-            <Stack.Screen name="EditProfile" component={EditProfile} />
-          </Stack.Navigator>
+              {/* Settings Sub-Screens */}
+              <Stack.Screen name="FAQScreen" component={FAQScreen} />
+              <Stack.Screen name="ContactUs" component={ContactUs} />
+              <Stack.Screen name="TermsPrivacyScreen" component={TermsPrivacyScreen} />
+              <Stack.Screen name="EditProfile" component={EditProfile} />
+            </Stack.Navigator>
 
-          {/* Floating Chat Button */}
-          <TouchableOpacity
-            style={{
-              position: "absolute",
-              bottom: 20,
-              right: 20,
-              backgroundColor: "#7CC242",
-              padding: 16,
-              borderRadius: 50,
-              elevation: 4,
-              marginBottom: 65,
-            }}
-            onPress={() => setChatVisible(true)}
-          >
-            <Ionicons name="chatbubble-ellipses" size={28} color="#fff" />
-          </TouchableOpacity>
-
-          {/* Chatbot Modal */}
-          <Modal visible={chatVisible} animationType="slide">
-            <ChatbotScreen />
+            {/* Floating Chat Button */}
             <TouchableOpacity
               style={{
                 position: "absolute",
-                top: 40,
+                bottom: 20,
                 right: 20,
-                backgroundColor: "#222",
-                padding: 10,
-                borderRadius: 20,
+                backgroundColor: "#7CC242",
+                padding: 16,
+                borderRadius: 50,
+                elevation: 4,
+                marginBottom: 65,
               }}
-              onPress={() => setChatVisible(false)}
+              onPress={() => setChatVisible(true)}
             >
-              <Ionicons name="close" size={24} color="#fff" />
+              <Ionicons name="chatbubble-ellipses" size={28} color="#fff" />
             </TouchableOpacity>
-          </Modal>
-        </View>
-      </NavigationContainer>
-    </DataProvider>
+
+            {/* Chatbot Modal */}
+            <Modal visible={chatVisible} animationType="slide">
+              <View style={{ flex: 1 }}>
+                <ChatbotScreen />
+                <TouchableOpacity
+                  style={{
+                    position: "absolute",
+                    top: 40,
+                    right: 20,
+                    backgroundColor: "#222",
+                    padding: 10,
+                    borderRadius: 20,
+                  }}
+                  onPress={() => setChatVisible(false)}
+                >
+                  <Ionicons name="close" size={24} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            </Modal>
+          </View>
+        </NavigationContainer>
+      </DataProvider>
+    </AuthProvider>
   );
 }

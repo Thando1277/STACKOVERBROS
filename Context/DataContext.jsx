@@ -1,19 +1,40 @@
+// DataContext.js
 import React, { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { collection, onSnapshot } from "firebase/firestore";
+import { db } from "../Firebase/firebaseConfig"; // adjust path if needed
 
 const DataContext = createContext();
 
 export const DataProvider = ({ children }) => {
   const [reports, setReports] = useState([]);
 
-  // Load reports from AsyncStorage on app start
+  // ✅ Real-time Firestore listener
+  useEffect(() => {
+    const unsub = onSnapshot(collection(db, "reports"), (snapshot) => {
+      const list = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setReports(list);
+
+      // Also persist in AsyncStorage
+      persist(list);
+    }, (error) => {
+      console.error("Firestore fetch error:", error);
+    });
+
+    return () => unsub();
+  }, []);
+
+  // Load reports from AsyncStorage on app start (fallback if Firestore fails)
   useEffect(() => {
     (async () => {
       try {
         const raw = await AsyncStorage.getItem("reports");
         if (raw) setReports(JSON.parse(raw));
       } catch (e) {
-        console.warn("Failed to load reports", e);
+        console.warn("Failed to load reports from AsyncStorage", e);
       }
     })();
   }, []);
@@ -23,7 +44,7 @@ export const DataProvider = ({ children }) => {
     try {
       await AsyncStorage.setItem("reports", JSON.stringify(next));
     } catch (e) {
-      console.warn("Failed to save reports", e);
+      console.warn("Failed to save reports to AsyncStorage", e);
     }
   };
 
@@ -69,7 +90,6 @@ export const DataProvider = ({ children }) => {
     });
   };
 
-  // **New functions**
   const updateReportStatus = (id, status) => {
     setReports((prev) => {
       const next = prev.map((r) => (r.id === id ? { ...r, status } : r));

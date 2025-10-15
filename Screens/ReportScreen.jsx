@@ -28,8 +28,11 @@ function Select({ label, value, onSelect, options }) {
 
   return (
     <>
+      {/* Pressable box */}
       <Pressable style={styles.inputBox} onPress={() => setOpen(true)}>
-        <Text style={styles.placeholder}>{currentLabel} ▼</Text>
+        <Text style={styles.placeholder}>
+          {currentLabel} ▼
+        </Text>
       </Pressable>
 
       <Modal
@@ -40,17 +43,18 @@ function Select({ label, value, onSelect, options }) {
       >
         <Pressable style={styles.modalBackdrop} onPress={() => setOpen(false)}>
           <View style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>{label}</Text>
+            <Text style={styles.modalTitle}>{String(label)}</Text>
+
             {options.map((opt) => (
               <TouchableOpacity
-                key={opt.value}
+                key={String(opt.value)}
                 style={styles.optionRow}
                 onPress={() => {
                   onSelect(opt.value);
                   setOpen(false);
                 }}
               >
-                <Text style={styles.optionText}>{opt.label}</Text>
+                <Text style={styles.optionText}>{String(opt.label)}</Text>
               </TouchableOpacity>
             ))}
             <TouchableOpacity
@@ -79,12 +83,10 @@ export default function ReportScreen() {
   const [gender, setGender] = useState("");
   const [type, setType] = useState("Person");
   const [photo, setPhoto] = useState(null);
-
   const [lastSeenDate, setLastSeenDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [lastSeenLocation, setLastSeenLocation] = useState("");
   const [description, setDescription] = useState("");
-
   const [contactName, setContactName] = useState("");
   const [contactNumber, setContactNumber] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -103,7 +105,7 @@ export default function ReportScreen() {
     });
 
     if (!result.canceled && result.assets?.[0]?.uri) {
-      setPhoto(result.assets[0].uri);
+      setPhoto(String(result.assets[0].uri));
     }
   };
 
@@ -129,32 +131,63 @@ export default function ReportScreen() {
   const submit = async () => {
     if (!validate()) return;
 
-    setSubmitting(true);
+  setSubmitting(true);
 
-    try {
-      let photoBase64 = "";
-      if (photo) {
-        photoBase64 = await FileSystem.readAsStringAsync(photo, {
-          encoding: FileSystem.EncodingType.Base64, // ✅ fixed
+  try {
+    let photoUrl = null;
+
+    // Upload photo to Cloudinary
+    if (photo) {
+      try {
+        const data = new FormData();
+        data.append("file", {
+          uri: Platform.OS === "ios" ? photo.replace("file://", "") : photo,
+          type: "image/jpeg",
+          name: `report-${Date.now()}.jpg`,
         });
+        data.append("upload_preset", "UserPosts"); // your preset
+
+        const res = await fetch(
+          "https://api.cloudinary.com/v1_1/dpo2fiwoz/image/upload",
+          { method: "POST", body: data }
+        );
+
+        const json = await res.json();
+
+        if (!json.secure_url) {
+          throw new Error("Cloudinary upload failed");
+        }
+
+        photoUrl = json.secure_url;
+      } catch (err) {
+        console.error("Cloudinary upload error:", err);
+        alert("Failed to upload image. Check your internet connection.");
+        setSubmitting(false);
+        return;
       }
+    }
 
-      const payload = {
-        fullName: fullName.trim(),
-        age: Number(age),
-        gender,
-        type,
-        photoBase64,
-        lastSeenDate,
-        lastSeenLocation,
-        description,
-        contactName,
-        contactNumber,
-        status: "search",
-        createdAt: serverTimestamp(),
-      };
+    // Prepare Firestore payload
+    const payload = {
+      fullName: fullName.trim(),
+      age: Number(age),
+      gender,
+      type,
+      photo: photoUrl || null, // ensures Firestore never gets undefined
+      lastSeenDate: lastSeenDate.toISOString(),
+      lastSeenLocation,
+      description,
+      contactName,
+      contactNumber,
+      status: "search",
+      createdAt: serverTimestamp(),
+    };
 
-      await addDoc(collection(db, "reports"), payload);
+    // Save to Firestore
+    await addDoc(collection(db, "reports"), payload);
+
+    // Play success animation
+    if (successRef.current) successRef.current.play();
 
       if (successRef.current) successRef.current.play();
 
@@ -171,12 +204,14 @@ export default function ReportScreen() {
 
   // ---------- Date Picker ----------
   const handleDateChange = (event, selectedDate) => {
-    setShowDatePicker(Platform.OS === "ios");
-    if (selectedDate && selectedDate <= new Date()) {
-      setLastSeenDate(selectedDate);
-    } else if (selectedDate) {
-      Alert.alert("Invalid Date", "Please select today or a past date.");
-    }
+    if (Platform.OS === "android") setShowDatePicker(false);
+
+    if (event.type === "set" && selectedDate) {
+      if (selectedDate <= new Date()) setLastSeenDate(selectedDate);
+      else Alert.alert("Invalid Date", "Please select today or a past date.");
+    } else if (event.type === "dismissed") setShowDatePicker(false);
+
+    if (Platform.OS === "ios" && event.type === "set") setShowDatePicker(false);
   };
 
   // ---------- UI ----------
@@ -208,26 +243,16 @@ export default function ReportScreen() {
         />
 
         <Text style={styles.label}>Gender*</Text>
-        <Select
-          label="Gender"
-          value={gender}
-          onSelect={setGender}
-          options={[
-            { label: "Male", value: "male" },
-            { label: "Female", value: "female" },
-          ]}
-        />
+        <Select label="Gender" value={gender} onSelect={setGender} options={[
+          { label: "Male", value: "male" },
+          { label: "Female", value: "female" },
+        ]} />
 
         <Text style={[styles.label, { marginTop: 12 }]}>Person / Pet*</Text>
-        <Select
-          label="Type"
-          value={type}
-          onSelect={setType}
-          options={[
-            { label: "Person", value: "Person" },
-            { label: "Pet", value: "Pet" },
-          ]}
-        />
+        <Select label="Type" value={type} onSelect={setType} options={[
+          { label: "Person", value: "Person" },
+          { label: "Pet", value: "Pet" },
+        ]} />
 
         <Text style={[styles.label, { marginTop: 12 }]}>Recent Photo*</Text>
         <TouchableOpacity style={styles.uploadBtn} onPress={pickImage}>
@@ -238,7 +263,7 @@ export default function ReportScreen() {
         {photo && <Image source={{ uri: photo }} style={styles.preview} />}
       </View>
 
-      {/* Last Seen Information */}
+      {/* Last Seen Info */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Last Seen Information</Text>
 
@@ -249,6 +274,7 @@ export default function ReportScreen() {
         >
           <Text style={styles.placeholder}>{lastSeenDate.toLocaleString()}</Text>
         </TouchableOpacity>
+
         {showDatePicker && (
           <DateTimePicker
             value={lastSeenDate}
@@ -260,21 +286,10 @@ export default function ReportScreen() {
         )}
 
         <Text style={styles.label}>Last Seen Location*</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Brixton, Johannesburg"
-          value={lastSeenLocation}
-          onChangeText={setLastSeenLocation}
-        />
+        <TextInput style={styles.input} placeholder="Brixton, Johannesburg" value={lastSeenLocation} onChangeText={setLastSeenLocation} />
 
-        <Text style={styles.label}>Person Description</Text>
-        <TextInput
-          style={[styles.input, { height: 90 }]}
-          placeholder="Short description (height, clothing, marks...)"
-          multiline
-          value={description}
-          onChangeText={setDescription}
-        />
+        <Text style={styles.label}>Description</Text>
+        <TextInput style={[styles.input, { height: 90 }]} placeholder="Short description (height, clothing, marks...)" multiline value={description} onChangeText={setDescription} />
       </View>
 
       {/* Reporter Contact */}
@@ -292,12 +307,13 @@ export default function ReportScreen() {
         <Text style={styles.label}>Contact Number</Text>
         <TextInput
           style={styles.input}
-          placeholder="+27 71 000 0000"
-          keyboardType="phone-pad"
-          value={contactNumber}
-          onChangeText={setContactNumber}
-          maxLength={10}
+          placeholder="John Doe"
+          value={contactName}
+          onChangeText={setContactName}
         />
+
+        <Text style={styles.label}>Contact Number</Text>
+        <TextInput style={styles.input} placeholder="+27 71 000 0000" keyboardType="phone-pad" value={contactNumber} onChangeText={setContactNumber} maxLength={10} />
       </View>
 
       <TouchableOpacity
@@ -391,3 +407,4 @@ const styles = StyleSheet.create({
   },
   clearText: { color: "#444", fontWeight: "600" },
 });
+

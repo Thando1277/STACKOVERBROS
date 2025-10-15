@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   View,
   Text,
@@ -13,7 +13,8 @@ import {
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
-import { useData } from "../context/DataContext";
+import { collection, onSnapshot } from "firebase/firestore";
+import { db } from "../Firebase/firebaseConfig";
 
 const { width, height } = Dimensions.get("window");
 
@@ -107,13 +108,40 @@ function StatusSelect({ value, onChange }) {
 
 export default function HomeScreen() {
   const navigation = useNavigation();
-  const { reports, updateReportStatus, deleteReport } = useData();
-
+  const [reports, setReports] = useState([]);
   const [activeTab, setActiveTab] = useState("search");
   const [selectedCategory, setSelectedCategory] = useState("Person");
   const [gender, setGender] = useState("");
   const [ageGroup, setAgeGroup] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+
+  // ---------- Firestore Fetch ----------
+  useEffect(() => {
+    const unsubscribe = onSnapshot(collection(db, "reports"), (snapshot) => {
+      const allReports = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      setReports(allReports);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const updateReportStatus = (id, status) => {
+    const reportRef = collection(db, "reports");
+    const docRef = reportRef.doc ? reportRef.doc(id) : null; // fallback check
+    if (!docRef) return;
+    if (status === "delete") {
+      docRef.delete();
+    } else {
+      docRef.update({ status });
+    }
+  };
+
+  const deleteReport = (id) => {
+    const reportRef = collection(db, "reports");
+    const docRef = reportRef.doc ? reportRef.doc(id) : null;
+    if (!docRef) return;
+    docRef.delete();
+  };
 
   const filtered = useMemo(() => {
     return reports.filter((r) => {
@@ -273,7 +301,7 @@ export default function HomeScreen() {
                   <Text style={styles.viewText}>Add/View Comments</Text>
                 </TouchableOpacity>
 
-                <Text style={styles.time}>{new Date(r.createdAt).toLocaleString()}</Text>
+                <Text style={styles.time}>{new Date(r.createdAt?.seconds ? r.createdAt.toDate() : r.createdAt).toLocaleString()}</Text>
               </View>
             </View>
           ))
@@ -306,7 +334,7 @@ export default function HomeScreen() {
   );
 }
 
-// Styles (unchanged)
+// ---------- STYLES (unchanged from your old code) ----------
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
   header: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 15, paddingTop: 10, alignItems: "center" },

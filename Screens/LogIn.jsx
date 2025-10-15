@@ -107,7 +107,7 @@ export default function LogIn() {
 
             <View style={styles.textRow}>
               <Text style={styles.text}>Forgot password? </Text>
-              <TouchableOpacity onPress={() => navigation.navigate('ResetPassword')}>
+              <TouchableOpacity onPress={() => navigation.navigate('ResetPasswordScreen')}>
                 <Text style={styles.link}>Reset</Text>
               </TouchableOpacity>
             </View>

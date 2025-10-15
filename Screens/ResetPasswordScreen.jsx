@@ -15,11 +15,40 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { useNavigation } from '@react-navigation/native';
+import { auth } from '../Firebase/firebaseConfig';
+import { sendPasswordResetEmail } from 'firebase/auth';
 
 export default function ResetPasswordScreen() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const navigation = useNavigation();
+
+  const handleResetPassword = async () => {
+    if(!email.trim()){
+      Alert.alert('Missing Email', 'Please enter your email.')
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await  sendPasswordResetEmail(auth, email);
+      Alert.alert(
+        'Reset Link Sent',
+        'Check your email for link to reset your password'
+      );
+      navigation.navigate('LogIn');
+    }catch(error){
+      let message = 'Failed to send reset link';
+      if (error.code === 'auth/invalid-email'){
+        message = 'Please enter a valid email address.';
+      }else if (error.code === 'auth/user-not-found'){
+        message = 'No account found with that email.';
+      }
+      Alert.alert('Error', message);
+    }finally {
+      setLoading(false);
+    }
+  };
 
 
   return (
@@ -62,7 +91,7 @@ export default function ResetPasswordScreen() {
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.resetBtnText}>Send Reset Link</Text>
+                <Text style={styles.resetBtnText} onPress={handleResetPassword} disabled={loading}>Send Reset Link</Text>
               )}
             </TouchableOpacity>
 

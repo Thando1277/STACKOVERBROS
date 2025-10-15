@@ -10,11 +10,12 @@ import {
   Dimensions,
   Pressable,
   TextInput,
+  Alert,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
-import { collection, onSnapshot } from "firebase/firestore";
-import { db } from "../Firebase/firebaseConfig";
+import { collection, onSnapshot, doc, updateDoc, deleteDoc } from "firebase/firestore";
+import { db, auth } from "../Firebase/firebaseConfig";
 
 const { width, height } = Dimensions.get("window");
 
@@ -62,21 +63,63 @@ function Select({ label, value, onSelect, options }) {
   );
 }
 
-// Status Select Component (Missing / Found / Delete)
-function StatusSelect({ value, onChange }) {
+// Status Select Component (Missing / Found / Delete) - dropdown inside card, delete asks confirmation
+function StatusSelect({ value, onChange, isOwner, reportId }) {
   const [open, setOpen] = useState(false);
   const options = [
     { label: "Missing", value: "search" },
     { label: "Found", value: "found" },
     { label: "Delete", value: "delete" },
   ];
-  const currentLabel = String(options.find((o) => o.value === value)?.label || "Missing");
+  const currentLabel = options.find((o) => o.value === value)?.label || "Missing";
+
+  if (!isOwner) {
+    return (
+      <Text style={{ fontWeight: "bold", color: value === "search" ? "red" : "#7CC242" }}>
+        {currentLabel}
+      </Text>
+    );
+  }
+
+  const handleSelect = async (optValue) => {
+    setOpen(false);
+    if (optValue === "delete") {
+      Alert.alert(
+        "Confirm Delete",
+        "Are you sure you want to delete this report?",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: async () => {
+              try {
+                await deleteDoc(doc(db, "reports", reportId));
+              } catch (err) {
+                console.error("Error deleting report:", err);
+              }
+            },
+          },
+        ],
+        { cancelable: true }
+      );
+    } else {
+      onChange(optValue);
+    }
+  };
 
   return (
-    <>
+    <View style={{ marginTop: 4, width: 100 }}>
       <Pressable
-        style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 1, borderColor: "#ccc" }}
-        onPress={() => setOpen(true)}
+        style={{
+          paddingHorizontal: 6,
+          paddingVertical: 2,
+          borderRadius: 4,
+          borderWidth: 1,
+          borderColor: "#ccc",
+          backgroundColor: "#f9f9f9",
+        }}
+        onPress={() => setOpen(!open)}
       >
         <Text style={{ fontWeight: "bold", color: value === "search" ? "red" : "#7CC242" }}>
           {currentLabel} ▼
@@ -84,25 +127,37 @@ function StatusSelect({ value, onChange }) {
       </Pressable>
 
       {open && (
-        <View style={styles.statusModalCover}>
-          <Pressable style={styles.statusBackdrop} onPress={() => setOpen(false)} />
-          <View style={styles.statusModalSheet}>
-            {options.map((opt) => (
-              <TouchableOpacity
-                key={String(opt.value)}
-                style={styles.optionRow}
-                onPress={() => {
-                  onChange(opt.value);
-                  setOpen(false);
-                }}
-              >
-                <Text style={styles.optionText}>{String(opt.label)}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+        <View
+          style={{
+            marginTop: 4,
+            borderWidth: 1,
+            borderColor: "#ccc",
+            borderRadius: 8,
+            backgroundColor: "#fff",
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.1,
+            shadowRadius: 2,
+            elevation: 3,
+          }}
+        >
+          {options.map((opt, idx) => (
+            <TouchableOpacity
+              key={opt.value}
+              style={{
+                paddingVertical: 6,
+                paddingHorizontal: 8,
+                borderBottomWidth: idx < options.length - 1 ? 1 : 0,
+                borderBottomColor: "#eee",
+              }}
+              onPress={() => handleSelect(opt.value)}
+            >
+              <Text style={{ fontWeight: "500" }}>{opt.label}</Text>
+            </TouchableOpacity>
+          ))}
         </View>
       )}
-    </>
+    </View>
   );
 }
 
@@ -115,32 +170,30 @@ export default function HomeScreen() {
   const [ageGroup, setAgeGroup] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // ---------- Firestore Fetch ----------
+  // Firestore fetch
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, "reports"), (snapshot) => {
       const allReports = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
       setReports(allReports);
     });
-
     return () => unsubscribe();
   }, []);
 
-  const updateReportStatus = (id, status) => {
-    const reportRef = collection(db, "reports");
-    const docRef = reportRef.doc ? reportRef.doc(id) : null; // fallback check
-    if (!docRef) return;
-    if (status === "delete") {
-      docRef.delete();
-    } else {
-      docRef.update({ status });
+  // Handle status change
+  const handleStatusChange = async (report, newStatus) => {
+    if (!report?.id) return;
+    if (report.userId !== auth.currentUser?.uid) {
+      alert("You can only change your own reports.");
+      return;
     }
-  };
 
-  const deleteReport = (id) => {
-    const reportRef = collection(db, "reports");
-    const docRef = reportRef.doc ? reportRef.doc(id) : null;
-    if (!docRef) return;
-    docRef.delete();
+    const docRef = doc(db, "reports", report.id);
+
+    try {
+      await updateDoc(docRef, { status: newStatus });
+    } catch (err) {
+      console.error("Error updating report:", err);
+    }
   };
 
   const filtered = useMemo(() => {
@@ -164,15 +217,6 @@ export default function HomeScreen() {
   }, [reports, selectedCategory, activeTab, gender, ageGroup, searchQuery]);
 
   const imgFor = (r) => (r?.photo ? { uri: r.photo } : require("../assets/dude.webp"));
-
-  const handleStatusChange = (r, status) => {
-    if (!r || !r.id) return;
-    if (status === "delete") {
-      deleteReport(r.id);
-    } else {
-      updateReportStatus(r.id, status);
-    }
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -280,12 +324,13 @@ export default function HomeScreen() {
                   <StatusSelect
                     value={r.status}
                     onChange={(status) => handleStatusChange(r, status)}
+                    isOwner={r.userId === auth.currentUser?.uid}
+                    reportId={r.id}
                   />
                 </View>
                 <Text style={styles.details}>{String(r.age)} • {String(r.gender)}</Text>
                 <Text style={styles.details}>{String(r.lastSeenLocation)}</Text>
 
-                {/* View Details Button */}
                 <TouchableOpacity
                   style={styles.viewBtn}
                   onPress={() => navigation.navigate("Details", { report: r })}
@@ -293,7 +338,6 @@ export default function HomeScreen() {
                   <Text style={styles.viewText}>View Details</Text>
                 </TouchableOpacity>
 
-                {/* Add/View Comments Button */}
                 <TouchableOpacity
                   style={styles.viewBtn}
                   onPress={() => navigation.navigate("Comments", { reportId: r.id })}
@@ -334,7 +378,7 @@ export default function HomeScreen() {
   );
 }
 
-// ---------- STYLES (unchanged from your old code) ----------
+// ---------- STYLES (unchanged) ----------
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
   header: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 15, paddingTop: 10, alignItems: "center" },
@@ -362,19 +406,7 @@ const styles = StyleSheet.create({
   clearBtn: { marginTop: 10, alignSelf: "flex-end", backgroundColor: "#e0e0e0", borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12 },
   clearText: { color: "#444", fontWeight: "600" },
   list: { flex: 1, paddingHorizontal: 20, marginTop: 5 },
-  card: {
-    flexDirection: "row",
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 20,
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 1,
-    height: height * 0.25,
-    borderWidth: 0.2,
-    borderColor: "#02c048ff",
+  card: { flexDirection: "row",backgroundColor: "#fff",borderRadius: 12,padding: 14,marginBottom: 20,elevation: 3, shadowColor: "#000", shadowOpacity: 0.1,shadowRadius: 1,height: height * 0.25,borderWidth: 0.2,borderColor: "#02c048ff",
   },
   avatar: { width: 100, height: "100%", borderRadius: 12, marginRight: 12 },
   cardHeader: { flexDirection: "row", justifyContent: "space-between" },
@@ -387,7 +419,4 @@ const styles = StyleSheet.create({
   navItem: { alignItems: "center" },
   navText: { fontSize: 12, color: "black" },
   reportBtn: { backgroundColor: "#7CC242", width: 60, height: 60, borderRadius: 30, justifyContent: "center", alignItems: "center", marginTop: -25, elevation: 5 },
-  statusModalCover: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
-  statusBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)" },
-  statusModalSheet: { backgroundColor: "white", borderRadius: 12, padding: 12, position: "absolute", left: 50, right: 50, top: 100, zIndex: 100, borderWidth: 1, borderColor: "#ccc" },
 });

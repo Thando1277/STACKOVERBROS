@@ -1,46 +1,58 @@
-import React, { useRef, useState } from "react";
+// ReportScreen.js
+import React, { useState, useRef } from "react";
 import {
   View,
   Text,
-  StyleSheet,
-  TouchableOpacity,
   TextInput,
+  TouchableOpacity,
   ScrollView,
   Image,
+  StyleSheet,
   Pressable,
   Modal,
   Platform,
   Alert,
 } from "react-native";
-import * as ImagePicker from "expo-image-picker";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import * as ImagePicker from "expo-image-picker";
+import { auth, db } from "../Firebase/firebaseConfig";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { useNavigation } from "@react-navigation/native";
-import { useData } from "../context/DataContext";
 import SuccessCheck from "../components/SuccessCheck";
 
 function Select({ label, value, onSelect, options }) {
   const [open, setOpen] = useState(false);
   const currentLabel = options.find((o) => o.value === value)?.label || label;
+
   return (
     <>
+      {/* Pressable box */}
       <Pressable style={styles.inputBox} onPress={() => setOpen(true)}>
-        <Text style={styles.placeholder}>{currentLabel} ▼</Text>
+        <Text style={styles.placeholder}>
+          {currentLabel} ▼
+        </Text>
       </Pressable>
 
-      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+      <Modal
+        visible={open}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setOpen(false)}
+      >
         <Pressable style={styles.modalBackdrop} onPress={() => setOpen(false)}>
           <View style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>{label}</Text>
+            <Text style={styles.modalTitle}>{String(label)}</Text>
+
             {options.map((opt) => (
               <TouchableOpacity
-                key={opt.value}
+                key={String(opt.value)}
                 style={styles.optionRow}
                 onPress={() => {
                   onSelect(opt.value);
                   setOpen(false);
                 }}
               >
-                <Text style={styles.optionText}>{opt.label}</Text>
+                <Text style={styles.optionText}>{String(opt.label)}</Text>
               </TouchableOpacity>
             ))}
             <TouchableOpacity
@@ -61,24 +73,20 @@ function Select({ label, value, onSelect, options }) {
 
 export default function ReportScreen() {
   const navigation = useNavigation();
-  const { addReport } = useData();
+  const successRef = useRef();
 
   const [fullName, setFullName] = useState("");
   const [age, setAge] = useState("");
   const [gender, setGender] = useState("");
   const [type, setType] = useState("Person");
   const [photo, setPhoto] = useState(null);
-
   const [lastSeenDate, setLastSeenDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [lastSeenLocation, setLastSeenLocation] = useState("");
   const [description, setDescription] = useState("");
-
   const [contactName, setContactName] = useState("");
   const [contactNumber, setContactNumber] = useState("");
-
   const [submitting, setSubmitting] = useState(false);
-  const successRef = useRef();
 
   const pickImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -86,25 +94,29 @@ export default function ReportScreen() {
       alert("Permission required to access photos.");
       return;
     }
+
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      quality: 0.8,
+      quality: 0.6,
     });
+
     if (!result.canceled && result.assets?.[0]?.uri) {
-      setPhoto(result.assets[0].uri);
+      setPhoto(String(result.assets[0].uri));
     }
   };
 
   const validate = () => {
-    if (!fullName.trim() || !age.trim() || !gender || !type || !photo || !lastSeenDate || !lastSeenLocation.trim()) {
-      return false;
-    }
-    if (contactNumber && contactNumber.length !== 10) {
-      alert("Contact number must be exactly 10 digits.");
-      return false;
-    }
-    if (lastSeenDate > new Date()) {
-      alert("Last Seen Date cannot be in the future.");
+    const missing = [];
+    if (!fullName.trim()) missing.push("Full Name");
+    if (!age.trim()) missing.push("Age");
+    if (!gender) missing.push("Gender");
+    if (!type) missing.push("Type");
+    if (!photo) missing.push("Photo");
+    if (!lastSeenDate) missing.push("Last Seen Date");
+    if (!lastSeenLocation.trim()) missing.push("Last Seen Location");
+
+    if (missing.length) {
+      alert("Please fill all required fields: " + missing.join(", "));
       return false;
     }
     return true;
@@ -113,61 +125,118 @@ export default function ReportScreen() {
   const submit = async () => {
     if (!validate()) return;
 
+    const user = auth.currentUser;
+    if (!user) {
+      alert("You must be logged in to submit a report.");
+      return;
+    }
+
     setSubmitting(true);
 
-    const payload = {
-      fullName: fullName.trim(),
-      age: age.trim(),
-      gender,
-      type,
-      photo,
-      lastSeenDate,
-      lastSeenLocation,
-      description,
-      contactName,
-      contactNumber,
-      ageGroup: (() => {
-        const n = parseInt(age, 10);
-        if (!isNaN(n)) {
-          if (n <= 12) return "child";
-          if (n <= 19) return "teen";
-          if (n <= 40) return "adult";
-          return "senior";
+    try {
+      let photoUrl = null;
+
+      // Upload photo to Cloudinary
+      if (photo) {
+        try {
+          const data = new FormData();
+          data.append("file", {
+            uri: Platform.OS === "ios" ? photo.replace("file://", "") : photo,
+            type: "image/jpeg",
+            name: `report-${Date.now()}.jpg`,
+          });
+          data.append("upload_preset", "UserPosts"); // your preset
+
+          const res = await fetch(
+            "https://api.cloudinary.com/v1_1/dpo2fiwoz/image/upload",
+            { method: "POST", body: data }
+          );
+
+          const json = await res.json();
+
+          if (!json.secure_url) {
+            throw new Error("Cloudinary upload failed");
+          }
+
+          photoUrl = json.secure_url;
+        } catch (err) {
+          console.error("Cloudinary upload error:", err);
+          alert("Failed to upload image. Check your internet connection.");
+          setSubmitting(false);
+          return;
         }
-        return "";
-      })(),
-    };
+      }
 
-    addReport(payload);
+      // Prepare Firestore payload
+      const payload = {
+        fullName: fullName.trim(),
+        age: Number(age),
+        gender,
+        type,
+        photo: photoUrl || null,
+        lastSeenDate: lastSeenDate.toISOString(),
+        lastSeenLocation,
+        description,
+        contactName,
+        contactNumber,
+        status: "search",
+        userId: user.uid, // ✅ Add userId here
+        createdAt: serverTimestamp(),
+      };
 
-    if (successRef.current) successRef.current.play();
+      // Save to Firestore
+      await addDoc(collection(db, "reports"), payload);
 
-    setTimeout(() => {
+      if (successRef.current) successRef.current.play();
+
+      setTimeout(() => {
+        setSubmitting(false);
+        navigation.goBack();
+      }, 900);
+    } catch (error) {
+      console.error("Firestore error:", error);
+      alert("Error saving report. Check your internet or Firebase setup.");
       setSubmitting(false);
-      navigation.goBack();
-    }, 900);
-  };
-
-  const handleDateChange = (event, selectedDate) => {
-    setShowDatePicker(Platform.OS === "ios");
-    if (selectedDate && selectedDate <= new Date()) {
-      setLastSeenDate(selectedDate);
-    } else if (selectedDate) {
-      Alert.alert("Invalid Date", "Please select today or a past date.");
     }
   };
 
+  const handleDateChange = (event, selectedDate) => {
+    if (Platform.OS === "android") setShowDatePicker(false);
+
+    if (event.type === "set" && selectedDate) {
+      if (selectedDate <= new Date()) setLastSeenDate(selectedDate);
+      else Alert.alert("Invalid Date", "Please select today or a past date.");
+    } else if (event.type === "dismissed") setShowDatePicker(false);
+
+    if (Platform.OS === "ios" && event.type === "set") setShowDatePicker(false);
+  };
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
-      {/* Personal Information Card */}
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={{ paddingBottom: 40 }}
+      keyboardShouldPersistTaps="handled"
+    >
+      {/* Personal Info */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Personal Information</Text>
 
         <Text style={styles.label}>Full Names*</Text>
-        <TextInput style={styles.input} placeholder="Bob Smith" value={fullName} onChangeText={setFullName} />
+        <TextInput
+          style={styles.input}
+          placeholder="Bob Smith"
+          value={fullName}
+          onChangeText={setFullName}
+        />
 
         <Text style={styles.label}>Age*</Text>
-        <TextInput style={styles.input} placeholder="30" keyboardType="numeric" value={age} onChangeText={setAge} />
+        <TextInput
+          style={styles.input}
+          placeholder="30"
+          keyboardType="numeric"
+          value={age}
+          onChangeText={setAge}
+        />
 
         <Text style={styles.label}>Gender*</Text>
         <Select
@@ -198,7 +267,7 @@ export default function ReportScreen() {
         {photo && <Image source={{ uri: photo }} style={styles.preview} />}
       </View>
 
-      {/* Last Seen Information */}
+      {/* Last Seen Info */}
       <View style={styles.card}>
         <Text style={styles.cardTitle}>Last Seen Information</Text>
 
@@ -206,6 +275,7 @@ export default function ReportScreen() {
         <TouchableOpacity style={styles.inputBox} onPress={() => setShowDatePicker(true)}>
           <Text style={styles.placeholder}>{lastSeenDate.toLocaleString()}</Text>
         </TouchableOpacity>
+
         {showDatePicker && (
           <DateTimePicker
             value={lastSeenDate}
@@ -224,7 +294,7 @@ export default function ReportScreen() {
           onChangeText={setLastSeenLocation}
         />
 
-        <Text style={styles.label}>Person Description</Text>
+        <Text style={styles.label}>Description</Text>
         <TextInput
           style={[styles.input, { height: 90 }]}
           placeholder="Short description (height, clothing, marks...)"
@@ -234,12 +304,16 @@ export default function ReportScreen() {
         />
       </View>
 
-      {/* Contact Information */}
+      {/* Reporter Contact */}
       <View style={styles.card}>
-        <Text style={styles.cardTitle}>Contact Information</Text>
-
+        <Text style={styles.cardTitle}>Reporter Contact</Text>
         <Text style={styles.label}>Contact Name</Text>
-        <TextInput style={styles.input} placeholder="John Doe" value={contactName} onChangeText={setContactName} />
+        <TextInput
+          style={styles.input}
+          placeholder="John Doe"
+          value={contactName}
+          onChangeText={setContactName}
+        />
 
         <Text style={styles.label}>Contact Number</Text>
         <TextInput
@@ -249,12 +323,11 @@ export default function ReportScreen() {
           value={contactNumber}
           onChangeText={setContactNumber}
           maxLength={10}
-          
         />
       </View>
 
       <TouchableOpacity style={styles.submitBtn} onPress={submit} disabled={submitting}>
-        <Text style={styles.submitText}>Submit Report</Text>
+        <Text style={styles.submitText}>{submitting ? "Submitting..." : "Submit Report"}</Text>
       </TouchableOpacity>
 
       <SuccessCheck ref={successRef} />
@@ -262,6 +335,7 @@ export default function ReportScreen() {
   );
 }
 
+// ===== Styles =====
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff", padding: 16 },
   card: { backgroundColor: "#fff", borderRadius: 12, padding: 14, marginBottom: 14, elevation: 2, borderWidth: 1, borderColor: "#eee" },

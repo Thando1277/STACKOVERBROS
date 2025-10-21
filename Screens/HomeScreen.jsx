@@ -63,8 +63,16 @@ function Select({ label, value, onSelect, options }) {
   );
 }
 
-// Status Select Component (Missing / Found / Delete) - dropdown inside card, delete asks confirmation
-function StatusSelect({ value, onChange, isOwner, reportId }) {
+// Status Select Component (Missing / Found / Delete)
+function StatusSelect({ value, onChange, isOwner }) {
+  if (!isOwner) {
+    return (
+      <Text style={{ fontWeight: "bold", color: value === "search" ? "red" : "#7CC242" }}>
+        {value === "search" ? "Missing" : value === "found" ? "Found" : value}
+      </Text>
+    );
+  }
+
   const [open, setOpen] = useState(false);
   const options = [
     { label: "Missing", value: "search" },
@@ -72,41 +80,6 @@ function StatusSelect({ value, onChange, isOwner, reportId }) {
     { label: "Delete", value: "delete" },
   ];
   const currentLabel = options.find((o) => o.value === value)?.label || "Missing";
-
-  if (!isOwner) {
-    return (
-      <Text style={{ fontWeight: "bold", color: value === "search" ? "red" : "#7CC242" }}>
-        {currentLabel}
-      </Text>
-    );
-  }
-
-  const handleSelect = async (optValue) => {
-    setOpen(false);
-    if (optValue === "delete") {
-      Alert.alert(
-        "Confirm Delete",
-        "Are you sure you want to delete this report?",
-        [
-          { text: "Cancel", style: "cancel" },
-          {
-            text: "Delete",
-            style: "destructive",
-            onPress: async () => {
-              try {
-                await deleteDoc(doc(db, "reports", reportId));
-              } catch (err) {
-                console.error("Error deleting report:", err);
-              }
-            },
-          },
-        ],
-        { cancelable: true }
-      );
-    } else {
-      onChange(optValue);
-    }
-  };
 
   return (
     <View style={{ marginTop: 4, width: 100 }}>
@@ -127,34 +100,22 @@ function StatusSelect({ value, onChange, isOwner, reportId }) {
       </Pressable>
 
       {open && (
-        <View
-          style={{
-            marginTop: 4,
-            borderWidth: 1,
-            borderColor: "#ccc",
-            borderRadius: 8,
-            backgroundColor: "#fff",
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 1 },
-            shadowOpacity: 0.1,
-            shadowRadius: 2,
-            elevation: 3,
-          }}
-        >
-          {options.map((opt, idx) => (
-            <TouchableOpacity
-              key={opt.value}
-              style={{
-                paddingVertical: 6,
-                paddingHorizontal: 8,
-                borderBottomWidth: idx < options.length - 1 ? 1 : 0,
-                borderBottomColor: "#eee",
-              }}
-              onPress={() => handleSelect(opt.value)}
-            >
-              <Text style={{ fontWeight: "500" }}>{opt.label}</Text>
-            </TouchableOpacity>
-          ))}
+        <View style={styles.statusModalCover}>
+          <Pressable style={styles.statusBackdrop} onPress={() => setOpen(false)} />
+          <View style={styles.statusModalSheet}>
+            {options.map((opt) => (
+              <TouchableOpacity
+                key={opt.value}
+                style={styles.optionRow}
+                onPress={() => {
+                  onChange(opt.value);
+                  setOpen(false);
+                }}
+              >
+                <Text style={styles.optionText}>{opt.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
       )}
     </View>
@@ -179,9 +140,11 @@ export default function HomeScreen() {
     return () => unsubscribe();
   }, []);
 
-  // Handle status change
+  // ---------- Handle Status Change ----------
   const handleStatusChange = async (report, newStatus) => {
     if (!report?.id) return;
+
+    // Only allow the owner to update
     if (report.userId !== auth.currentUser?.uid) {
       alert("You can only change your own reports.");
       return;
@@ -190,7 +153,11 @@ export default function HomeScreen() {
     const docRef = doc(db, "reports", report.id);
 
     try {
-      await updateDoc(docRef, { status: newStatus });
+      if (newStatus === "delete") {
+        await deleteDoc(docRef);
+      } else {
+        await updateDoc(docRef, { status: newStatus });
+      }
     } catch (err) {
       console.error("Error updating report:", err);
     }
@@ -324,8 +291,7 @@ export default function HomeScreen() {
                   <StatusSelect
                     value={r.status}
                     onChange={(status) => handleStatusChange(r, status)}
-                    isOwner={r.userId === auth.currentUser?.uid}
-                    reportId={r.id}
+                    isOwner={r.userId === auth.currentUser?.uid} // <-- only owner can change
                   />
                 </View>
                 <Text style={styles.details}>{String(r.age)} • {String(r.gender)}</Text>

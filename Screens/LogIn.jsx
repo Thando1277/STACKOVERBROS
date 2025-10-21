@@ -116,8 +116,77 @@ export default function AuthScreen({ navigation }) {
 
             {/* Login Form */}
             <Animated.View style={[styles.formWrapper, { transform: [{ translateY: loginAnim }] }]}>
-              {/* ... LOGIN FORM CODE HERE ... */}
-              {/* Make sure all Views and TouchableOpacity are properly closed */}
+              <View style={styles.logoContainer}>
+                <Image source={require('../assets/FINDSOS-LOGO2.png')} style={styles.logo} resizeMode="contain"/>
+                <Text style={styles.title}>Welcome Back</Text>
+                <Text style={styles.subtitle}>Log in to continue to FINDSOS</Text>
+              </View>
+
+              <View style={styles.formContainer}>
+                {/* Email */}
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.label}>Email</Text>
+                  <View style={styles.inputGroup}>
+                    <Icon name="envelope" size={16} color={getIconColor(emailLogin,'emailLogin')} style={styles.icon} />
+                    <TextInput
+                      style={styles.input} placeholder="Enter your email" keyboardType="email-address"
+                      autoCapitalize="none" placeholderTextColor="#A1A1A1"
+                      onChangeText={setEmailLogin} value={emailLogin}
+                      onFocus={() => setActiveInput('emailLogin')} onBlur={() => setActiveInput('')}
+                    />
+                  </View>
+                </View>
+
+                {/* Password */}
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.label}>Password</Text>
+                  <View style={styles.inputGroup}>
+                    <Icon name="lock" size={16} color={getIconColor(passwordLogin,'passwordLogin')} style={styles.icon} />
+                    <TextInput
+                      style={styles.input} placeholder="Enter password" secureTextEntry
+                      placeholderTextColor="#A1A1A1" onChangeText={setPasswordLogin} value={passwordLogin}
+                      onFocus={() => setActiveInput('passwordLogin')} onBlur={() => setActiveInput('')}
+                    />
+                  </View>
+                </View>
+
+                {/* Login Button */}
+                <TouchableOpacity style={{width:'95%', marginTop:10}} onPress={handleLogIn}>
+                  <LinearGradient colors={['#0FC436','#34D17D']} start={{x:0,y:0}} end={{x:1,y:0}} style={styles.loginBtn}>
+                    {loadingLogin ? <ActivityIndicator color="#fff"/> : <Text style={styles.loginBtnText}>Log In</Text>}
+                  </LinearGradient>
+                </TouchableOpacity>
+
+                {/* Don't have account + Social */}
+                <View style={{alignItems:'center', marginTop:8}}>
+                  <View style={styles.textRow}>
+                    <Text style={styles.text}>Don't have an account? </Text>
+                    <TouchableOpacity onPress={handleGoToSignUp}>
+                      <Text style={styles.link}>Sign Up</Text>
+                    </TouchableOpacity>
+                  </View>
+                  <TouchableOpacity onPress={() => navigation.navigate('ResetPassword')}>
+                    <Text style={[styles.link, {marginTop:5, fontSize:12}]}>Forgot Password?</Text>
+                  </TouchableOpacity>
+
+                  {/* Continue with */}
+                  <View style={{alignItems:'center', marginTop:15, width:'95%'}}>
+                    <Text style={{color:'#555', marginBottom:10}}>Or continue with</Text>
+                    <View style={{flexDirection:'row', justifyContent:'center', width:'100%'}}>
+                      <TouchableOpacity style={styles.socialBtn} onPress={() => Alert.alert('Google Login')}>
+                        <Icon name="google" size={18} color="#DB4437" />
+                        <Text style={styles.socialText}>Google</Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity style={styles.socialBtn} onPress={() => Alert.alert('Apple Login')}>
+                        <Icon name="apple" size={18} color="#000" />
+                        <Text style={styles.socialText}>Apple</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+
+              </View>
             </Animated.View>
 
           </View>

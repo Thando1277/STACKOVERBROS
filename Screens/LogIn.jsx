@@ -271,7 +271,7 @@ export default function AuthScreen({ navigation }) {
                       <Text style={styles.link}>Sign Up</Text>
                     </TouchableOpacity>
                   </View>
-                  <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
+                  <TouchableOpacity onPress={() => navigation.navigate('ResetPassword')}>
                     <Text style={[styles.link, {marginTop:5, fontSize:12}]}>Forgot Password?</Text>
                   </TouchableOpacity>
 

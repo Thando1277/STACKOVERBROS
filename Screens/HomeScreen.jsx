@@ -13,8 +13,8 @@ import {
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
-import { collection, onSnapshot } from "firebase/firestore";
-import { db } from "../Firebase/firebaseConfig";
+import { collection, onSnapshot, doc, updateDoc, deleteDoc } from "firebase/firestore";
+import { db, auth } from "../Firebase/firebaseConfig";
 
 const { width, height } = Dimensions.get("window");
 
@@ -63,14 +63,22 @@ function Select({ label, value, onSelect, options }) {
 }
 
 // Status Select Component (Missing / Found / Delete)
-function StatusSelect({ value, onChange }) {
+function StatusSelect({ value, onChange, isOwner }) {
+  if (!isOwner) {
+    return (
+      <Text style={{ fontWeight: "bold", color: value === "search" ? "red" : "#7CC242" }}>
+        {value === "search" ? "Missing" : value === "found" ? "Found" : value}
+      </Text>
+    );
+  }
+
   const [open, setOpen] = useState(false);
   const options = [
     { label: "Missing", value: "search" },
     { label: "Found", value: "found" },
     { label: "Delete", value: "delete" },
   ];
-  const currentLabel = String(options.find((o) => o.value === value)?.label || "Missing");
+  const currentLabel = options.find((o) => o.value === value)?.label || "Missing";
 
   return (
     <>
@@ -89,14 +97,14 @@ function StatusSelect({ value, onChange }) {
           <View style={styles.statusModalSheet}>
             {options.map((opt) => (
               <TouchableOpacity
-                key={String(opt.value)}
+                key={opt.value}
                 style={styles.optionRow}
                 onPress={() => {
                   onChange(opt.value);
                   setOpen(false);
                 }}
               >
-                <Text style={styles.optionText}>{String(opt.label)}</Text>
+                <Text style={styles.optionText}>{opt.label}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -125,22 +133,27 @@ export default function HomeScreen() {
     return () => unsubscribe();
   }, []);
 
-  const updateReportStatus = (id, status) => {
-    const reportRef = collection(db, "reports");
-    const docRef = reportRef.doc ? reportRef.doc(id) : null; // fallback check
-    if (!docRef) return;
-    if (status === "delete") {
-      docRef.delete();
-    } else {
-      docRef.update({ status });
-    }
-  };
+  // ---------- Handle Status Change ----------
+  const handleStatusChange = async (report, newStatus) => {
+    if (!report?.id) return;
 
-  const deleteReport = (id) => {
-    const reportRef = collection(db, "reports");
-    const docRef = reportRef.doc ? reportRef.doc(id) : null;
-    if (!docRef) return;
-    docRef.delete();
+    // Only allow the owner to update
+    if (report.userId !== auth.currentUser?.uid) {
+      alert("You can only change your own reports.");
+      return;
+    }
+
+    const docRef = doc(db, "reports", report.id);
+
+    try {
+      if (newStatus === "delete") {
+        await deleteDoc(docRef);
+      } else {
+        await updateDoc(docRef, { status: newStatus });
+      }
+    } catch (err) {
+      console.error("Error updating report:", err);
+    }
   };
 
   const filtered = useMemo(() => {
@@ -164,15 +177,6 @@ export default function HomeScreen() {
   }, [reports, selectedCategory, activeTab, gender, ageGroup, searchQuery]);
 
   const imgFor = (r) => (r?.photo ? { uri: r.photo } : require("../assets/dude.webp"));
-
-  const handleStatusChange = (r, status) => {
-    if (!r || !r.id) return;
-    if (status === "delete") {
-      deleteReport(r.id);
-    } else {
-      updateReportStatus(r.id, status);
-    }
-  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -280,6 +284,7 @@ export default function HomeScreen() {
                   <StatusSelect
                     value={r.status}
                     onChange={(status) => handleStatusChange(r, status)}
+                    isOwner={r.userId === auth.currentUser?.uid} // <-- only owner can change
                   />
                 </View>
                 <Text style={styles.details}>{String(r.age)} • {String(r.gender)}</Text>
@@ -334,7 +339,7 @@ export default function HomeScreen() {
   );
 }
 
-// ---------- STYLES (unchanged from your old code) ----------
+// ---------- STYLES (unchanged) ----------
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
   header: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 15, paddingTop: 10, alignItems: "center" },
@@ -362,19 +367,7 @@ const styles = StyleSheet.create({
   clearBtn: { marginTop: 10, alignSelf: "flex-end", backgroundColor: "#e0e0e0", borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12 },
   clearText: { color: "#444", fontWeight: "600" },
   list: { flex: 1, paddingHorizontal: 20, marginTop: 5 },
-  card: {
-    flexDirection: "row",
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 20,
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 1,
-    height: height * 0.25,
-    borderWidth: 0.2,
-    borderColor: "#02c048ff",
+  card: { flexDirection: "row",backgroundColor: "#fff",borderRadius: 12,padding: 14,marginBottom: 20,elevation: 3, shadowColor: "#000", shadowOpacity: 0.1,shadowRadius: 1,height: height * 0.25,borderWidth: 0.2,borderColor: "#02c048ff",
   },
   avatar: { width: 100, height: "100%", borderRadius: 12, marginRight: 12 },
   cardHeader: { flexDirection: "row", justifyContent: "space-between" },

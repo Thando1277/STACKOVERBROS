@@ -15,20 +15,11 @@ import {
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
-<<<<<<< HEAD
-import * as FileSystem from "expo-file-system/legacy"; // ✅ use legacy API
-import { db } from "../Firebase/firebaseConfig";
-=======
 import { auth, db } from "../Firebase/firebaseConfig";
->>>>>>> main
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { useNavigation } from "@react-navigation/native";
 import SuccessCheck from "../components/SuccessCheck";
 
-<<<<<<< HEAD
-// ---------- Dropdown Component ----------
-=======
->>>>>>> main
 function Select({ label, value, onSelect, options }) {
   const [open, setOpen] = useState(false);
   const currentLabel = options.find((o) => o.value === value)?.label || label;
@@ -80,10 +71,6 @@ function Select({ label, value, onSelect, options }) {
   );
 }
 
-<<<<<<< HEAD
-// ---------- ReportScreen ----------
-=======
->>>>>>> main
 export default function ReportScreen() {
   const navigation = useNavigation();
   const successRef = useRef();
@@ -101,10 +88,6 @@ export default function ReportScreen() {
   const [contactNumber, setContactNumber] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-<<<<<<< HEAD
-  // ---------- Pick Image ----------
-=======
->>>>>>> main
   const pickImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
@@ -139,10 +122,6 @@ export default function ReportScreen() {
     return true;
   };
 
-<<<<<<< HEAD
-  // ---------- Submit ----------
-=======
->>>>>>> main
   const submit = async () => {
     if (!validate()) return;
 

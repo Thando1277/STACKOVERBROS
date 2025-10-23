@@ -9,6 +9,8 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Modal,
+  TouchableWithoutFeedback,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
@@ -16,7 +18,7 @@ import { useNavigation } from "@react-navigation/native";
 import { auth, db, storage } from "../Firebase/firebaseConfig";
 import { doc, getDoc, collection, getDocs, query, where, updateDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from "expo-file-system";
 
 export default function ProfileScreen() {
   const navigation = useNavigation();
@@ -32,6 +34,7 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
+  const [showPopup, setShowPopup] = useState(false); // <-- new state
 
   // Fetch user info & reports
   useEffect(() => {
@@ -57,7 +60,10 @@ export default function ProfileScreen() {
           where("reportedBy", "==", userId)
         );
         const reportsSnapshot = await getDocs(reportsQuery);
-        const reportsList = reportsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const reportsList = reportsSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
         setReports(reportsList);
       } catch (error) {
         console.log("Error fetching data:", error);
@@ -79,8 +85,8 @@ export default function ProfileScreen() {
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true, // enable editing
-      aspect: [1, 1],      // square crop
+      allowsEditing: true,
+      aspect: [1, 1],
       quality: 0.8,
     });
 
@@ -91,41 +97,51 @@ export default function ProfileScreen() {
 
   // Save picked image to Firebase
   const saveImage = async () => {
-    if (!selectedImage) return;
-    try {
-      setUploading(true);
+  if (!selectedImage) return;
 
-      const fileUri = selectedImage;
-      const fileInfo = await FileSystem.getInfoAsync(fileUri);
-      if (!fileInfo.exists) throw new Error("File does not exist");
+  try {
+    setUploading(true);
 
-      const blob = await new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.onload = function () {
-          resolve(xhr.response);
-        };
-        xhr.onerror = function () {
-          reject(new Error("Failed to convert file to blob"));
-        };
-        xhr.responseType = "blob";
-        xhr.open("GET", fileUri, true);
-        xhr.send(null);
-      });
+    // Get the file extension and MIME type dynamically
+    const fileExt = selectedImage.split('.').pop(); // e.g., "png", "jpg", "pdf"
+    const mimeType = mime.lookup(fileExt) || 'application/octet-stream';
+    const data = new FormData(); 
 
-      const storageRef = ref(storage, `avatars/${currentUser.id}.jpg`);
-      await uploadBytes(storageRef, blob);
+    data.append("file", {
+      uri: selectedImage,
+      type: mimeType,
+      name: `upload.${fileExt}`,
+    });
+    data.append("upload_preset", "user_uploads"); // The Cloudinary preset
 
-      const downloadURL = await getDownloadURL(storageRef);
-      await updateDoc(doc(db, "users", currentUser.id), { avatar: downloadURL });
-      setCurrentUser(prev => ({ ...prev, avatar: downloadURL }));
-      setSelectedImage(null);
-    } catch (error) {
-      console.log("Upload error:", error);
-      Alert.alert("Upload Failed", "Could not save image. Make sure it's a valid image file.");
-    } finally {
-      setUploading(false);
+    const res = await axios.post(
+      "https://api.cloudinary.com/v1_1/datb9a7ad/image/upload",
+      data,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+
+    const imageUrl = res.data.secure_url;
+
+    // Save to Firestore
+    const userId = auth.currentUser?.uid;
+    if (userId) {
+      await updateDoc(doc(db, "users", userId), { avatar: imageUrl });
+      setCurrentUser((prev) => ({ ...prev, avatar: imageUrl }));
     }
-  };
+
+    setSelectedImage(null);
+    Alert.alert("Success", "Image uploaded successfully!");
+  } catch (error) {
+    console.log("Cloudinary Upload Error:", error);
+    Alert.alert("Upload Failed", "Something went wrong while uploading to Cloudinary.");
+  } finally {
+    setUploading(false);
+  }
+};
 
   // Remove avatar
   const removeImage = async () => {
@@ -133,11 +149,23 @@ export default function ProfileScreen() {
       const storageRef = ref(storage, `avatars/${currentUser.id}.jpg`);
       await deleteObject(storageRef);
       await updateDoc(doc(db, "users", currentUser.id), { avatar: null });
-      setCurrentUser(prev => ({ ...prev, avatar: null }));
+      setCurrentUser((prev) => ({ ...prev, avatar: null }));
       setSelectedImage(null);
     } catch (error) {
       console.log("Remove image error:", error);
       Alert.alert("Error", "Could not remove image.");
+    } finally {
+      setShowPopup(false);
+    }
+  };
+
+  const handleAvatarPress = () => {
+    if (currentUser.avatar) {
+      // if already has avatar, show the popup
+      setShowPopup(true);
+    } else {
+      // no avatar, just pick image directly
+      pickImage();
     }
   };
 
@@ -156,130 +184,142 @@ export default function ProfileScreen() {
     : null;
 
   return (
-  <SafeAreaView style={styles.container}>
-    <ScrollView contentContainerStyle={styles.scroll}>
-      {/* Header */}
-      <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Ionicons name="chevron-back" size={28} color="#7CC242" />
-        </TouchableOpacity>
-        <Text style={styles.title}>Profile</Text>
-        <TouchableOpacity onPress={() => navigation.navigate("SettingsScreen")}>
-          <Ionicons name="settings-outline" size={26} color="#7CC242" />
-        </TouchableOpacity>
-      </View>
+    <SafeAreaView style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scroll}>
+        {/* Header */}
+        <View style={styles.headerRow}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+            <Ionicons name="chevron-back" size={28} color="#7CC242" />
+          </TouchableOpacity>
+          <Text style={styles.title}>Profile</Text>
+          <TouchableOpacity onPress={() => navigation.navigate("SettingsScreen")}>
+            <Ionicons name="settings-outline" size={26} color="#7CC242" />
+          </TouchableOpacity>
+        </View>
 
-      {/* Cover Photo Area */}
-      <View style={styles.coverPhotoContainer}>
-        <Image
-          source={require('../assets/FINDSOS-LOGO2.png')} 
-          style={styles.coverPhoto}
-        />
+        {/* Cover Photo Area */}
+        <View style={styles.coverPhotoContainer}>
+          {/* <Image source={require('../assets/logo.png')} style={styles.coverPhoto} /> */}
+          <TouchableOpacity onPress={handleAvatarPress} style={styles.avatarContainer}>
+            {avatarSource ? (
+              <Image source={avatarSource} style={styles.avatar} />
+            ) : (
+              <Ionicons name="person-circle-outline" size={120} color="#7CC242" />
+            )}
+          </TouchableOpacity>
+        </View>
 
-        {/* Profile Image overlapping the cover photo */}
-        <TouchableOpacity onPress={pickImage} style={styles.avatarContainer}>
-          {avatarSource ? (
-            <Image source={avatarSource} style={styles.avatar} />
-          ) : (
-            <Ionicons name="person-circle-outline" size={120} color="#7CC242" />
+        {/* Profile Info */}
+        <View style={styles.profileInfo}>
+          <Text style={styles.name}>{currentUser.fullName}</Text>
+          <Text style={styles.email}>{currentUser.email}</Text>
+
+          <View style={styles.actionRow}>
+            <TouchableOpacity
+              style={styles.editBtn}
+              onPress={() => navigation.navigate("EditProfile")}
+            >
+              <Text style={styles.editTxt}>Edit Profile</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.logoutBtn}
+              onPress={() => auth.signOut().then(() => navigation.navigate("LogIn"))}
+            >
+              <Text style={styles.logoutTxt}>Log Out</Text>
+            </TouchableOpacity>
+          </View>
+
+          {selectedImage && (
+            <TouchableOpacity style={styles.saveBtn} onPress={saveImage}>
+              <Text style={styles.saveTxt}>Save Image</Text>
+            </TouchableOpacity>
           )}
-        </TouchableOpacity>
-      </View>
-
-      {/* Name, Email & Buttons */}
-      <View style={styles.profileInfo}>
-        <Text style={styles.name}>{currentUser.fullName}</Text>
-        <Text style={styles.email}>{currentUser.email}</Text>
-
-        <View style={styles.actionRow}>
-          <TouchableOpacity
-            style={styles.editBtn}
-            onPress={() => navigation.navigate("EditProfile")}
-          >
-            <Text style={styles.editTxt}>Edit Profile</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.logoutBtn}
-            onPress={() => auth.signOut().then(() => navigation.navigate("LogIn"))}
-          >
-            <Text style={styles.logoutTxt}>Log Out</Text>
-          </TouchableOpacity>
         </View>
 
-        {/* Save / Remove buttons */}
-        {selectedImage && (
-          <TouchableOpacity style={styles.saveBtn} onPress={saveImage}>
-            <Text style={styles.saveTxt}>Save Image</Text>
-          </TouchableOpacity>
-        )}
-        {currentUser.avatar && !selectedImage && (
-          <TouchableOpacity style={styles.removeBtn} onPress={removeImage}>
-            <Text style={styles.removeTxt}>Remove Image</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+        {/* Stats */}
+        <View style={styles.statsRow}>
+          <View style={styles.statBox}>
+            <Text style={styles.statNum}>{reports.length}</Text>
+            <Text style={styles.statLabel}>My Reports</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statNum}>--</Text>
+            <Text style={styles.statLabel}>Total Reports</Text>
+          </View>
+          <View style={styles.statBox}>
+            <Text style={styles.statNum}>0</Text>
+            <Text style={styles.statLabel}>Bookmarks</Text>
+          </View>
+        </View>
 
-      {/* Stats */}
-      <View style={styles.statsRow}>
-        <View style={styles.statBox}>
-          <Text style={styles.statNum}>{reports.length}</Text>
-          <Text style={styles.statLabel}>My Reports</Text>
-        </View>
-        <View style={styles.statBox}>
-          <Text style={styles.statNum}>--</Text>
-          <Text style={styles.statLabel}>Total Reports</Text>
-        </View>
-        <View style={styles.statBox}>
-          <Text style={styles.statNum}>0</Text>
-          <Text style={styles.statLabel}>Bookmarks</Text>
-        </View>
-      </View>
-
-      {/* Recent Activity */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Recent Activity</Text>
-        {reports.length === 0 ? (
-          <Text style={styles.emptyText}>You haven't reported anything yet.</Text>
-        ) : (
-          reports.slice(0, 5).map((r) => (
-            <View key={r.id} style={styles.activityRow}>
-              <View style={styles.activityLeft}>
-                {r.photo ? (
-                  <Image source={{ uri: r.photo }} style={styles.actImg} />
-                ) : (
-                  <Ionicons name="person-circle-outline" size={64} color="#7CC242" />
-                )}
+        {/* Recent Activity */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Recent Activity</Text>
+          {reports.length === 0 ? (
+            <Text style={styles.emptyText}>You haven't reported anything yet.</Text>
+          ) : (
+            reports.slice(0, 5).map((r) => (
+              <View key={r.id} style={styles.activityRow}>
+                <View style={styles.activityLeft}>
+                  {r.photo ? (
+                    <Image source={{ uri: r.photo }} style={styles.actImg} />
+                  ) : (
+                    <Ionicons name="person-circle-outline" size={64} color="#7CC242" />
+                  )}
+                </View>
+                <View style={styles.activityRight}>
+                  <Text style={styles.activityTitle}>{r.title || "Report"}</Text>
+                  <Text style={styles.activitySubtitle}>{r.location || "Unknown Location"}</Text>
+                  <Text style={styles.activityTime}>
+                    {r.createdAt
+                      ? new Date(r.createdAt.seconds * 1000).toLocaleString()
+                      : ""}
+                  </Text>
+                </View>
               </View>
-              <View style={styles.activityRight}>
-                <Text style={styles.activityTitle}>{r.title || "Report"}</Text>
-                <Text style={styles.activitySubtitle}>{r.location || "Unknown Location"}</Text>
-                <Text style={styles.activityTime}>
-                  {r.createdAt ? new Date(r.createdAt.seconds * 1000).toLocaleString() : ""}
-                </Text>
-              </View>
+            ))
+          )}
+        </View>
+      </ScrollView>
+
+      {/* Popup Modal */}
+      <Modal visible={showPopup} transparent animationType="fade">
+        <TouchableWithoutFeedback onPress={() => setShowPopup(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.popupContainer}>
+              <TouchableOpacity
+                style={styles.popupOption}
+                onPress={() => {
+                  setShowPopup(false);
+                  pickImage();
+                }}
+              >
+                <Text style={styles.popupText}>⇄ Change Image</Text>
+              </TouchableOpacity>
+
+              <View style={styles.divider} />
+
+              <TouchableOpacity style={styles.popupOption} onPress={removeImage}>
+                <Text style={[styles.popupText, { color: "#ff5555" }]}>🗑️ Remove Image</Text>
+              </TouchableOpacity>
             </View>
-          ))
-        )}
-      </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
 
-      <View style={{ height: 40 }} />
-    </ScrollView>
-
-    {uploading && (
-      <View style={styles.loadingOverlay}>
-        <ActivityIndicator size="large" color="#7CC242" />
-      </View>
-    )}
-  </SafeAreaView>
-);
-
+      {uploading && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#7CC242" />
+        </View>
+      )}
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#121212" },
   scroll: { paddingBottom: 40 },
-
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -289,21 +329,12 @@ const styles = StyleSheet.create({
   },
   backBtn: { padding: 6 },
   title: { fontSize: 22, fontWeight: "700", color: "#7CC242" },
-
-  // Cover photo and avatar
   coverPhotoContainer: {
     width: "100%",
     height: 180,
     backgroundColor: "#1e1e1e",
     position: "relative",
     marginTop: 10,
-  },
-  coverPhoto: {
-    width: "100%",
-    height: "100%",
-    resizeMode: "cover",
-    borderBottomLeftRadius: 10,
-    borderBottomRightRadius: 10,
   },
   avatarContainer: {
     position: "absolute",
@@ -315,21 +346,10 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: "#121212",
   },
-  avatar: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-  },
-
-  // Info below
-  profileInfo: {
-    alignItems: "flex-start",
-    paddingHorizontal: 18,
-    marginTop: 60,
-  },
+  avatar: { width: 120, height: 120, borderRadius: 60 },
+  profileInfo: { alignItems: "flex-start", paddingHorizontal: 18, marginTop: 60 },
   name: { fontSize: 22, fontWeight: "800", color: "#fff" },
   email: { color: "#ccc", marginTop: 6 },
-
   actionRow: { flexDirection: "row", marginTop: 12 },
   editBtn: {
     backgroundColor: "#7CC242",
@@ -347,7 +367,6 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   logoutTxt: { color: "#fff", fontWeight: "700" },
-
   saveBtn: {
     marginTop: 8,
     paddingVertical: 6,
@@ -357,17 +376,6 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
   },
   saveTxt: { color: "white", fontWeight: "700", fontSize: 12 },
-
-  removeBtn: {
-    marginTop: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 6,
-    backgroundColor: "#ff4444",
-    alignSelf: "flex-start",
-  },
-  removeTxt: { color: "white", fontWeight: "700", fontSize: 12 },
-
   statsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -384,11 +392,9 @@ const styles = StyleSheet.create({
   },
   statNum: { fontSize: 18, fontWeight: "800", color: "#fff" },
   statLabel: { fontSize: 12, color: "#aaa", marginTop: 4 },
-
   section: { marginTop: 18, paddingHorizontal: 18 },
   sectionTitle: { fontSize: 16, fontWeight: "700", marginBottom: 8, color: "#7CC242" },
   emptyText: { color: "#aaa" },
-
   activityRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -402,7 +408,34 @@ const styles = StyleSheet.create({
   activityTitle: { fontWeight: "700", fontSize: 15, color: "#fff" },
   activitySubtitle: { color: "#aaa", marginTop: 4 },
   activityTime: { color: "#999", marginTop: 6, fontSize: 12 },
-
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  popupContainer: {
+    backgroundColor: "#1e1e1e",
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: "#7CC242",
+    width: 250,
+    paddingVertical: 10,
+  },
+  popupOption: {
+    alignItems: "center",
+    paddingVertical: 12,
+  },
+  popupText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#fff",
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#333",
+    marginHorizontal: 20,
+  },
   loadingOverlay: {
     position: "absolute",
     top: 0,
@@ -415,4 +448,3 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
 });
-

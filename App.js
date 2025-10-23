@@ -19,12 +19,13 @@ import ProfilePage from "./Screens/ProfilePage.jsx";
 import CommentsScreen from "./Screens/CommentsScreen.jsx";
 import ResetPasswordScreen from "./Screens/ResetPasswordScreen.jsx";
 import SettingsScreen from "./Screens/SettingsScreens.jsx";
-
-
 import FAQScreen from "./Screens/FAQScreen.jsx";
 import ContactUs from "./Screens/ContactUs.jsx";
 import TermsPrivacyScreen from "./Screens/TermsPrivacyScreen.jsx";
 import EditProfile from "./Screens/EditProfile.jsx";
+
+// 🗺️ Import your new Map Screen
+import MapScreen from "./Screens/MapScreen.jsx";
 
 const Stack = createNativeStackNavigator();
 
@@ -44,7 +45,14 @@ export default function App() {
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#fff" }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: "#fff",
+        }}
+      >
         <ActivityIndicator size="large" color="#0FC436" />
       </View>
     );
@@ -59,27 +67,39 @@ export default function App() {
               initialRouteName={user ? "Home" : "LogIn"}
               screenOptions={{ headerShown: false }}
             >
-              {/* Auth */}
+              {/* Auth Screens */}
               <Stack.Screen name="SignUp" component={SignUp} />
               <Stack.Screen name="LogIn" component={LogIn} />
-              <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+              <Stack.Screen
+                name="ResetPassword"
+                component={ResetPasswordScreen}
+              />
 
-              {/* Main */}
+              {/* Main Screens */}
               <Stack.Screen name="Home" component={HomeScreen} />
               <Stack.Screen name="Report" component={ReportScreen} />
               <Stack.Screen name="Details" component={DetailsScreen} />
               <Stack.Screen name="ProfilePage" component={ProfilePage} />
               <Stack.Screen name="Comments" component={CommentsScreen} />
-              <Stack.Screen name="SettingsScreen" component={SettingsScreen} />
+              <Stack.Screen
+                name="SettingsScreen"
+                component={SettingsScreen}
+              />
 
               {/* Settings Sub-Screens */}
               <Stack.Screen name="FAQScreen" component={FAQScreen} />
               <Stack.Screen name="ContactUs" component={ContactUs} />
-              <Stack.Screen name="TermsPrivacyScreen" component={TermsPrivacyScreen} />
+              <Stack.Screen
+                name="TermsPrivacyScreen"
+                component={TermsPrivacyScreen}
+              />
               <Stack.Screen name="EditProfile" component={EditProfile} />
+
+              {/* 🗺️ Google Maps Screen */}
+              <Stack.Screen name="MapScreen" component={MapScreen} />
             </Stack.Navigator>
 
-            {/* Floating Chat Button */}
+            {/* 💬 Floating Chat Button */}
             <TouchableOpacity
               style={{
                 position: "absolute",
@@ -96,7 +116,7 @@ export default function App() {
               <Ionicons name="chatbubble-ellipses" size={28} color="#fff" />
             </TouchableOpacity>
 
-            {/* Chatbot Modal */}
+            {/* 🤖 Chatbot Modal */}
             <Modal visible={chatVisible} animationType="slide">
               <View style={{ flex: 1 }}>
                 <ChatbotScreen />

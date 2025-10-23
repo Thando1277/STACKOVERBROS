@@ -13,7 +13,10 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "config": {
+        "googleMapsApiKey": "AIzaSyBNkhpJ5AKndXYUZ4G5aMYZ3oVc3jKqssQ"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -21,7 +24,11 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.anonymous.FindSOS"
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyBNkhpJ5AKndXYUZ4G5aMYZ3oVc3jKqssQ"
+        }
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"

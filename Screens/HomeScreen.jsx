@@ -331,10 +331,13 @@ export default function HomeScreen() {
         <TouchableOpacity style={styles.reportBtn} onPress={() => navigation.navigate("Report")}>
           <Ionicons name="add" size={30} color="white" />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.navItem}>
+
+        {/* FIXED: Map Icon navigates to MapScreen */}
+        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate("MapScreen")}>
           <Ionicons name="map-outline" size={24} color="black" />
           <Text style={styles.navText}>Map</Text>
         </TouchableOpacity>
+
         <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate("ProfilePage")}>
           <Ionicons name="person-outline" size={24} color="black" />
           <Text style={styles.navText}>Profile</Text>

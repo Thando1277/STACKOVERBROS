@@ -296,7 +296,8 @@ const styles = StyleSheet.create({
   avatarWrapper: { justifyContent: "center", alignItems: "center" },
   avatar: { width: 96, height: 96, borderRadius: 12 },
   name: { fontSize: 18, fontWeight: "800", color: "#fff" },
-  email: { color: "#ddd", marginTop: 6 },
+  email: { color: "#ddd", marginTop: 4 },
+  phone: { color: "#aaa", marginTop: 2, fontSize: 12 },
 
   actionRow: { flexDirection: "row", marginTop: 12 },
   editBtn: { backgroundColor: "#7CC242", paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8, marginRight: 8 },

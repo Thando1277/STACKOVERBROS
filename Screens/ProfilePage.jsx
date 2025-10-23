@@ -156,156 +156,246 @@ export default function ProfileScreen() {
     : null;
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        {/* Header */}
-        <View style={styles.headerRow}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Ionicons name="chevron-back" size={28} color="#7CC242" />
-          </TouchableOpacity>
-          <Text style={styles.title}>Profile</Text>
-          <TouchableOpacity onPress={() => navigation.navigate("SettingsScreen")}>
-            <Ionicons name="settings-outline" size={26} color="#7CC242" />
-          </TouchableOpacity>
-        </View>
+  <SafeAreaView style={styles.container}>
+    <ScrollView contentContainerStyle={styles.scroll}>
+      {/* Header */}
+      <View style={styles.headerRow}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <Ionicons name="chevron-back" size={28} color="#7CC242" />
+        </TouchableOpacity>
+        <Text style={styles.title}>Profile</Text>
+        <TouchableOpacity onPress={() => navigation.navigate("SettingsScreen")}>
+          <Ionicons name="settings-outline" size={26} color="#7CC242" />
+        </TouchableOpacity>
+      </View>
 
-        {/* User Card */}
-        <View style={styles.card}>
-          <TouchableOpacity onPress={pickImage} style={styles.avatarWrapper}>
-            {avatarSource ? (
-              <Image source={avatarSource} style={styles.avatar} />
-            ) : (
-              <Ionicons name="person-circle-outline" size={96} color="#7CC242" />
-            )}
-          </TouchableOpacity>
+      {/* Cover Photo Area */}
+      <View style={styles.coverPhotoContainer}>
+        <Image
+          source={require('../assets/FINDSOS-LOGO2.png')} 
+          style={styles.coverPhoto}
+        />
 
-          <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={styles.name}>{currentUser.fullName}</Text>
-            <Text style={styles.email}>{currentUser.email}</Text>
-
-            <View style={styles.actionRow}>
-              <TouchableOpacity
-                style={styles.editBtn}
-                onPress={() => navigation.navigate("EditProfile")}
-              >
-                <Text style={styles.editTxt}>Edit Profile</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.logoutBtn}
-                onPress={() => auth.signOut().then(() => navigation.navigate("LogIn"))}
-              >
-                <Text style={styles.logoutTxt}>Log Out</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Save button */}
-            {selectedImage && (
-              <TouchableOpacity style={styles.saveBtn} onPress={saveImage}>
-                <Text style={styles.saveTxt}>Save Image</Text>
-              </TouchableOpacity>
-            )}
-
-            {/* Remove button */}
-            {currentUser.avatar && !selectedImage && (
-              <TouchableOpacity style={styles.removeBtn} onPress={removeImage}>
-                <Text style={styles.removeTxt}>Remove Image</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-
-        {/* Stats */}
-        <View style={styles.statsRow}>
-          <View style={styles.statBox}>
-            <Text style={styles.statNum}>{reports.length}</Text>
-            <Text style={styles.statLabel}>My Reports</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statNum}>--</Text>
-            <Text style={styles.statLabel}>Total Reports</Text>
-          </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statNum}>0</Text>
-            <Text style={styles.statLabel}>Bookmarks</Text>
-          </View>
-        </View>
-
-        {/* Recent Activity */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Recent Activity</Text>
-          {reports.length === 0 ? (
-            <Text style={styles.emptyText}>You haven't reported anything yet.</Text>
+        {/* Profile Image overlapping the cover photo */}
+        <TouchableOpacity onPress={pickImage} style={styles.avatarContainer}>
+          {avatarSource ? (
+            <Image source={avatarSource} style={styles.avatar} />
           ) : (
-            reports.slice(0, 5).map((r) => (
-              <View key={r.id} style={styles.activityRow}>
-                <View style={styles.activityLeft}>
-                  {r.photo ? (
-                    <Image source={{ uri: r.photo }} style={styles.actImg} />
-                  ) : (
-                    <Ionicons name="person-circle-outline" size={64} color="#7CC242" />
-                  )}
-                </View>
-                <View style={styles.activityRight}>
-                  <Text style={styles.activityTitle}>{r.title || "Report"}</Text>
-                  <Text style={styles.activitySubtitle}>{r.location || "Unknown Location"}</Text>
-                  <Text style={styles.activityTime}>
-                    {r.createdAt ? new Date(r.createdAt.seconds * 1000).toLocaleString() : ""}
-                  </Text>
-                </View>
-              </View>
-            ))
+            <Ionicons name="person-circle-outline" size={120} color="#7CC242" />
           )}
+        </TouchableOpacity>
+      </View>
+
+      {/* Name, Email & Buttons */}
+      <View style={styles.profileInfo}>
+        <Text style={styles.name}>{currentUser.fullName}</Text>
+        <Text style={styles.email}>{currentUser.email}</Text>
+
+        <View style={styles.actionRow}>
+          <TouchableOpacity
+            style={styles.editBtn}
+            onPress={() => navigation.navigate("EditProfile")}
+          >
+            <Text style={styles.editTxt}>Edit Profile</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.logoutBtn}
+            onPress={() => auth.signOut().then(() => navigation.navigate("LogIn"))}
+          >
+            <Text style={styles.logoutTxt}>Log Out</Text>
+          </TouchableOpacity>
         </View>
 
-        <View style={{ height: 40 }} />
-      </ScrollView>
+        {/* Save / Remove buttons */}
+        {selectedImage && (
+          <TouchableOpacity style={styles.saveBtn} onPress={saveImage}>
+            <Text style={styles.saveTxt}>Save Image</Text>
+          </TouchableOpacity>
+        )}
+        {currentUser.avatar && !selectedImage && (
+          <TouchableOpacity style={styles.removeBtn} onPress={removeImage}>
+            <Text style={styles.removeTxt}>Remove Image</Text>
+          </TouchableOpacity>
+        )}
+      </View>
 
-      {uploading && (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color="#7CC242" />
+      {/* Stats */}
+      <View style={styles.statsRow}>
+        <View style={styles.statBox}>
+          <Text style={styles.statNum}>{reports.length}</Text>
+          <Text style={styles.statLabel}>My Reports</Text>
         </View>
-      )}
-    </SafeAreaView>
-  );
+        <View style={styles.statBox}>
+          <Text style={styles.statNum}>--</Text>
+          <Text style={styles.statLabel}>Total Reports</Text>
+        </View>
+        <View style={styles.statBox}>
+          <Text style={styles.statNum}>0</Text>
+          <Text style={styles.statLabel}>Bookmarks</Text>
+        </View>
+      </View>
+
+      {/* Recent Activity */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Recent Activity</Text>
+        {reports.length === 0 ? (
+          <Text style={styles.emptyText}>You haven't reported anything yet.</Text>
+        ) : (
+          reports.slice(0, 5).map((r) => (
+            <View key={r.id} style={styles.activityRow}>
+              <View style={styles.activityLeft}>
+                {r.photo ? (
+                  <Image source={{ uri: r.photo }} style={styles.actImg} />
+                ) : (
+                  <Ionicons name="person-circle-outline" size={64} color="#7CC242" />
+                )}
+              </View>
+              <View style={styles.activityRight}>
+                <Text style={styles.activityTitle}>{r.title || "Report"}</Text>
+                <Text style={styles.activitySubtitle}>{r.location || "Unknown Location"}</Text>
+                <Text style={styles.activityTime}>
+                  {r.createdAt ? new Date(r.createdAt.seconds * 1000).toLocaleString() : ""}
+                </Text>
+              </View>
+            </View>
+          ))
+        )}
+      </View>
+
+      <View style={{ height: 40 }} />
+    </ScrollView>
+
+    {uploading && (
+      <View style={styles.loadingOverlay}>
+        <ActivityIndicator size="large" color="#7CC242" />
+      </View>
+    )}
+  </SafeAreaView>
+);
+
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#121212" },
-  scroll: { padding: 18, paddingBottom: 40 },
+  scroll: { paddingBottom: 40 },
 
-  headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 18,
+    marginTop: 10,
+  },
   backBtn: { padding: 6 },
   title: { fontSize: 22, fontWeight: "700", color: "#7CC242" },
 
-  card: { flexDirection: "row", alignItems: "center", backgroundColor: "#1e1e1e", borderRadius: 12, padding: 14, elevation: 3, shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 6, marginBottom: 14 },
-  avatarWrapper: { justifyContent: "center", alignItems: "center" },
-  avatar: { width: 96, height: 96, borderRadius: 12 },
-  name: { fontSize: 18, fontWeight: "800", color: "#fff" },
-  email: { color: "#ddd", marginTop: 6 },
+  // Cover photo and avatar
+  coverPhotoContainer: {
+    width: "100%",
+    height: 180,
+    backgroundColor: "#1e1e1e",
+    position: "relative",
+    marginTop: 10,
+  },
+  coverPhoto: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
+    borderBottomLeftRadius: 10,
+    borderBottomRightRadius: 10,
+  },
+  avatarContainer: {
+    position: "absolute",
+    bottom: -50,
+    left: 20,
+    borderWidth: 4,
+    borderColor: "#121212",
+    borderRadius: 75,
+    overflow: "hidden",
+    backgroundColor: "#121212",
+  },
+  avatar: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+  },
+
+  // Info below
+  profileInfo: {
+    alignItems: "flex-start",
+    paddingHorizontal: 18,
+    marginTop: 60,
+  },
+  name: { fontSize: 22, fontWeight: "800", color: "#fff" },
+  email: { color: "#ccc", marginTop: 6 },
 
   actionRow: { flexDirection: "row", marginTop: 12 },
-  editBtn: { backgroundColor: "#7CC242", paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8, marginRight: 8 },
+  editBtn: {
+    backgroundColor: "#7CC242",
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    marginRight: 8,
+  },
   editTxt: { color: "white", fontWeight: "700" },
-  logoutBtn: { borderWidth: 1, borderColor: "#555", paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8 },
+  logoutBtn: {
+    borderWidth: 1,
+    borderColor: "#555",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
   logoutTxt: { color: "#fff", fontWeight: "700" },
 
-  saveBtn: { marginTop: 8, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 6, backgroundColor: "#7CC242", alignSelf: "flex-start" },
+  saveBtn: {
+    marginTop: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    backgroundColor: "#7CC242",
+    alignSelf: "flex-start",
+  },
   saveTxt: { color: "white", fontWeight: "700", fontSize: 12 },
 
-  removeBtn: { marginTop: 8, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 6, backgroundColor: "#ff4444", alignSelf: "flex-start" },
+  removeBtn: {
+    marginTop: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    backgroundColor: "#ff4444",
+    alignSelf: "flex-start",
+  },
   removeTxt: { color: "white", fontWeight: "700", fontSize: 12 },
 
-  statsRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 8 },
-  statBox: { flex: 1, backgroundColor: "#1e1e1e", marginHorizontal: 4, paddingVertical: 14, borderRadius: 10, alignItems: "center" },
+  statsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 20,
+    paddingHorizontal: 18,
+  },
+  statBox: {
+    flex: 1,
+    backgroundColor: "#1e1e1e",
+    marginHorizontal: 4,
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: "center",
+  },
   statNum: { fontSize: 18, fontWeight: "800", color: "#fff" },
   statLabel: { fontSize: 12, color: "#aaa", marginTop: 4 },
 
-  section: { marginTop: 18 },
+  section: { marginTop: 18, paddingHorizontal: 18 },
   sectionTitle: { fontSize: 16, fontWeight: "700", marginBottom: 8, color: "#7CC242" },
   emptyText: { color: "#aaa" },
 
-  activityRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#333" },
+  activityRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#333",
+  },
   activityLeft: { marginRight: 12 },
   actImg: { width: 64, height: 64, borderRadius: 8 },
   activityRight: { flex: 1 },
@@ -313,6 +403,16 @@ const styles = StyleSheet.create({
   activitySubtitle: { color: "#aaa", marginTop: 4 },
   activityTime: { color: "#999", marginTop: 6, fontSize: 12 },
 
-  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#121212" },
-  loadingOverlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, justifyContent: "center", alignItems: "center", backgroundColor: "#00000080", zIndex: 10 },
+  loadingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#00000080",
+    zIndex: 10,
+  },
 });
+

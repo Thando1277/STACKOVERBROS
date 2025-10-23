@@ -15,13 +15,20 @@ import {
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
+<<<<<<< HEAD
 import * as FileSystem from "expo-file-system/legacy"; // ✅ use legacy API
 import { db } from "../Firebase/firebaseConfig";
+=======
+import { auth, db } from "../Firebase/firebaseConfig";
+>>>>>>> main
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { useNavigation } from "@react-navigation/native";
 import SuccessCheck from "../components/SuccessCheck";
 
+<<<<<<< HEAD
 // ---------- Dropdown Component ----------
+=======
+>>>>>>> main
 function Select({ label, value, onSelect, options }) {
   const [open, setOpen] = useState(false);
   const currentLabel = options.find((o) => o.value === value)?.label || label;
@@ -73,7 +80,10 @@ function Select({ label, value, onSelect, options }) {
   );
 }
 
+<<<<<<< HEAD
 // ---------- ReportScreen ----------
+=======
+>>>>>>> main
 export default function ReportScreen() {
   const navigation = useNavigation();
   const successRef = useRef();
@@ -91,7 +101,10 @@ export default function ReportScreen() {
   const [contactNumber, setContactNumber] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+<<<<<<< HEAD
   // ---------- Pick Image ----------
+=======
+>>>>>>> main
   const pickImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
@@ -109,7 +122,6 @@ export default function ReportScreen() {
     }
   };
 
-  // ---------- Validate ----------
   const validate = () => {
     const missing = [];
     if (!fullName.trim()) missing.push("Full Name");
@@ -127,67 +139,74 @@ export default function ReportScreen() {
     return true;
   };
 
+<<<<<<< HEAD
   // ---------- Submit ----------
+=======
+>>>>>>> main
   const submit = async () => {
     if (!validate()) return;
 
-  setSubmitting(true);
-
-  try {
-    let photoUrl = null;
-
-    // Upload photo to Cloudinary
-    if (photo) {
-      try {
-        const data = new FormData();
-        data.append("file", {
-          uri: Platform.OS === "ios" ? photo.replace("file://", "") : photo,
-          type: "image/jpeg",
-          name: `report-${Date.now()}.jpg`,
-        });
-        data.append("upload_preset", "UserPosts"); // your preset
-
-        const res = await fetch(
-          "https://api.cloudinary.com/v1_1/dpo2fiwoz/image/upload",
-          { method: "POST", body: data }
-        );
-
-        const json = await res.json();
-
-        if (!json.secure_url) {
-          throw new Error("Cloudinary upload failed");
-        }
-
-        photoUrl = json.secure_url;
-      } catch (err) {
-        console.error("Cloudinary upload error:", err);
-        alert("Failed to upload image. Check your internet connection.");
-        setSubmitting(false);
-        return;
-      }
+    const user = auth.currentUser;
+    if (!user) {
+      alert("You must be logged in to submit a report.");
+      return;
     }
 
-    // Prepare Firestore payload
-    const payload = {
-      fullName: fullName.trim(),
-      age: Number(age),
-      gender,
-      type,
-      photo: photoUrl || null, // ensures Firestore never gets undefined
-      lastSeenDate: lastSeenDate.toISOString(),
-      lastSeenLocation,
-      description,
-      contactName,
-      contactNumber,
-      status: "search",
-      createdAt: serverTimestamp(),
-    };
+    setSubmitting(true);
 
-    // Save to Firestore
-    await addDoc(collection(db, "reports"), payload);
+    try {
+      let photoUrl = null;
 
-    // Play success animation
-    if (successRef.current) successRef.current.play();
+      // Upload photo to Cloudinary
+      if (photo) {
+        try {
+          const data = new FormData();
+          data.append("file", {
+            uri: Platform.OS === "ios" ? photo.replace("file://", "") : photo,
+            type: "image/jpeg",
+            name: `report-${Date.now()}.jpg`,
+          });
+          data.append("upload_preset", "UserPosts"); // your preset
+
+          const res = await fetch(
+            "https://api.cloudinary.com/v1_1/dpo2fiwoz/image/upload",
+            { method: "POST", body: data }
+          );
+
+          const json = await res.json();
+
+          if (!json.secure_url) {
+            throw new Error("Cloudinary upload failed");
+          }
+
+          photoUrl = json.secure_url;
+        } catch (err) {
+          console.error("Cloudinary upload error:", err);
+          alert("Failed to upload image. Check your internet connection.");
+          setSubmitting(false);
+          return;
+        }
+      }
+
+      // Prepare Firestore payload
+      const payload = {
+        fullName: fullName.trim(),
+        age: Number(age),
+        gender,
+        type,
+        photo: photoUrl || null,
+        lastSeenDate: lastSeenDate.toISOString(),
+        lastSeenLocation,
+        description,
+        contactName,
+        contactNumber,
+        status: "search",
+        userId: user.uid, // ✅ Add userId here
+        createdAt: serverTimestamp(),
+      };
+
+      // Save to Firestore
+      await addDoc(collection(db, "reports"), payload);
 
       if (successRef.current) successRef.current.play();
 
@@ -202,7 +221,6 @@ export default function ReportScreen() {
     }
   };
 
-  // ---------- Date Picker ----------
   const handleDateChange = (event, selectedDate) => {
     if (Platform.OS === "android") setShowDatePicker(false);
 
@@ -214,7 +232,6 @@ export default function ReportScreen() {
     if (Platform.OS === "ios" && event.type === "set") setShowDatePicker(false);
   };
 
-  // ---------- UI ----------
   return (
     <ScrollView
       style={styles.container}
@@ -243,16 +260,26 @@ export default function ReportScreen() {
         />
 
         <Text style={styles.label}>Gender*</Text>
-        <Select label="Gender" value={gender} onSelect={setGender} options={[
-          { label: "Male", value: "male" },
-          { label: "Female", value: "female" },
-        ]} />
+        <Select
+          label="Gender"
+          value={gender}
+          onSelect={setGender}
+          options={[
+            { label: "Male", value: "male" },
+            { label: "Female", value: "female" },
+          ]}
+        />
 
         <Text style={[styles.label, { marginTop: 12 }]}>Person / Pet*</Text>
-        <Select label="Type" value={type} onSelect={setType} options={[
-          { label: "Person", value: "Person" },
-          { label: "Pet", value: "Pet" },
-        ]} />
+        <Select
+          label="Type"
+          value={type}
+          onSelect={setType}
+          options={[
+            { label: "Person", value: "Person" },
+            { label: "Pet", value: "Pet" },
+          ]}
+        />
 
         <Text style={[styles.label, { marginTop: 12 }]}>Recent Photo*</Text>
         <TouchableOpacity style={styles.uploadBtn} onPress={pickImage}>
@@ -286,10 +313,21 @@ export default function ReportScreen() {
         )}
 
         <Text style={styles.label}>Last Seen Location*</Text>
-        <TextInput style={styles.input} placeholder="Brixton, Johannesburg" value={lastSeenLocation} onChangeText={setLastSeenLocation} />
+        <TextInput
+          style={styles.input}
+          placeholder="Brixton, Johannesburg"
+          value={lastSeenLocation}
+          onChangeText={setLastSeenLocation}
+        />
 
         <Text style={styles.label}>Description</Text>
-        <TextInput style={[styles.input, { height: 90 }]} placeholder="Short description (height, clothing, marks...)" multiline value={description} onChangeText={setDescription} />
+        <TextInput
+          style={[styles.input, { height: 90 }]}
+          placeholder="Short description (height, clothing, marks...)"
+          multiline
+          value={description}
+          onChangeText={setDescription}
+        />
       </View>
 
       {/* Reporter Contact */}
@@ -307,13 +345,12 @@ export default function ReportScreen() {
         <Text style={styles.label}>Contact Number</Text>
         <TextInput
           style={styles.input}
-          placeholder="John Doe"
-          value={contactName}
-          onChangeText={setContactName}
+          placeholder="+27 71 000 0000"
+          keyboardType="phone-pad"
+          value={contactNumber}
+          onChangeText={setContactNumber}
+          maxLength={10}
         />
-
-        <Text style={styles.label}>Contact Number</Text>
-        <TextInput style={styles.input} placeholder="+27 71 000 0000" keyboardType="phone-pad" value={contactNumber} onChangeText={setContactNumber} maxLength={10} />
       </View>
 
       <TouchableOpacity
@@ -407,4 +444,3 @@ const styles = StyleSheet.create({
   },
   clearText: { color: "#444", fontWeight: "600" },
 });
-

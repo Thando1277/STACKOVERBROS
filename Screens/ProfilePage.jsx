@@ -17,6 +17,8 @@ import { auth, db, storage } from "../Firebase/firebaseConfig";
 import { doc, getDoc, collection, getDocs, query, where, updateDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import * as FileSystem from 'expo-file-system';
+import axios from 'axios';
+import * as mime from 'react-native-mime-types';
 
 export default function ProfileScreen() {
   const navigation = useNavigation();
@@ -89,43 +91,54 @@ export default function ProfileScreen() {
     }
   };
 
-  // Save picked image to Firebase
+  // Save picked image 
   const saveImage = async () => {
-    if (!selectedImage) return;
-    try {
-      setUploading(true);
+  if (!selectedImage) return;
 
-      const fileUri = selectedImage;
-      const fileInfo = await FileSystem.getInfoAsync(fileUri);
-      if (!fileInfo.exists) throw new Error("File does not exist");
+  try {
+    setUploading(true);
 
-      const blob = await new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.onload = function () {
-          resolve(xhr.response);
-        };
-        xhr.onerror = function () {
-          reject(new Error("Failed to convert file to blob"));
-        };
-        xhr.responseType = "blob";
-        xhr.open("GET", fileUri, true);
-        xhr.send(null);
-      });
+    // Get the file extension and MIME type dynamically
+    const fileExt = selectedImage.split('.').pop(); // e.g., "png", "jpg", "pdf"
+    const mimeType = mime.lookup(fileExt) || 'application/octet-stream';
+    const data = new FormData(); 
 
-      const storageRef = ref(storage, `avatars/${currentUser.id}.jpg`);
-      await uploadBytes(storageRef, blob);
+    data.append("file", {
+      uri: selectedImage,
+      type: mimeType,
+      name: `upload.${fileExt}`,
+    });
+    data.append("upload_preset", "user_uploads"); // The Cloudinary preset
 
-      const downloadURL = await getDownloadURL(storageRef);
-      await updateDoc(doc(db, "users", currentUser.id), { avatar: downloadURL });
-      setCurrentUser(prev => ({ ...prev, avatar: downloadURL }));
-      setSelectedImage(null);
-    } catch (error) {
-      console.log("Upload error:", error);
-      Alert.alert("Upload Failed", "Could not save image. Make sure it's a valid image file.");
-    } finally {
-      setUploading(false);
+    const res = await axios.post(
+      "https://api.cloudinary.com/v1_1/datb9a7ad/image/upload",
+      data,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+
+    const imageUrl = res.data.secure_url;
+
+    // Save to Firestore
+    const userId = auth.currentUser?.uid;
+    if (userId) {
+      await updateDoc(doc(db, "users", userId), { avatar: imageUrl });
+      setCurrentUser((prev) => ({ ...prev, avatar: imageUrl }));
     }
-  };
+
+    setSelectedImage(null);
+    Alert.alert("Success", "Image uploaded successfully!");
+  } catch (error) {
+    console.log("Cloudinary Upload Error:", error);
+    Alert.alert("Upload Failed", "Something went wrong while uploading to Cloudinary.");
+  } finally {
+    setUploading(false);
+  }
+};
+
 
   // Remove avatar
   const removeImage = async () => {
@@ -158,6 +171,7 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll}>
+
         {/* Header */}
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
@@ -282,7 +296,8 @@ const styles = StyleSheet.create({
   avatarWrapper: { justifyContent: "center", alignItems: "center" },
   avatar: { width: 96, height: 96, borderRadius: 12 },
   name: { fontSize: 18, fontWeight: "800", color: "#fff" },
-  email: { color: "#ddd", marginTop: 6 },
+  email: { color: "#ddd", marginTop: 4 },
+  phone: { color: "#aaa", marginTop: 2, fontSize: 12 },
 
   actionRow: { flexDirection: "row", marginTop: 12 },
   editBtn: { backgroundColor: "#7CC242", paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8, marginRight: 8 },

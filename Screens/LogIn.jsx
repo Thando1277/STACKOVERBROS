@@ -7,7 +7,6 @@ import {
   Image,
   TouchableOpacity,
   TextInput,
-  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -15,6 +14,7 @@ import {
   Keyboard,
   Animated,
   Dimensions,
+  Modal,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -22,6 +22,30 @@ import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'fire
 import { auth } from '../Firebase/firebaseConfig';
 
 const { height } = Dimensions.get('window');
+
+// Custom Alert Component
+const CustomAlert = ({ visible, title, message, type, onClose }) => {
+  const backgroundColor = type === 'success' ? 'white' : type === 'error' ? '#fff' : '#FFF3CD';
+  const borderColor = type === 'success' ? '#0FC436' : type === 'error' ? '#0FC436' : '#FFC107';
+  const textColor = type === 'success' ? '#155724' : type === 'error' ? '#155724' : '#856404';
+  const iconName = type === 'success' ? 'check-circle' : type === 'error' ? 'times-circle' : 'exclamation-circle';
+  const iconColor = type === 'success' ? '#0FC436' : type === 'error' ? '#0FC436' : '#FFC107';
+
+  return (
+    <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
+      <View style={styles.alertOverlay}>
+        <View style={[styles.alertBox, { backgroundColor, borderColor }]}>
+          <Icon name={iconName} size={40} color={iconColor} style={{ marginBottom: 10 }} />
+          <Text style={[styles.alertTitle, { color: textColor }]}>{title}</Text>
+          <Text style={[styles.alertMessage, { color: textColor }]}>{message}</Text>
+          <TouchableOpacity onPress={onClose} style={[styles.alertButton, { backgroundColor: iconColor }]}>
+            <Text style={styles.alertButtonText}>OK</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+};
 
 export default function AuthScreen({ navigation }) {
   // --- SignUp state
@@ -42,9 +66,23 @@ export default function AuthScreen({ navigation }) {
   // --- Input focus tracking
   const [activeInput, setActiveInput] = useState('');
 
+  // --- Custom Alert state
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState('');
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertType, setAlertType] = useState('success');
+
   // --- Animation refs
   const signUpAnim = useRef(new Animated.Value(0)).current;
   const loginAnim = useRef(new Animated.Value(height)).current;
+
+  // Custom alert function
+  const showAlert = (title, message, type = 'success') => {
+    setAlertTitle(title);
+    setAlertMessage(message);
+    setAlertType(type);
+    setAlertVisible(true);
+  };
 
   // --- Switch forms
   const handleGoToLogin = () => {
@@ -60,39 +98,39 @@ export default function AuthScreen({ navigation }) {
   // --- Firebase handlers
   const handleSignUp = async () => {
     if (!fullName || !emailSignUp || !phone || !passwordSignUp || !confirmPassword) {
-      Alert.alert('Missing Fields', 'Please fill in all fields.');
+      showAlert('Missing Fields', 'Please fill in all fields.', 'error');
       return;
     }
     if (passwordSignUp !== confirmPassword) {
-      Alert.alert('Password Mismatch', 'Passwords do not match.');
+      showAlert('Password Mismatch', 'Passwords do not match.', 'error');
       return;
     }
     setLoadingSignUp(true);
     try {
       await createUserWithEmailAndPassword(auth, emailSignUp, passwordSignUp);
-      Alert.alert('Success', 'Account created successfully!');
-      navigation.navigate('Home');
-    } catch {
-      Alert.alert('Sign Up Failed', 'Please check your details and try again.');
-    } finally {
       setLoadingSignUp(false);
+      showAlert('Success', 'Account created successfully!', 'success');
+      setTimeout(() => navigation.navigate('Home'), 1500);
+    } catch {
+      setLoadingSignUp(false);
+      showAlert('Sign Up Failed', 'Please check your details and try again.', 'error');
     }
   };
 
   const handleLogIn = async () => {
     if (!emailLogin || !passwordLogin) {
-      Alert.alert('Missing Fields', 'Please enter both email and password.');
+      showAlert('Missing Fields', 'Please enter both email and password.', 'error');
       return;
     }
     setLoadingLogin(true);
     try {
       await signInWithEmailAndPassword(auth, emailLogin, passwordLogin);
-      Alert.alert('Success', 'You are logged in!');
-      navigation.navigate('Home');
-    } catch {
-      Alert.alert('Login Failed', 'Email or password is incorrect.');
-    } finally {
       setLoadingLogin(false);
+      showAlert('Success', 'You are logged in!', 'success');
+      setTimeout(() => navigation.navigate('Home'), 1500);
+    } catch {
+      setLoadingLogin(false);
+      showAlert('Login Failed', 'Email or password is incorrect.', 'error');
     }
   };
 
@@ -205,12 +243,12 @@ export default function AuthScreen({ navigation }) {
                   <View style={{alignItems:'center', marginTop:15, width:'95%'}}>
                     <Text style={{color:'#555', marginBottom:10}}>Or continue with</Text>
                     <View style={{flexDirection:'row', justifyContent:'center', width:'100%'}}>
-                      <TouchableOpacity style={styles.socialBtn} onPress={() => Alert.alert('Google Login')}>
+                      <TouchableOpacity style={styles.socialBtn} onPress={() => showAlert('Google Login', 'Google login feature coming soon!', 'warning')}>
                         <Icon name="google" size={18} color="#DB4437" />
                         <Text style={styles.socialText}>Google</Text>
                       </TouchableOpacity>
 
-                      <TouchableOpacity style={styles.socialBtn} onPress={() => Alert.alert('Apple Login')}>
+                      <TouchableOpacity style={styles.socialBtn} onPress={() => showAlert('Apple Login', 'Apple login feature coming soon!', 'warning')}>
                         <Icon name="apple" size={18} color="#000" />
                         <Text style={styles.socialText}>Apple</Text>
                       </TouchableOpacity>
@@ -279,12 +317,12 @@ export default function AuthScreen({ navigation }) {
                   <View style={{alignItems:'center', marginTop:15, width:'95%'}}>
                     <Text style={{color:'#555', marginBottom:10}}>Or continue with</Text>
                     <View style={{flexDirection:'row', justifyContent:'center', width:'100%'}}>
-                      <TouchableOpacity style={styles.socialBtn} onPress={() => Alert.alert('Google Login')}>
+                      <TouchableOpacity style={styles.socialBtn} onPress={() => showAlert('Google Login', 'Google login feature coming soon!', 'warning')}>
                         <Icon name="google" size={18} color="#DB4437" />
                         <Text style={styles.socialText}>Google</Text>
                       </TouchableOpacity>
 
-                      <TouchableOpacity style={styles.socialBtn} onPress={() => Alert.alert('Apple Login')}>
+                      <TouchableOpacity style={styles.socialBtn} onPress={() => showAlert('Apple Login', 'Apple login feature coming soon!', 'warning')}>
                         <Icon name="apple" size={18} color="#000" />
                         <Text style={styles.socialText}>Apple</Text>
                       </TouchableOpacity>
@@ -295,6 +333,15 @@ export default function AuthScreen({ navigation }) {
               </View>
             </Animated.View>
 
+            {/* Custom Alert */}
+            <CustomAlert
+              visible={alertVisible}
+              title={alertTitle}
+              message={alertMessage}
+              type={alertType}
+              onClose={() => setAlertVisible(false)}
+            />
+
           </View>
         </TouchableWithoutFeedback>
       </KeyboardAvoidingView>
@@ -303,24 +350,24 @@ export default function AuthScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  safeArea:{flex:1, backgroundColor:'#fff'},
-  container:{flex:1, justifyContent:'center', alignItems:'center', paddingHorizontal:20},
-  formWrapper:{position:'absolute', width:'100%', alignItems:'center'},
-  logoContainer:{alignItems:'center', marginBottom:20},
-  logo:{width:120, height:90},
-  title:{fontSize:20, fontWeight:'700', color:'#1F1F1F', marginTop:6},
-  subtitle:{fontSize:13, color:'#777', marginTop:2, textAlign:'center'},
-  formContainer:{width:'100%', alignItems:'center'},
-  fieldGroup:{width:'95%', marginBottom:8},
-  label:{fontSize:13, fontWeight:'500', color:'#333', marginBottom:3},
-  inputGroup:{flexDirection:'row', alignItems:'center', backgroundColor:'#F6F6F6', borderRadius:8, paddingHorizontal:10, height:42, borderWidth:1, borderColor:'#E0E0E0'},
-  icon:{marginRight:6},
-  input:{flex:1, fontSize:14, color:'#333'},
-  loginBtn:{borderRadius:8, height:42, alignItems:'center', justifyContent:'center', width:'100%'},
-  loginBtnText:{color:'#fff', fontWeight:'600', fontSize:15},
-  textRow:{flexDirection:'row', justifyContent:'center', marginTop:8},
-  text:{color:'#555', fontSize:13},
-  link:{color:'#0FC436', fontWeight:'600', fontSize:13},
+  safeArea: { flex: 1, backgroundColor: '#fff' },
+  container: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20 },
+  formWrapper: { position: 'absolute', width: '100%', alignItems: 'center' },
+  logoContainer: { alignItems: 'center', marginBottom: 20 },
+  logo: { width: 120, height: 90 },
+  title: { fontSize: 20, fontWeight: '700', color: '#1F1F1F', marginTop: 6 },
+  subtitle: { fontSize: 13, color: '#777', marginTop: 2, textAlign: 'center' },
+  formContainer: { width: '100%', alignItems: 'center' },
+  fieldGroup: { width: '95%', marginBottom: 8 },
+  label: { fontSize: 13, fontWeight: '500', color: '#333', marginBottom: 3 },
+  inputGroup: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F6F6F6', borderRadius: 8, paddingHorizontal: 10, height: 42, borderWidth: 1, borderColor: '#E0E0E0' },
+  icon: { marginRight: 6 },
+  input: { flex: 1, fontSize: 14, color: '#333' },
+  loginBtn: { borderRadius: 8, height: 42, alignItems: 'center', justifyContent: 'center', width: '100%' },
+  loginBtnText: { color: '#fff', fontWeight: '600', fontSize: 15 },
+  textRow: { flexDirection: 'row', justifyContent: 'center', marginTop: 8 },
+  text: { color: '#555', fontSize: 13 },
+  link: { color: '#0FC436', fontWeight: '600', fontSize: 13 },
   socialBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -333,4 +380,41 @@ const styles = StyleSheet.create({
     flex: 1
   },
   socialText: { fontSize: 14, color: '#333', fontWeight: '500' },
+  // Custom Alert Styles
+  alertOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  alertBox: {
+    width: '85%',
+    padding: 25,
+    borderRadius: 15,
+    alignItems: 'center',
+    borderWidth: 2,
+  },
+  alertTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  alertMessage: {
+    fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  alertButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 30,
+    borderRadius: 8,
+    minWidth: 100,
+  },
+  alertButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
 });

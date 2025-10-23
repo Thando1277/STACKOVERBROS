@@ -19,6 +19,8 @@ import { auth, db, storage } from "../Firebase/firebaseConfig";
 import { doc, getDoc, collection, getDocs, query, where, updateDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
 import * as FileSystem from "expo-file-system";
+import axios from 'axios';
+import * as mime from 'react-native-mime-types';
 
 export default function ProfileScreen() {
   const navigation = useNavigation();
@@ -34,7 +36,7 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
-  const [showPopup, setShowPopup] = useState(false); // <-- new state
+  const [showPopup, setShowPopup] = useState(false);
 
   // Fetch user info & reports
   useEffect(() => {
@@ -75,7 +77,7 @@ export default function ProfileScreen() {
     fetchUserData();
   }, []);
 
-  // Pick and edit image from gallery
+  // Pick and edit image
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
@@ -95,53 +97,49 @@ export default function ProfileScreen() {
     }
   };
 
-  // Save picked image to Firebase
+  // Save picked image
   const saveImage = async () => {
-  if (!selectedImage) return;
+    if (!selectedImage) return;
 
-  try {
-    setUploading(true);
+    try {
+      setUploading(true);
 
-    // Get the file extension and MIME type dynamically
-    const fileExt = selectedImage.split('.').pop(); // e.g., "png", "jpg", "pdf"
-    const mimeType = mime.lookup(fileExt) || 'application/octet-stream';
-    const data = new FormData(); 
+      const fileExt = selectedImage.split(".").pop();
+      const mimeType = mime.lookup(fileExt) || "application/octet-stream";
+      const data = new FormData();
 
-    data.append("file", {
-      uri: selectedImage,
-      type: mimeType,
-      name: `upload.${fileExt}`,
-    });
-    data.append("upload_preset", "user_uploads"); // The Cloudinary preset
+      data.append("file", {
+        uri: selectedImage,
+        type: mimeType,
+        name: `upload.${fileExt}`,
+      });
+      data.append("upload_preset", "user_uploads");
 
-    const res = await axios.post(
-      "https://api.cloudinary.com/v1_1/datb9a7ad/image/upload",
-      data,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+      const res = await axios.post(
+        "https://api.cloudinary.com/v1_1/datb9a7ad/image/upload",
+        data,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        }
+      );
+
+      const imageUrl = res.data.secure_url;
+
+      const userId = auth.currentUser?.uid;
+      if (userId) {
+        await updateDoc(doc(db, "users", userId), { avatar: imageUrl });
+        setCurrentUser((prev) => ({ ...prev, avatar: imageUrl }));
       }
-    );
 
-    const imageUrl = res.data.secure_url;
-
-    // Save to Firestore
-    const userId = auth.currentUser?.uid;
-    if (userId) {
-      await updateDoc(doc(db, "users", userId), { avatar: imageUrl });
-      setCurrentUser((prev) => ({ ...prev, avatar: imageUrl }));
+      setSelectedImage(null);
+      Alert.alert("Success", "Image uploaded successfully!");
+    } catch (error) {
+      console.log("Cloudinary Upload Error:", error);
+      Alert.alert("Upload Failed", "Something went wrong while uploading to Cloudinary.");
+    } finally {
+      setUploading(false);
     }
-
-    setSelectedImage(null);
-    Alert.alert("Success", "Image uploaded successfully!");
-  } catch (error) {
-    console.log("Cloudinary Upload Error:", error);
-    Alert.alert("Upload Failed", "Something went wrong while uploading to Cloudinary.");
-  } finally {
-    setUploading(false);
-  }
-};
+  };
 
   // Remove avatar
   const removeImage = async () => {
@@ -160,13 +158,8 @@ export default function ProfileScreen() {
   };
 
   const handleAvatarPress = () => {
-    if (currentUser.avatar) {
-      // if already has avatar, show the popup
-      setShowPopup(true);
-    } else {
-      // no avatar, just pick image directly
-      pickImage();
-    }
+    if (currentUser.avatar) setShowPopup(true);
+    else pickImage();
   };
 
   if (loading) {
@@ -199,7 +192,6 @@ export default function ProfileScreen() {
 
         {/* Cover Photo Area */}
         <View style={styles.coverPhotoContainer}>
-          {/* <Image source={require('../assets/logo.png')} style={styles.coverPhoto} /> */}
           <TouchableOpacity onPress={handleAvatarPress} style={styles.avatarContainer}>
             {avatarSource ? (
               <Image source={avatarSource} style={styles.avatar} />
@@ -272,9 +264,7 @@ export default function ProfileScreen() {
                   <Text style={styles.activityTitle}>{r.title || "Report"}</Text>
                   <Text style={styles.activitySubtitle}>{r.location || "Unknown Location"}</Text>
                   <Text style={styles.activityTime}>
-                    {r.createdAt
-                      ? new Date(r.createdAt.seconds * 1000).toLocaleString()
-                      : ""}
+                    {r.createdAt ? new Date(r.createdAt.seconds * 1000).toLocaleString() : ""}
                   </Text>
                 </View>
               </View>
@@ -317,6 +307,9 @@ export default function ProfileScreen() {
   );
 }
 
+  
+
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#121212" },
   scroll: { paddingBottom: 40 },
@@ -349,7 +342,8 @@ const styles = StyleSheet.create({
   avatar: { width: 120, height: 120, borderRadius: 60 },
   profileInfo: { alignItems: "flex-start", paddingHorizontal: 18, marginTop: 60 },
   name: { fontSize: 22, fontWeight: "800", color: "#fff" },
-  email: { color: "#ccc", marginTop: 6 },
+  email: { color: "#ccc", marginTop: 4 },
+  phone: { color: "#aaa", marginTop: 2, fontSize: 12 },
   actionRow: { flexDirection: "row", marginTop: 12 },
   editBtn: {
     backgroundColor: "#7CC242",

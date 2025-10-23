@@ -10,6 +10,7 @@ import {
   Dimensions,
   Pressable,
   TextInput,
+  Alert,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
@@ -81,10 +82,17 @@ function StatusSelect({ value, onChange, isOwner }) {
   const currentLabel = options.find((o) => o.value === value)?.label || "Missing";
 
   return (
-    <>
+    <View style={{ marginTop: 4, width: 100 }}>
       <Pressable
-        style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, borderWidth: 1, borderColor: "#ccc" }}
-        onPress={() => setOpen(true)}
+        style={{
+          paddingHorizontal: 6,
+          paddingVertical: 2,
+          borderRadius: 4,
+          borderWidth: 1,
+          borderColor: "#ccc",
+          backgroundColor: "#f9f9f9",
+        }}
+        onPress={() => setOpen(!open)}
       >
         <Text style={{ fontWeight: "bold", color: value === "search" ? "red" : "#7CC242" }}>
           {currentLabel} ▼
@@ -110,7 +118,7 @@ function StatusSelect({ value, onChange, isOwner }) {
           </View>
         </View>
       )}
-    </>
+    </View>
   );
 }
 
@@ -123,13 +131,12 @@ export default function HomeScreen() {
   const [ageGroup, setAgeGroup] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // ---------- Firestore Fetch ----------
+  // Firestore fetch
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, "reports"), (snapshot) => {
       const allReports = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
       setReports(allReports);
     });
-
     return () => unsubscribe();
   }, []);
 
@@ -290,7 +297,6 @@ export default function HomeScreen() {
                 <Text style={styles.details}>{String(r.age)} • {String(r.gender)}</Text>
                 <Text style={styles.details}>{String(r.lastSeenLocation)}</Text>
 
-                {/* View Details Button */}
                 <TouchableOpacity
                   style={styles.viewBtn}
                   onPress={() => navigation.navigate("Details", { report: r })}
@@ -298,7 +304,6 @@ export default function HomeScreen() {
                   <Text style={styles.viewText}>View Details</Text>
                 </TouchableOpacity>
 
-                {/* Add/View Comments Button */}
                 <TouchableOpacity
                   style={styles.viewBtn}
                   onPress={() => navigation.navigate("Comments", { reportId: r.id })}
@@ -380,7 +385,4 @@ const styles = StyleSheet.create({
   navItem: { alignItems: "center" },
   navText: { fontSize: 12, color: "black" },
   reportBtn: { backgroundColor: "#7CC242", width: 60, height: 60, borderRadius: 30, justifyContent: "center", alignItems: "center", marginTop: -25, elevation: 5 },
-  statusModalCover: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
-  statusBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)" },
-  statusModalSheet: { backgroundColor: "white", borderRadius: 12, padding: 12, position: "absolute", left: 50, right: 50, top: 100, zIndex: 100, borderWidth: 1, borderColor: "#ccc" },
 });

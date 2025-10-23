@@ -10,7 +10,6 @@ import {
   Dimensions,
   Pressable,
   TextInput,
-  Alert,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
@@ -84,14 +83,7 @@ function StatusSelect({ value, onChange, isOwner }) {
   return (
     <View style={{ marginTop: 4, width: 100 }}>
       <Pressable
-        style={{
-          paddingHorizontal: 6,
-          paddingVertical: 2,
-          borderRadius: 4,
-          borderWidth: 1,
-          borderColor: "#ccc",
-          backgroundColor: "#f9f9f9",
-        }}
+        style={styles.statusButton}
         onPress={() => setOpen(!open)}
       >
         <Text style={{ fontWeight: "bold", color: value === "search" ? "red" : "#7CC242" }}>
@@ -131,7 +123,6 @@ export default function HomeScreen() {
   const [ageGroup, setAgeGroup] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Firestore fetch
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, "reports"), (snapshot) => {
       const allReports = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
@@ -140,18 +131,14 @@ export default function HomeScreen() {
     return () => unsubscribe();
   }, []);
 
-  // ---------- Handle Status Change ----------
   const handleStatusChange = async (report, newStatus) => {
     if (!report?.id) return;
-
-    // Only allow the owner to update
     if (report.userId !== auth.currentUser?.uid) {
       alert("You can only change your own reports.");
       return;
     }
 
     const docRef = doc(db, "reports", report.id);
-
     try {
       if (newStatus === "delete") {
         await deleteDoc(docRef);
@@ -279,10 +266,10 @@ export default function HomeScreen() {
 
       {/* Report List */}
       <ScrollView style={styles.list}>
-        {filtered.filter(r => r).length === 0 ? (
+        {filtered.length === 0 ? (
           <Text style={{ textAlign: "center", color: "#666", marginTop: 16 }}>No reports found</Text>
         ) : (
-          filtered.filter(r => r).map((r) => (
+          filtered.map((r) => (
             <View key={r.id} style={styles.card}>
               <Image source={imgFor(r)} style={styles.avatar} />
               <View style={{ flex: 1 }}>
@@ -291,7 +278,7 @@ export default function HomeScreen() {
                   <StatusSelect
                     value={r.status}
                     onChange={(status) => handleStatusChange(r, status)}
-                    isOwner={r.userId === auth.currentUser?.uid} // <-- only owner can change
+                    isOwner={r.userId === auth.currentUser?.uid}
                   />
                 </View>
                 <Text style={styles.details}>{String(r.age)} • {String(r.gender)}</Text>
@@ -347,7 +334,7 @@ export default function HomeScreen() {
   );
 }
 
-// ---------- STYLES (unchanged) ----------
+// ---------- STYLES ----------
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff" },
   header: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 15, paddingTop: 10, alignItems: "center" },
@@ -368,24 +355,69 @@ const styles = StyleSheet.create({
   filterText: { color: "#444", fontWeight: "500" },
   modalCover: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
   backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)" },
-  modalSheet: { backgroundColor: "white", borderRadius: 16, padding: 16, position: "absolute", left: 0, right: 0, top: 50, zIndex: 100, borderWidth: 2, borderColor: "#7CC242" },
-  modalTitle: { fontSize: 16, fontWeight: "700", marginBottom: 8 },
-  optionRow: { paddingVertical: 12, borderBottomColor: "#eee", borderBottomWidth: 1 },
-  optionText: { fontSize: 15, color: "#222" },
+  modalSheet: {
+    backgroundColor: "#f9f9f9",
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    position: "absolute",
+    left: 20,
+    right: 20,
+    top: "auto",
+    bottom: 80,
+    zIndex: 100,
+    borderWidth: 1,
+    borderColor: "#000",
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+  },
+  modalTitle: { fontSize: 15, fontWeight: "700", marginBottom: 6, textAlign: "center", color: "#333" },
+  optionRow: { flexDirection: "row", justifyContent: "space-around", alignItems: "center", paddingVertical: 8 },
+  optionText: { fontSize: 13, color: "#333", fontWeight: "600", paddingHorizontal: 10 },
   clearBtn: { marginTop: 10, alignSelf: "flex-end", backgroundColor: "#e0e0e0", borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12 },
   clearText: { color: "#444", fontWeight: "600" },
   list: { flex: 1, paddingHorizontal: 20, marginTop: 5 },
-  card: { flexDirection: "row",backgroundColor: "#fff",borderRadius: 12,padding: 14,marginBottom: 20,elevation: 3, shadowColor: "#000", shadowOpacity: 0.1,shadowRadius: 1,height: height * 0.25,borderWidth: 0.2,borderColor: "#02c048ff",
-  },
+  card: { flexDirection: "row", backgroundColor: "#fff", borderRadius: 12, padding: 14, marginBottom: 20, elevation: 3, shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 1, height: height * 0.25, borderWidth: 0.2, borderColor: "#02c048ff" },
   avatar: { width: 100, height: "100%", borderRadius: 12, marginRight: 12 },
   cardHeader: { flexDirection: "row", justifyContent: "space-between" },
   name: { fontSize: 18, fontWeight: "bold", color: "#222" },
   details: { fontSize: 14, color: "gray", marginTop: 3 },
-  viewBtn: { backgroundColor: "#7CC242", borderRadius: 10, marginTop: 20, paddingVertical: 8, alignItems: "center", width: "80%" },
+  viewBtn: { backgroundColor: "#7CC242", borderRadius: 10, marginTop: 10, paddingVertical: 8, alignItems: "center", width: "80%" },
   viewText: { color: "white", fontWeight: "bold", fontSize: 14 },
   time: { fontSize: 12, color: "gray", marginTop: 8, marginLeft: 0 },
   bottomNav: { flexDirection: "row", justifyContent: "space-around", paddingVertical: 10, borderTopWidth: 1, borderColor: "#ddd", backgroundColor: "#fff" },
   navItem: { alignItems: "center" },
   navText: { fontSize: 12, color: "black" },
   reportBtn: { backgroundColor: "#7CC242", width: 60, height: 60, borderRadius: 30, justifyContent: "center", alignItems: "center", marginTop: -25, elevation: 5 },
+
+  // ---------- StatusSelect Styles ----------
+  statusButton: {
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#000",
+    backgroundColor: "#f9f9f9",
+    alignItems: "center",
+  },
+  statusModalCover: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 200 },
+  statusBackdrop: { flex: 1, backgroundColor: "transparent" },
+  statusModalSheet: {
+    position: "absolute",
+    top: 35,
+    right: 0,
+    width: 100,
+    backgroundColor: "#fff",
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#000",
+    paddingVertical: 4,
+    zIndex: 201,
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+  },
 });

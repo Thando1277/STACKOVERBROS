@@ -68,7 +68,7 @@ export default function EditProfile({ navigation }) {
       return;
     }
 
-    // Validate password fields if user is changing password
+    // Validate password fields ONLY if user has entered either password field
     if (newPassword || confirmPassword) {
       if (!newPassword || !confirmPassword) {
         setErrorMessage('⚠️ Please fill in both new password fields.');
@@ -107,27 +107,43 @@ export default function EditProfile({ navigation }) {
       await reauthenticateWithCredential(user, credential);
 
       let updatedItems = [];
+      let emailUpdateMethod = 'none';
 
       // Update email if provided
       if (newEmail && newEmail !== currentEmail) {
         try {
-          // Use verifyBeforeUpdateEmail which sends verification to new email
+          // Try verifyBeforeUpdateEmail first (more secure)
           await verifyBeforeUpdateEmail(user, newEmail);
+          emailUpdateMethod = 'verification';
           updatedItems.push('email verification sent');
           
           setSuccessMessage(
-            `A verification email has been sent to ${newEmail}. ` +
+            `✉️ A verification email has been sent to ${newEmail}. ` +
             `Please verify your new email address to complete the change. ` +
             `Your current email (${currentEmail}) will remain active until verification.`
           );
         } catch (emailError) {
-          // If verifyBeforeUpdateEmail is not available, try direct update
-          if (emailError.code === 'auth/operation-not-allowed') {
-            // Try direct email update without verification
-            await updateEmail(user, newEmail);
-            setCurrentEmail(newEmail);
-            updatedItems.push('email');
+          console.log('Email update error:', emailError.code);
+          
+          // If verifyBeforeUpdateEmail fails, try direct update
+          if (
+            emailError.code === 'auth/operation-not-allowed' ||
+            emailError.code === 'auth/invalid-action-code' ||
+            emailError.code === 'auth/internal-error' ||
+            !emailError.code // Some platforms don't return error codes
+          ) {
+            try {
+              // Direct email update without verification
+              await updateEmail(user, newEmail);
+              setCurrentEmail(newEmail);
+              updatedItems.push('email');
+              emailUpdateMethod = 'direct';
+            } catch (directUpdateError) {
+              // If direct update also fails, throw the error
+              throw directUpdateError;
+            }
           } else {
+            // For other errors (like email-already-in-use), throw them
             throw emailError;
           }
         }
@@ -139,12 +155,17 @@ export default function EditProfile({ navigation }) {
         updatedItems.push('password');
       }
 
-      // Only show success message if we haven't already shown the email verification message
-      if (!updatedItems.includes('email verification sent')) {
-        const message = updatedItems.length > 0 
-          ? `${updatedItems.join(' and ')} updated successfully!`
-          : 'No changes were made.';
-        setSuccessMessage(message);
+      // Show appropriate success message
+      if (emailUpdateMethod === 'verification') {
+        // Message already set above for verification flow
+      } else if (emailUpdateMethod === 'direct' && updatedItems.includes('password')) {
+        setSuccessMessage('✅ Email and password updated successfully!');
+      } else if (emailUpdateMethod === 'direct') {
+        setSuccessMessage('✅ Email updated successfully!');
+      } else if (updatedItems.includes('password')) {
+        setSuccessMessage('✅ Password updated successfully!');
+      } else {
+        setSuccessMessage('✅ Profile updated successfully!');
       }
 
       setShowSuccessModal(true);
@@ -155,7 +176,8 @@ export default function EditProfile({ navigation }) {
       setNewPassword('');
       setConfirmPassword('');
     } catch (error) {
-      let message = 'Failed to update profile. ';
+      console.error('Update error:', error);
+      let message = '❌ Failed to update profile. ';
       
       switch (error.code) {
         case 'auth/wrong-password':
@@ -170,14 +192,14 @@ export default function EditProfile({ navigation }) {
         case 'auth/invalid-email':
           message += 'The email address is invalid.';
           break;
-        case 'auth/operation-not-allowed':
-          message += 'Email update requires verification. Please check your Firebase settings or contact support.';
-          break;
         case 'auth/requires-recent-login':
           message += 'Please log out and log in again before updating your profile.';
           break;
+        case 'auth/network-request-failed':
+          message += 'Network error. Please check your internet connection.';
+          break;
         default:
-          message += error.message;
+          message += error.message || 'An unexpected error occurred.';
       }
       
       setErrorMessage(message);
@@ -214,7 +236,7 @@ export default function EditProfile({ navigation }) {
       // Delete user account from Firebase Authentication
       await deleteUser(user);
 
-      setSuccessMessage('Account deleted successfully! Redirecting to login...');
+      setSuccessMessage('✅ Account deleted successfully! Redirecting to login...');
       setShowSuccessModal(true);
       
       // Navigate to login after a delay
@@ -225,7 +247,7 @@ export default function EditProfile({ navigation }) {
         });
       }, 2000);
     } catch (error) {
-      let message = 'Failed to delete account. ';
+      let message = '❌ Failed to delete account. ';
       
       switch (error.code) {
         case 'auth/wrong-password':
@@ -279,7 +301,7 @@ export default function EditProfile({ navigation }) {
             <TextInput
               style={[
                 styles.input,
-                { borderColor: isNewEmailFocused ? '' : '#555' },
+                { borderColor: isNewEmailFocused ? '#7CC242' : '#555' },
               ]}
               placeholder="Enter new email"
               placeholderTextColor="#aaa"
@@ -298,7 +320,7 @@ export default function EditProfile({ navigation }) {
             <TextInput
               style={[
                 styles.input,
-                { borderColor: isCurrentPasswordFocused ? '' : '#555' },
+                { borderColor: isCurrentPasswordFocused ? '#7CC242' : '#555' },
               ]}
               placeholder="Enter current password"
               placeholderTextColor="#aaa"
@@ -313,7 +335,7 @@ export default function EditProfile({ navigation }) {
             <TextInput
               style={[
                 styles.input,
-                { borderColor: isPasswordFocused ? '' : '#555' },
+                { borderColor: isPasswordFocused ? '#7CC242' : '#555' },
               ]}
               placeholder="Enter new password"
               placeholderTextColor="#aaa"
@@ -328,7 +350,7 @@ export default function EditProfile({ navigation }) {
             <TextInput
               style={[
                 styles.input,
-                { borderColor: isConfirmFocused ? '' : '#555' },
+                { borderColor: isConfirmFocused ? '#7CC242' : '#555' },
               ]}
               placeholder="Re-enter new password"
               placeholderTextColor="#aaa"

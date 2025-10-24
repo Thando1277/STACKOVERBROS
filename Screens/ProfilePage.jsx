@@ -37,9 +37,12 @@ export default function ProfileScreen() {
   const [uploading, setUploading] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [showPopup, setShowPopup] = useState(false);
+  const [totalReports, setTotalReports] = useState(0);
+
 
   // Fetch user info & reports
   useEffect(() => {
+
     const fetchUserData = async () => {
       try {
         const userId = auth.currentUser?.uid;
@@ -67,16 +70,17 @@ export default function ProfileScreen() {
           });
         }
 
-        const reportsQuery = query(
-          collection(db, "reports"),
-          where("reportedBy", "==", userId)
-        );
+        
+
+        const reportsQuery = query(collection(db, "reports"), where("userId", "==", userId));
         const reportsSnapshot = await getDocs(reportsQuery);
-        const reportsList = reportsSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setReports(reportsList);
+        const userReports = reportsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        setReports(userReports);
+
+        // Fetch total reports
+        const totalSnapshot = await getDocs(collection(db, "reports"));
+        setTotalReports(totalSnapshot.size);
+
       } catch (error) {
         console.log("Error fetching data:", error);
       } finally {
@@ -257,10 +261,12 @@ export default function ProfileScreen() {
             <Text style={styles.statNum}>{reports.length}</Text>
             <Text style={styles.statLabel}>My Reports</Text>
           </View>
-          <View style={styles.statBox}>
-            <Text style={styles.statNum}>--</Text>
-            <Text style={styles.statLabel}>Total Reports</Text>
-          </View>
+
+        <View style={styles.statBox}>
+          <Text style={styles.statNum}>{totalReports}</Text>
+          <Text style={styles.statLabel}>Total Reports</Text>
+        </View>
+
           <View style={styles.statBox}>
             <Text style={styles.statNum}>0</Text>
             <Text style={styles.statLabel}>Bookmarks</Text>
@@ -269,29 +275,39 @@ export default function ProfileScreen() {
 
         {/* Recent Activity */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Recent Activity</Text>
+          <Text style={styles.sectionTitle}>My Reports</Text>
+
           {reports.length === 0 ? (
-            <Text style={styles.emptyText}>You haven't reported anything yet.</Text>
-          ) : (
-            reports.slice(0, 5).map((r) => (
-              <View key={r.id} style={styles.activityRow}>
-                <View style={styles.activityLeft}>
-                  {r.photo ? (
-                    <Image source={{ uri: r.photo }} style={styles.actImg} />
-                  ) : (
-                    <Ionicons name="person-circle-outline" size={64} color="#7CC242" />
-                  )}
-                </View>
-                <View style={styles.activityRight}>
-                  <Text style={styles.activityTitle}>{r.title || "Report"}</Text>
-                  <Text style={styles.activitySubtitle}>{r.location || "Unknown Location"}</Text>
-                  <Text style={styles.activityTime}>
-                    {r.createdAt ? new Date(r.createdAt.seconds * 1000).toLocaleString() : ""}
-                  </Text>
-                </View>
+          <Text style={styles.emptyText}>You haven't reported anything yet.</Text>
+            ) : (
+            reports.map((report) => (
+            <TouchableOpacity
+              key={report.id}
+              style={styles.reportCard}
+              // onPress={() => navigation.navigate("ReportDetails", { report })
+              onPress={() => navigation.navigate("Details", { report })}
+            >
+              <Image
+                source={{ uri: report.photo }}
+                style={styles.reportImage}
+              />
+              <View style={styles.reportInfo}>
+                <Text style={styles.reportName}>
+                  {report.fullName || "Unnamed Report"}
+                </Text>
+                <Text style={styles.reportLocation}>
+                  {report.lastSeenLocation || "Unknown Location"}
+                </Text>
+                <Text style={styles.reportTime}>
+                  {report.createdAt?.seconds
+                    ? new Date(report.createdAt.seconds * 1000).toLocaleString()
+                    : ""}
+                </Text>
               </View>
-            ))
-          )}
+            </TouchableOpacity>
+          ))
+        )}
+
         </View>
       </ScrollView>
 
@@ -377,7 +393,7 @@ const styles = StyleSheet.create({
   editTxt: { color: "white", fontWeight: "700" },
   logoutBtn: {
     borderWidth: 1,
-    borderColor: "#555",
+    borderColor: "#7CC242",
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
@@ -411,19 +427,7 @@ const styles = StyleSheet.create({
   section: { marginTop: 18, paddingHorizontal: 18 },
   sectionTitle: { fontSize: 16, fontWeight: "700", marginBottom: 8, color: "#7CC242" },
   emptyText: { color: "#aaa" },
-  activityRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "#333",
-  },
-  activityLeft: { marginRight: 12 },
-  actImg: { width: 64, height: 64, borderRadius: 8 },
-  activityRight: { flex: 1 },
-  activityTitle: { fontWeight: "700", fontSize: 15, color: "#fff" },
-  activitySubtitle: { color: "#aaa", marginTop: 4 },
-  activityTime: { color: "#999", marginTop: 6, fontSize: 12 },
+
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
@@ -447,11 +451,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#fff",
   },
-  divider: {
-    height: 1,
-    backgroundColor: "#333",
-    marginHorizontal: 20,
-  },
+  
   loadingOverlay: {
     position: "absolute",
     top: 0,
@@ -463,4 +463,52 @@ const styles = StyleSheet.create({
     backgroundColor: "#00000080",
     zIndex: 10,
   },
+  reportCard: {
+    flexDirection: "row",
+    backgroundColor: "#1e1e1e",
+    borderRadius: 8,
+    borderWidth:0.1,
+    borderColor:"#18da69ff",
+    padding: 12,
+    marginVertical: 6,
+    height: 125,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3, // for Android shadow
+  },
+  reportImage: {
+    width: 100,
+    height: 100,
+    borderRadius: 8,
+    marginRight: 12,
+    backgroundColor: "#f0f0f0",
+  },
+  reportInfo: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  reportName: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#fffafaff",
+  },
+  reportLocation: {
+    fontSize: 14,
+    color: "#9b9999ff",
+    marginTop: 2,
+  },
+  reportTime: {
+    fontSize: 12,
+    color: "#999",
+    marginTop: 4,
+  },
+  emptyText: {
+    textAlign: "center",
+    color: "#999",
+    fontSize: 14,
+    marginTop: 20,
+  },
 });
+

@@ -197,7 +197,9 @@ export default function HomeScreen() {
             }}
           />
           <Ionicons name="search-outline" size={26} color="black" style={{ marginRight: 8 }} />
-          <Ionicons name="chatbubble-ellipses-outline" size={26} color="#7CC242" style={{ marginLeft: 10 }} />
+          <Ionicons name="chatbubble-ellipses-outline" size={26} color="#7CC242" style={{ marginLeft: 10 }}
+            onPress={() => navigation.navigate('InboxScreen')}
+          />
         </View>
       </View>
 

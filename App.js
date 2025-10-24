@@ -23,6 +23,8 @@ import FAQScreen from "./Screens/FAQScreen.jsx";
 import ContactUs from "./Screens/ContactUs.jsx";
 import TermsPrivacyScreen from "./Screens/TermsPrivacyScreen.jsx";
 import EditProfile from "./Screens/EditProfile.jsx";
+import InboxScreen from "./Screens/InboxScreen.jsx";
+import ChatScreen from "./Screens/ChatScreen.jsx";
 
 // 🗺️ Import your new Map Screen
 import MapScreen from "./Screens/MapScreen.jsx";
@@ -85,6 +87,8 @@ export default function App() {
                 name="SettingsScreen"
                 component={SettingsScreen}
               />
+              <Stack.Screen name='InboxScreen' component={InboxScreen}/>
+              <Stack.Screen name='ChatScreen' component={ChatScreen}/>
 
               {/* Settings Sub-Screens */}
               <Stack.Screen name="FAQScreen" component={FAQScreen} />

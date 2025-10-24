@@ -61,6 +61,20 @@ export default function DetailsScreen({ route }) {
           <Text style={styles.sectionTitle}>Contact Information</Text>
           <Text style={styles.sectionText}>Name: {report.contactName || "N/A"}</Text>
           <Text style={styles.sectionText}>Phone: {report.contactNumber || "N/A"}</Text>
+          <TouchableOpacity
+            style={styles.gotToInboxBtn}
+            onPress={() => navigation.navigate('ChatScreen',
+              {
+                user: {
+                  id: report.userId,
+                  fullName: report.fullName,
+                  avatar: report.avatar,
+                }
+              }
+            )}
+          >
+            <Text>Go to inbox</Text>
+          </TouchableOpacity>
         </View>
 
         <Text style={styles.footerText}>
@@ -159,4 +173,8 @@ const styles = StyleSheet.create({
     marginTop: 12,
     textAlign: "right",
   },
+  gotToInboxBtn: {
+    width: 100,
+    height: 50
+  }
 });

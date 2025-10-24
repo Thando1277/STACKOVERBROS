@@ -48,11 +48,21 @@ export default function ProfileScreen() {
         const userDoc = await getDoc(doc(db, "users", userId));
         if (userDoc.exists()) {
           const data = userDoc.data();
+          console.log("Fetched user data:", data);
           setCurrentUser({
-            fullName: data.fullname || "No Name",
-            email: data.email || "No Email",
+            fullName: data.fullname || data.fullName || data.name || "No Name",
+            email: data.email || auth.currentUser?.email || "No Email",
             avatar: data.avatar || null,
             bio: data.bio || "",
+            id: userId,
+          });
+        } else {
+          // Document doesn't exist, use auth data as fallback
+          setCurrentUser({
+            fullName: auth.currentUser?.displayName || "No Name",
+            email: auth.currentUser?.email || "No Email",
+            avatar: null,
+            bio: "",
             id: userId,
           });
         }

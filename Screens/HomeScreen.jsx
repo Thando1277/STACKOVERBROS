@@ -18,22 +18,26 @@ import { db, auth } from "../Firebase/firebaseConfig";
 
 const { width, height } = Dimensions.get("window");
 
-// Generic Select Component
+// ---------- Generic Select Component (Gender / Age) ----------
 function Select({ label, value, onSelect, options }) {
   const [open, setOpen] = useState(false);
+  const [buttonX, setButtonX] = useState(0);
   const currentLabel = String(options.find((o) => o.value === value)?.label || label);
 
   return (
     <>
-      <Pressable style={styles.filterBtn} onPress={() => setOpen(true)}>
+      <Pressable
+        style={styles.filterBtn}
+        onPress={() => setOpen(!open)}
+        onLayout={(event) => setButtonX(event.nativeEvent.layout.x)}
+      >
         <Text style={styles.filterText}>{currentLabel} ▼</Text>
       </Pressable>
 
       {open && (
-        <View style={styles.modalCover}>
-          <Pressable style={styles.backdrop} onPress={() => setOpen(false)} />
-          <View style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>{String(label)}</Text>
+        <View style={styles.statusModalCover}>
+          <Pressable style={styles.statusBackdrop} onPress={() => setOpen(false)} />
+          <View style={[styles.statusModalSheet, { left: buttonX, width: 120 }]}>
             {options.map((opt) => (
               <TouchableOpacity
                 key={String(opt.value)}
@@ -46,15 +50,6 @@ function Select({ label, value, onSelect, options }) {
                 <Text style={styles.optionText}>{String(opt.label)}</Text>
               </TouchableOpacity>
             ))}
-            <TouchableOpacity
-              style={styles.clearBtn}
-              onPress={() => {
-                onSelect("");
-                setOpen(false);
-              }}
-            >
-              <Text style={styles.clearText}>Clear</Text>
-            </TouchableOpacity>
           </View>
         </View>
       )}
@@ -62,7 +57,7 @@ function Select({ label, value, onSelect, options }) {
   );
 }
 
-// Status Select Component (Missing / Found / Delete)
+// ---------- Status Select Component (Missing / Found / Delete) ----------
 function StatusSelect({ value, onChange, isOwner }) {
   if (!isOwner) {
     return (
@@ -114,6 +109,7 @@ function StatusSelect({ value, onChange, isOwner }) {
   );
 }
 
+// ---------- HomeScreen Component ----------
 export default function HomeScreen() {
   const navigation = useNavigation();
   const [reports, setReports] = useState([]);
@@ -157,7 +153,16 @@ export default function HomeScreen() {
       if (activeTab === "search" && r.status !== "search") return false;
       if (activeTab === "found" && r.status !== "found") return false;
       if (gender && r.gender !== gender) return false;
-      if (ageGroup && r.ageGroup !== ageGroup) return false;
+
+      // --------- FIXED AGE FILTER ----------
+      if (ageGroup) {
+        const age = Number(r.age);
+        if (ageGroup === "child" && !(age >= 0 && age <= 12)) return false;
+        if (ageGroup === "teen" && !(age >= 13 && age <= 19)) return false;
+        if (ageGroup === "adult" && !(age >= 20 && age <= 40)) return false;
+        if (ageGroup === "senior" && !(age > 40)) return false;
+      }
+
       if (
         searchQuery &&
         !(
@@ -305,21 +310,21 @@ export default function HomeScreen() {
         )}
       </ScrollView>
 
-      {/* Bottom Navigation */}
+      {/* ---------- Bottom Navigation ---------- */}
       <View style={styles.bottomNav}>
         <TouchableOpacity style={styles.navItem}>
           <Ionicons name="home-outline" size={24} color="#7CC242" />
           <Text style={[styles.navText, { color: "#7CC242" }]}>Home</Text>
         </TouchableOpacity>
+
         <TouchableOpacity style={styles.navItem}>
           <Ionicons name="notifications-outline" size={24} color="black" />
           <Text style={styles.navText}>Alerts</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.reportBtn} onPress={() => navigation.navigate("Report")}>
-          <Ionicons name="add" size={30} color="white" />
-        </TouchableOpacity>
 
-        {/* FIXED: Map Icon navigates to MapScreen */}
+        {/* Placeholder for Report */}
+        <View style={{ width: 60 }} />
+
         <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate("MapScreen")}>
           <Ionicons name="map-outline" size={24} color="black" />
           <Text style={styles.navText}>Map</Text>
@@ -328,6 +333,11 @@ export default function HomeScreen() {
         <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate("ProfilePage")}>
           <Ionicons name="person-outline" size={24} color="black" />
           <Text style={styles.navText}>Profile</Text>
+        </TouchableOpacity>
+
+        {/* Report Button */}
+        <TouchableOpacity style={styles.reportBtn} onPress={() => navigation.navigate("Report")}>
+          <Ionicons name="add" size={30} color="white" />
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -353,33 +363,10 @@ const styles = StyleSheet.create({
   filters: { flexDirection: "row", justifyContent: "space-evenly", marginHorizontal: 20, marginVertical: 10 },
   filterBtn: { flex: 1, borderWidth: 1, borderColor: "#ccc", marginHorizontal: 5, borderRadius: 8, backgroundColor: "#e0e0e0", alignItems: "center", paddingVertical: 8 },
   filterText: { color: "#444", fontWeight: "500" },
-  modalCover: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0 },
-  backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)" },
-  modalSheet: {
-    backgroundColor: "#f9f9f9",
-    borderRadius: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    position: "absolute",
-    left: 20,
-    right: 20,
-    top: "auto",
-    bottom: 80,
-    zIndex: 100,
-    borderWidth: 1,
-    borderColor: "#000",
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-  },
-  modalTitle: { fontSize: 15, fontWeight: "700", marginBottom: 6, textAlign: "center", color: "#333" },
-  optionRow: { flexDirection: "row", justifyContent: "space-around", alignItems: "center", paddingVertical: 8 },
+  optionRow: { flexDirection: "row", justifyContent: "space-around", alignItems: "center", paddingVertical:12 },
   optionText: { fontSize: 13, color: "#333", fontWeight: "600", paddingHorizontal: 10 },
-  clearBtn: { marginTop: 10, alignSelf: "flex-end", backgroundColor: "#e0e0e0", borderRadius: 8, paddingVertical: 6, paddingHorizontal: 12 },
-  clearText: { color: "#444", fontWeight: "600" },
-  list: { flex: 1, paddingHorizontal: 20, marginTop: 5 },
-  card: { flexDirection: "row", backgroundColor: "#fff", borderRadius: 12, padding: 14, marginBottom: 20, elevation: 3, shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 1, height: height * 0.25, borderWidth: 0.2, borderColor: "#02c048ff" },
+  list: { flex: 1, paddingHorizontal: 20, marginTop: 5, zIndex: 1 },
+  card: { flexDirection: "row", backgroundColor: "#fff", borderRadius: 12, padding: 14, marginBottom: 20, elevation: 3, shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 4, height: height * 0.25, borderWidth: 0.3, borderColor: "#02c048ff" },
   avatar: { width: 100, height: "100%", borderRadius: 12, marginRight: 12 },
   cardHeader: { flexDirection: "row", justifyContent: "space-between" },
   name: { fontSize: 18, fontWeight: "bold", color: "#222" },
@@ -387,37 +374,40 @@ const styles = StyleSheet.create({
   viewBtn: { backgroundColor: "#7CC242", borderRadius: 10, marginTop: 10, paddingVertical: 8, alignItems: "center", width: "80%" },
   viewText: { color: "white", fontWeight: "bold", fontSize: 14 },
   time: { fontSize: 12, color: "gray", marginTop: 8, marginLeft: 0 },
-  bottomNav: { flexDirection: "row", justifyContent: "space-around", paddingVertical: 10, borderTopWidth: 1, borderColor: "#ddd", backgroundColor: "#fff" },
+  
+  bottomNav: {
+    flexDirection: "row",
+    justifyContent: "space-between", // equal spacing
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 11,
+    borderTopWidth: 1,
+    borderColor: "#ddd",
+    backgroundColor: "#fff",
+    position: "relative",
+  },
+
   navItem: { alignItems: "center" },
   navText: { fontSize: 12, color: "black" },
-  reportBtn: { backgroundColor: "#7CC242", width: 60, height: 60, borderRadius: 30, justifyContent: "center", alignItems: "center", marginTop: -25, elevation: 5 },
+
+  // ---------- Report Button ----------
+  reportBtn: {
+    backgroundColor: "#7CC242",
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: "center",
+    alignItems: "center",
+    position: "absolute",
+    bottom: 10,
+    left: (width / 2) - 30,
+    elevation: 5,
+    zIndex: 500,
+  },
 
   // ---------- StatusSelect Styles ----------
-  statusButton: {
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: "#000",
-    backgroundColor: "#f9f9f9",
-    alignItems: "center",
-  },
+  statusButton: { paddingHorizontal: 6, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: "#000", backgroundColor: "#f9f9f9", alignItems: "center" },
   statusModalCover: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 200 },
   statusBackdrop: { flex: 1, backgroundColor: "transparent" },
-  statusModalSheet: {
-    position: "absolute",
-    top: 35,
-    right: 0,
-    width: 100,
-    backgroundColor: "#fff",
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: "#000",
-    paddingVertical: 4,
-    zIndex: 201,
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-  },
+  statusModalSheet: { position: "absolute", top: 35, width: 100, backgroundColor: "#fff", borderRadius: 6, borderWidth: 1, borderColor: "#000", paddingVertical: 4, zIndex: 201, elevation: 5, shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 3 },
 });

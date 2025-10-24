@@ -148,19 +148,26 @@ export default function ProfileScreen() {
 
   // Remove avatar
   const removeImage = async () => {
-    try {
-      const storageRef = ref(storage, `avatars/${currentUser.id}.jpg`);
-      await deleteObject(storageRef);
-      await updateDoc(doc(db, "users", currentUser.id), { avatar: null });
-      setCurrentUser((prev) => ({ ...prev, avatar: null }));
-      setSelectedImage(null);
-    } catch (error) {
-      console.log("Remove image error:", error);
-      Alert.alert("Error", "Could not remove image.");
-    } finally {
-      setShowPopup(false);
-    }
-  };
+  try {
+    const userId = auth.currentUser?.uid;
+    if (!userId) return;
+
+    // Remove the avatar field from Firestore
+    await updateDoc(doc(db, "users", userId), { avatar: null });
+
+    // Update the local state
+    setCurrentUser((prev) => ({ ...prev, avatar: null }));
+    setSelectedImage(null);
+
+    Alert.alert("Removed", "Profile image removed successfully!");
+  } catch (error) {
+    console.log("Remove image error:", error);
+    Alert.alert("Error", "Could not remove image.");
+  } finally {
+    setShowPopup(false);
+  }
+};
+
 
   const handleAvatarPress = () => {
     if (currentUser.avatar) setShowPopup(true);

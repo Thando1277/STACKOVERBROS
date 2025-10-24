@@ -9,14 +9,16 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
+  Modal,
+  TouchableWithoutFeedback,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useNavigation } from "@react-navigation/native";
 import { auth, db, storage } from "../Firebase/firebaseConfig";
-import { doc, getDoc, collection, getDocs, query, where, updateDoc } from "firebase/firestore";
+import { doc, getDoc, collection, getDocs, query, where, updateDoc,setDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL, deleteObject } from "firebase/storage";
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from "expo-file-system";
 import axios from 'axios';
 import * as mime from 'react-native-mime-types';
 
@@ -34,6 +36,7 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
+  const [showPopup, setShowPopup] = useState(false);
 
   // Fetch user info & reports
   useEffect(() => {
@@ -59,7 +62,10 @@ export default function ProfileScreen() {
           where("reportedBy", "==", userId)
         );
         const reportsSnapshot = await getDocs(reportsQuery);
-        const reportsList = reportsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const reportsList = reportsSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
         setReports(reportsList);
       } catch (error) {
         console.log("Error fetching data:", error);
@@ -71,7 +77,7 @@ export default function ProfileScreen() {
     fetchUserData();
   }, []);
 
-  // Pick and edit image from gallery
+  // Pick and edit image
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
@@ -81,8 +87,8 @@ export default function ProfileScreen() {
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true, // enable editing
-      aspect: [1, 1],      // square crop
+      allowsEditing: true,
+      aspect: [1, 1],
       quality: 0.8,
     });
 
@@ -91,54 +97,54 @@ export default function ProfileScreen() {
     }
   };
 
-  // Save picked image 
+  // Save picked image
   const saveImage = async () => {
-  if (!selectedImage) return;
+    if (!selectedImage) return;
 
-  try {
-    setUploading(true);
+    try {
+      setUploading(true);
 
-    // Get the file extension and MIME type dynamically
-    const fileExt = selectedImage.split('.').pop(); // e.g., "png", "jpg", "pdf"
-    const mimeType = mime.lookup(fileExt) || 'application/octet-stream';
-    const data = new FormData(); 
+      const fileExt = selectedImage.split(".").pop();
+      const mimeType = mime.lookup(fileExt) || "application/octet-stream";
+      const data = new FormData();
 
-    data.append("file", {
-      uri: selectedImage,
-      type: mimeType,
-      name: `upload.${fileExt}`,
-    });
-    data.append("upload_preset", "user_uploads"); // The Cloudinary preset
+      data.append("file", {
+        uri: selectedImage,
+        type: mimeType,
+        name: `upload.${fileExt}`,
+      });
+      data.append("upload_preset", "user_uploads");
 
-    const res = await axios.post(
-      "https://api.cloudinary.com/v1_1/datb9a7ad/image/upload",
-      data,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+      const res = await axios.post(
+        "https://api.cloudinary.com/v1_1/datb9a7ad/image/upload",
+        data,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        }
+      );
+
+      const imageUrl = res.data.secure_url;
+
+      const userId = auth.currentUser?.uid;
+      if (userId) {
+        await setDoc(
+        doc(db, "users", userId),
+        { avatar: imageUrl },
+        { merge: true } // merges with existing fields if present
+      )
+        
+        setCurrentUser((prev) => ({ ...prev, avatar: imageUrl }));
       }
-    );
 
-    const imageUrl = res.data.secure_url;
-
-    // Save to Firestore
-    const userId = auth.currentUser?.uid;
-    if (userId) {
-      await updateDoc(doc(db, "users", userId), { avatar: imageUrl });
-      setCurrentUser((prev) => ({ ...prev, avatar: imageUrl }));
+      setSelectedImage(null);
+      Alert.alert("Success", "Image uploaded successfully!");
+    } catch (error) {
+      console.log("Cloudinary Upload Error:", error);
+      Alert.alert("Upload Failed", "Something went wrong while uploading to Cloudinary.");
+    } finally {
+      setUploading(false);
     }
-
-    setSelectedImage(null);
-    Alert.alert("Success", "Image uploaded successfully!");
-  } catch (error) {
-    console.log("Cloudinary Upload Error:", error);
-    Alert.alert("Upload Failed", "Something went wrong while uploading to Cloudinary.");
-  } finally {
-    setUploading(false);
-  }
-};
-
+  };
 
   // Remove avatar
   const removeImage = async () => {
@@ -146,12 +152,19 @@ export default function ProfileScreen() {
       const storageRef = ref(storage, `avatars/${currentUser.id}.jpg`);
       await deleteObject(storageRef);
       await updateDoc(doc(db, "users", currentUser.id), { avatar: null });
-      setCurrentUser(prev => ({ ...prev, avatar: null }));
+      setCurrentUser((prev) => ({ ...prev, avatar: null }));
       setSelectedImage(null);
     } catch (error) {
       console.log("Remove image error:", error);
       Alert.alert("Error", "Could not remove image.");
+    } finally {
+      setShowPopup(false);
     }
+  };
+
+  const handleAvatarPress = () => {
+    if (currentUser.avatar) setShowPopup(true);
+    else pickImage();
   };
 
   if (loading) {
@@ -171,7 +184,6 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scroll}>
-
         {/* Header */}
         <View style={styles.headerRow}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
@@ -183,50 +195,43 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* User Card */}
-        <View style={styles.card}>
-          <TouchableOpacity onPress={pickImage} style={styles.avatarWrapper}>
+        {/* Cover Photo Area */}
+        <View style={styles.coverPhotoContainer}>
+          <TouchableOpacity onPress={handleAvatarPress} style={styles.avatarContainer}>
             {avatarSource ? (
               <Image source={avatarSource} style={styles.avatar} />
             ) : (
-              <Ionicons name="person-circle-outline" size={96} color="#7CC242" />
+              <Ionicons name="person-circle-outline" size={120} color="#7CC242" />
             )}
           </TouchableOpacity>
+        </View>
 
-          <View style={{ flex: 1, marginLeft: 12 }}>
-            <Text style={styles.name}>{currentUser.fullName}</Text>
-            <Text style={styles.email}>{currentUser.email}</Text>
+        {/* Profile Info */}
+        <View style={styles.profileInfo}>
+          <Text style={styles.name}>{currentUser.fullName}</Text>
+          <Text style={styles.email}>{currentUser.email}</Text>
 
-            <View style={styles.actionRow}>
-              <TouchableOpacity
-                style={styles.editBtn}
-                onPress={() => navigation.navigate("EditProfile")}
-              >
-                <Text style={styles.editTxt}>Edit Profile</Text>
-              </TouchableOpacity>
+          <View style={styles.actionRow}>
+            <TouchableOpacity
+              style={styles.editBtn}
+              onPress={() => navigation.navigate("EditProfile")}
+            >
+              <Text style={styles.editTxt}>Edit Profile</Text>
+            </TouchableOpacity>
 
-              <TouchableOpacity
-                style={styles.logoutBtn}
-                onPress={() => auth.signOut().then(() => navigation.navigate("LogIn"))}
-              >
-                <Text style={styles.logoutTxt}>Log Out</Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Save button */}
-            {selectedImage && (
-              <TouchableOpacity style={styles.saveBtn} onPress={saveImage}>
-                <Text style={styles.saveTxt}>Save Image</Text>
-              </TouchableOpacity>
-            )}
-
-            {/* Remove button */}
-            {currentUser.avatar && !selectedImage && (
-              <TouchableOpacity style={styles.removeBtn} onPress={removeImage}>
-                <Text style={styles.removeTxt}>Remove Image</Text>
-              </TouchableOpacity>
-            )}
+            <TouchableOpacity
+              style={styles.logoutBtn}
+              onPress={() => auth.signOut().then(() => navigation.navigate("LogIn"))}
+            >
+              <Text style={styles.logoutTxt}>Log Out</Text>
+            </TouchableOpacity>
           </View>
+
+          {selectedImage && (
+            <TouchableOpacity style={styles.saveBtn} onPress={saveImage}>
+              <Text style={styles.saveTxt}>Save Image</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Stats */}
@@ -271,9 +276,32 @@ export default function ProfileScreen() {
             ))
           )}
         </View>
-
-        <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* Popup Modal */}
+      <Modal visible={showPopup} transparent animationType="fade">
+        <TouchableWithoutFeedback onPress={() => setShowPopup(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={styles.popupContainer}>
+              <TouchableOpacity
+                style={styles.popupOption}
+                onPress={() => {
+                  setShowPopup(false);
+                  pickImage();
+                }}
+              >
+                <Text style={styles.popupText}>⇄ Change Image</Text>
+              </TouchableOpacity>
+
+              <View style={styles.divider} />
+
+              <TouchableOpacity style={styles.popupOption} onPress={removeImage}>
+                <Text style={[styles.popupText, { color: "#ff5555" }]}>🗑️ Remove Image</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
 
       {uploading && (
         <View style={styles.loadingOverlay}>
@@ -284,50 +312,138 @@ export default function ProfileScreen() {
   );
 }
 
+  
+
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#121212" },
-  scroll: { padding: 18, paddingBottom: 40 },
-
-  headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
+  scroll: { paddingBottom: 40 },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 18,
+    marginTop: 10,
+  },
   backBtn: { padding: 6 },
   title: { fontSize: 22, fontWeight: "700", color: "#7CC242" },
-
-  card: { flexDirection: "row", alignItems: "center", backgroundColor: "#1e1e1e", borderRadius: 12, padding: 14, elevation: 3, shadowColor: "#000", shadowOpacity: 0.08, shadowRadius: 6, marginBottom: 14 },
-  avatarWrapper: { justifyContent: "center", alignItems: "center" },
-  avatar: { width: 96, height: 96, borderRadius: 12 },
-  name: { fontSize: 18, fontWeight: "800", color: "#fff" },
-  email: { color: "#ddd", marginTop: 4 },
+  coverPhotoContainer: {
+    width: "100%",
+    height: 180,
+    backgroundColor: "#1e1e1e",
+    position: "relative",
+    marginTop: 10,
+  },
+  avatarContainer: {
+    position: "absolute",
+    bottom: -50,
+    left: 20,
+    borderWidth: 4,
+    borderColor: "#121212",
+    borderRadius: 20,
+    overflow: "hidden",
+    backgroundColor: "#121212",
+  },
+  avatar: { width: 120, height: 120, borderRadius: 10 },
+  profileInfo: { alignItems: "flex-start", paddingHorizontal: 18, marginTop: 60 },
+  name: { fontSize: 22, fontWeight: "800", color: "#fff" },
+  email: { color: "#ccc", marginTop: 4 },
   phone: { color: "#aaa", marginTop: 2, fontSize: 12 },
-
   actionRow: { flexDirection: "row", marginTop: 12 },
-  editBtn: { backgroundColor: "#7CC242", paddingVertical: 8, paddingHorizontal: 14, borderRadius: 8, marginRight: 8 },
+  editBtn: {
+    backgroundColor: "#7CC242",
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    marginRight: 8,
+  },
   editTxt: { color: "white", fontWeight: "700" },
-  logoutBtn: { borderWidth: 1, borderColor: "#555", paddingVertical: 8, paddingHorizontal: 12, borderRadius: 8 },
+  logoutBtn: {
+    borderWidth: 1,
+    borderColor: "#555",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
   logoutTxt: { color: "#fff", fontWeight: "700" },
-
-  saveBtn: { marginTop: 8, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 6, backgroundColor: "#7CC242", alignSelf: "flex-start" },
+  saveBtn: {
+    marginTop: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    backgroundColor: "#7CC242",
+    alignSelf: "flex-start",
+  },
   saveTxt: { color: "white", fontWeight: "700", fontSize: 12 },
-
-  removeBtn: { marginTop: 8, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 6, backgroundColor: "#ff4444", alignSelf: "flex-start" },
-  removeTxt: { color: "white", fontWeight: "700", fontSize: 12 },
-
-  statsRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 8 },
-  statBox: { flex: 1, backgroundColor: "#1e1e1e", marginHorizontal: 4, paddingVertical: 14, borderRadius: 10, alignItems: "center" },
+  statsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 20,
+    paddingHorizontal: 18,
+  },
+  statBox: {
+    flex: 1,
+    backgroundColor: "#1e1e1e",
+    marginHorizontal: 4,
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: "center",
+  },
   statNum: { fontSize: 18, fontWeight: "800", color: "#fff" },
   statLabel: { fontSize: 12, color: "#aaa", marginTop: 4 },
-
-  section: { marginTop: 18 },
+  section: { marginTop: 18, paddingHorizontal: 18 },
   sectionTitle: { fontSize: 16, fontWeight: "700", marginBottom: 8, color: "#7CC242" },
   emptyText: { color: "#aaa" },
-
-  activityRow: { flexDirection: "row", alignItems: "center", paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "#333" },
+  activityRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#333",
+  },
   activityLeft: { marginRight: 12 },
   actImg: { width: 64, height: 64, borderRadius: 8 },
   activityRight: { flex: 1 },
   activityTitle: { fontWeight: "700", fontSize: 15, color: "#fff" },
   activitySubtitle: { color: "#aaa", marginTop: 4 },
   activityTime: { color: "#999", marginTop: 6, fontSize: 12 },
-
-  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#121212" },
-  loadingOverlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, justifyContent: "center", alignItems: "center", backgroundColor: "#00000080", zIndex: 10 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  popupContainer: {
+    backgroundColor: "#1e1e1e",
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: "#7CC242",
+    width: 250,
+    paddingVertical: 10,
+  },
+  popupOption: {
+    alignItems: "center",
+    paddingVertical: 12,
+  },
+  popupText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#fff",
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "#333",
+    marginHorizontal: 20,
+  },
+  loadingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#00000080",
+    zIndex: 10,
+  },
 });

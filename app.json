@@ -7,6 +7,11 @@
     "icon": "./assets/FINDSOS-LOGO2.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -28,7 +33,8 @@
         "googleMaps": {
           "apiKey": "AIzaSyBNkhpJ5AKndXYUZ4G5aMYZ3oVc3jKqssQ"
         }
-      }
+      },
+      "package": "com.anonymous.FindSOS"
     },
     "web": {
       "favicon": "./assets/favicon.png"

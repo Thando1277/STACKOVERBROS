@@ -22,6 +22,7 @@ import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { useNavigation } from "@react-navigation/native";
 import SuccessCheck from "../components/SuccessCheck";
 
+
 function Select({ label, value, onSelect, options }) {
   const [open, setOpen] = useState(false);
   const currentLabel = options.find((o) => o.value === value)?.label || label;

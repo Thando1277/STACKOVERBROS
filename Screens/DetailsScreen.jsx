@@ -3,6 +3,10 @@ import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity } from "rea
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext"; // ✅ ThemeContext
+import { Alert } from "react-native";
+import { doc, deleteDoc } from "firebase/firestore";
+import { db, auth } from "../Firebase/firebaseConfig";
+
 
 export default function DetailsScreen({ route }) {
   const { report } = route.params;
@@ -18,6 +22,33 @@ export default function DetailsScreen({ route }) {
     textLight: isDark ? "#ccc" : "#333",
     small: isDark ? "#777" : "#999",
   };
+  const user = auth.currentUser;
+
+
+  const handleDelete = async () => {
+    Alert.alert(
+      "Delete Report",
+      "Are you sure you want to delete this report? This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteDoc(doc(db, "reports", report.id));
+              Alert.alert("Deleted", "The report has been successfully deleted.");
+              navigation.goBack(); // return to profile
+            } catch (error) {
+              console.error("Error deleting report:", error);
+              Alert.alert("Error", "Failed to delete the report. Please try again.");
+            }
+          },
+        },
+      ]
+    );
+  };
+
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: themeColors.bg }]}>
@@ -177,4 +208,29 @@ const styles = StyleSheet.create({
     width: 100,
     height: 50
   }
+
+  //Delete Button Styles
+  deleteContainer: {
+  marginTop: 20,
+  alignItems: "center",
+  marginBottom: 40,
+  },
+  deleteButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#E74C3C",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    width: "100%",
+    elevation: 3,
+  },
+  deleteText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+    marginLeft: 8,
+  },
+
 });

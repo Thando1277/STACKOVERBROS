@@ -20,6 +20,9 @@ import Icon from 'react-native-vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../Firebase/firebaseConfig';
+import { db } from '../Firebase/firebaseConfig';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+
 
 const { height } = Dimensions.get('window');
 

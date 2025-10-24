@@ -10,9 +10,10 @@ import {
   Alert,
   Image,
   ActivityIndicator,
-  ScrollView,
+  Platform,
+  StatusBar,
 } from "react-native";
-import MapView, { Marker, Callout } from "react-native-maps";
+import MapView, { Marker } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 
@@ -20,6 +21,7 @@ import { db } from "../Firebase/firebaseConfig";
 import { collection, getDocs } from "firebase/firestore";
 
 const { width, height } = Dimensions.get("window");
+const isIOS = Platform.OS === "ios";
 const GOOGLE_MAPS_API_KEY = "AIzaSyBNkhpJ5AKndXYUZ4G5aMYZ3oVc3jKqssQ";
 
 export default function MapScreen() {
@@ -40,8 +42,6 @@ export default function MapScreen() {
         const reports = await Promise.all(
           snapshot.docs.map(async (doc) => {
             const report = { id: doc.id, ...doc.data() };
-            
-            // Only geocode if we have a location but no coordinates
             if (report.lastSeenLocation && !report.latitude && !report.longitude) {
               try {
                 const response = await fetch(
@@ -61,13 +61,10 @@ export default function MapScreen() {
             return report;
           })
         );
-        
-        // Filter reports that have valid coordinates
+
         const validMarkers = reports.filter(
           r => r.latitude && r.longitude && !isNaN(r.latitude) && !isNaN(r.longitude)
         );
-        
-        console.log(`Loaded ${validMarkers.length} reports with valid coordinates`);
         setMarkers(validMarkers);
       } catch (error) {
         console.error("Error fetching reports:", error);
@@ -86,7 +83,7 @@ export default function MapScreen() {
     try {
       const response = await fetch(
         `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(
-          searchQuery + ", South Africa"
+          searchQuery + ","
         )}&key=${GOOGLE_MAPS_API_KEY}`
       );
       const data = await response.json();
@@ -159,184 +156,191 @@ export default function MapScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <Ionicons name="search-outline" size={24} color="#333" style={{ marginHorizontal: 8 }} />
-        <TextInput
-          placeholder="Enter location..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          onSubmitEditing={handleSearch}
-          style={styles.searchInput}
-          returnKeyType="search"
-        />
-        <TouchableOpacity onPress={handleSearch} style={{ marginHorizontal: 8 }}>
-          <Ionicons name="checkmark-outline" size={28} color="#7CC242" />
-        </TouchableOpacity>
-      </View>
+    <>
+      {/* Black status bar overlay */}
+      <View style={styles.statusBarOverlay} />
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
 
-      {/* Loading Indicator */}
-      {loading && (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#7CC242" />
-          <Text style={styles.loadingText}>Loading reports...</Text>
-        </View>
-      )}
-
-      {/* Map */}
-      <MapView
-        ref={mapRef}
-        style={styles.map}
-        provider="google"
-        initialRegion={{
-          latitude: -25.7479,
-          longitude: 28.2293,
-          latitudeDelta: 0.5,
-          longitudeDelta: 0.5,
-        }}
-      >
-        {/* Firebase markers */}
-        {markers.map((marker) => (
-          <Marker
-            key={marker.id}
-            coordinate={{
-              latitude: parseFloat(marker.latitude),
-              longitude: parseFloat(marker.longitude),
-            }}
-            pinColor={getPinColor(marker.type)}
-            onPress={() => {
-              console.log("Marker pressed:", marker.fullName);
-              setSelectedMarker(marker);
-            }}
+      <View style={styles.container}>
+        {/* Search Bar */}
+        <View style={styles.searchContainer}>
+          <Ionicons name="search-outline" size={24} color="#333" style={{ marginHorizontal: 8 }} />
+          <TextInput
+            placeholder="Enter location..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            onSubmitEditing={handleSearch}
+            style={styles.searchInput}
+            returnKeyType="search"
           />
-        ))}
-
-        {/* Search result marker */}
-        {searchMarker && (
-          <Marker
-            coordinate={{
-              latitude: searchMarker.latitude,
-              longitude: searchMarker.longitude,
-            }}
-            title={searchMarker.title}
-            description={searchMarker.description}
-            pinColor="orange"
-          />
-        )}
-      </MapView>
-
-      {/* Details Card - Shows when marker is pressed */}
-      {selectedMarker && (
-        <View style={styles.detailsCard}>
-          <TouchableOpacity 
-            style={styles.closeButton}
-            onPress={() => setSelectedMarker(null)}
-          >
-            <Ionicons name="close" size={24} color="#666" />
+          <TouchableOpacity onPress={handleSearch} style={{ marginHorizontal: 8 }}>
+            <Ionicons name="checkmark-outline" size={28} color="#7CC242" />
           </TouchableOpacity>
+        </View>
 
-          <Text style={styles.nameText}>{selectedMarker.fullName || "Unknown"}</Text>
-          
-          <View style={styles.infoRow}>
-            <Text style={[styles.typeBadgeText, { 
-              backgroundColor: getPinColor(selectedMarker.type),
-            }]}>
-              {selectedMarker.type || "Unknown"}
-            </Text>
+        {/* Loading */}
+        {loading && (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#7CC242" />
+            <Text style={styles.loadingText}>Loading reports...</Text>
           </View>
-          
-          {selectedMarker.gender && (
-            <Text style={styles.descText}>
-              <Text style={styles.labelText}>Gender: </Text>
-              {selectedMarker.gender}
-            </Text>
-          )}
-          
-          {selectedMarker.description && (
-            <Text style={styles.descText}>
-              <Text style={styles.labelText}>Description: </Text>
-              {selectedMarker.description}
-            </Text>
-          )}
-          
-          {selectedMarker.lastSeenDate && (
-            <Text style={styles.descText}>
-              <Text style={styles.labelText}>Last Seen: </Text>
-              {formatDate(selectedMarker.lastSeenDate)}
-            </Text>
-          )}
-          
-          {selectedMarker.lastSeenLocation && (
-            <Text style={styles.descText}>
-              <Text style={styles.labelText}>Location: </Text>
-              {selectedMarker.lastSeenLocation}
-            </Text>
-          )}
-          
-          {selectedMarker.photo && (
-            <Image
-              source={{ uri: selectedMarker.photo }}
-              style={styles.detailPhoto}
-              resizeMode="cover"
+        )}
+
+        {/* Map */}
+        <MapView
+          ref={mapRef}
+          style={styles.map}
+          provider="google"
+          initialRegion={{
+            latitude: -25.7479,
+            longitude: 28.2293,
+            latitudeDelta: 0.5,
+            longitudeDelta: 0.5,
+          }}
+        >
+          {markers.map((marker) => (
+            <Marker
+              key={marker.id}
+              coordinate={{
+                latitude: parseFloat(marker.latitude),
+                longitude: parseFloat(marker.longitude),
+              }}
+              pinColor={getPinColor(marker.type)}
+              onPress={() => setSelectedMarker(marker)}
+            />
+          ))}
+          {searchMarker && (
+            <Marker
+              coordinate={{
+                latitude: searchMarker.latitude,
+                longitude: searchMarker.longitude,
+              }}
+              title={searchMarker.title}
+              description={searchMarker.description}
+              pinColor="orange"
             />
           )}
+        </MapView>
+
+        {/* Marker Details */}
+        {selectedMarker && (
+          <View style={styles.detailsCard}>
+            <TouchableOpacity 
+              style={styles.closeButton}
+              onPress={() => setSelectedMarker(null)}
+            >
+              <Ionicons name="close" size={24} color="#666" />
+            </TouchableOpacity>
+
+            <Text style={styles.nameText}>{selectedMarker.fullName || "Unknown"}</Text>
+            
+            <View style={styles.infoRow}>
+              <Text style={[styles.typeBadgeText, { 
+                backgroundColor: getPinColor(selectedMarker.type),
+              }]}>{selectedMarker.type || "Unknown"}</Text>
+            </View>
+            
+            {selectedMarker.gender && (
+              <Text style={styles.descText}>
+                <Text style={styles.labelText}>Gender: </Text>
+                {selectedMarker.gender}
+              </Text>
+            )}
+            
+            {selectedMarker.description && (
+              <Text style={styles.descText}>
+                <Text style={styles.labelText}>Description: </Text>
+                {selectedMarker.description}
+              </Text>
+            )}
+            
+            {selectedMarker.lastSeenDate && (
+              <Text style={styles.descText}>
+                <Text style={styles.labelText}>Last Seen: </Text>
+                {formatDate(selectedMarker.lastSeenDate)}
+              </Text>
+            )}
+            
+            {selectedMarker.lastSeenLocation && (
+              <Text style={styles.descText}>
+                <Text style={styles.labelText}>Location: </Text>
+                {selectedMarker.lastSeenLocation}
+              </Text>
+            )}
+            
+            {selectedMarker.photo && (
+              <Image
+                source={{ uri: selectedMarker.photo }}
+                style={styles.detailPhoto}
+                resizeMode="cover"
+              />
+            )}
+          </View>
+        )}
+
+        {/* Bottom Navigation */}
+        <View style={styles.bottomNav}>
+          <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate("Home")}>
+            <Ionicons name="home-outline" size={24} color="black" />
+            <Text style={styles.navText}>Home</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.navItem}>
+            <Ionicons name="notifications-outline" size={24} color="black" />
+            <Text style={styles.navText}>Alerts</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.reportBtn} onPress={() => navigation.navigate("Report")}>
+            <Ionicons name="add" size={30} color="white" />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.navItem}>
+            <Ionicons name="map-outline" size={24} color="#7CC242" />
+            <Text style={[styles.navText, { color: "#7CC242" }]}>Map</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate("ProfilePage")}>
+            <Ionicons name="person-outline" size={24} color="black" />
+            <Text style={styles.navText}>Profile</Text>
+          </TouchableOpacity>
         </View>
-      )}
-
-      {/* Bottom Navigation */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate("Home")}>
-          <Ionicons name="home-outline" size={24} color="black" />
-          <Text style={styles.navText}>Home</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.navItem}>
-          <Ionicons name="notifications-outline" size={24} color="black" />
-          <Text style={styles.navText}>Alerts</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.reportBtn} onPress={() => navigation.navigate("Report")}>
-          <Ionicons name="add" size={30} color="white" />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.navItem}>
-          <Ionicons name="map-outline" size={24} color="#7CC242" />
-          <Text style={[styles.navText, { color: "#7CC242" }]}>Map</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate("ProfilePage")}>
-          <Ionicons name="person-outline" size={24} color="black" />
-          <Text style={styles.navText}>Profile</Text>
-        </TouchableOpacity>
       </View>
-    </View>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
+  statusBarOverlay: {
+    height: isIOS ? 40 : StatusBar.currentHeight,
+    backgroundColor: "black",
+    width: "100%",
+    position: "absolute",
+    top: 0,
+    zIndex: 200,
+  },
   container: { flex: 1 },
   map: { flex: 1 },
   searchContainer: {
     position: "absolute",
-    top: height * 0.02,
+    top: isIOS ? height * 0.08 : height * 0.06, // lower search bar
     left: width * 0.03,
     right: width * 0.03,
     zIndex: 100,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "white",
-    borderRadius: 8,
-    elevation: 3,
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    paddingHorizontal: width * 0.03,
+    paddingVertical: height * 0.008,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
-    paddingHorizontal: width * 0.02,
+    elevation: 5,
   },
   searchInput: { 
     flex: 1, 
-    height: height * 0.06, 
+    height: height * 0.055, 
     fontSize: width * 0.04,
   },
   loadingContainer: {
@@ -348,8 +352,8 @@ const styles = StyleSheet.create({
     zIndex: 50,
   },
   loadingText: {
-    marginTop: 10,
-    fontSize: 16,
+    marginTop: 8,
+    fontSize: width * 0.035,
     color: "#333",
   },
   bottomNav: {
@@ -366,7 +370,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#7CC242",
     width: width * 0.15,
     height: width * 0.15,
-    borderRadius: (width * 0.15) / 2,
+    borderRadius: width * 0.075,
     justifyContent: "center",
     alignItems: "center",
     marginTop: -width * 0.075,
@@ -376,58 +380,37 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
   },
-  calloutContainer: {
-    width: 260,
-  },
-  calloutCard: { 
-    width: 260,
-    padding: 12, 
-    backgroundColor: "white", 
-    borderRadius: 10,
-  },
   nameText: { 
     fontWeight: "bold", 
-    fontSize: 18, 
-    marginBottom: 6,
+    fontSize: width * 0.045, 
+    marginBottom: height * 0.005,
     color: "#333",
   },
-  infoRow: {
-    marginBottom: 8,
-  },
+  infoRow: { marginBottom: height * 0.008 },
   typeBadgeText: {
     fontWeight: "600", 
-    fontSize: 12,
+    fontSize: width * 0.03,
     color: "white",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 4,
+    paddingHorizontal: width * 0.03,
+    paddingVertical: height * 0.005,
+    borderRadius: 5,
     alignSelf: "flex-start",
-    overflow: "hidden",
   },
-  labelText: {
-    fontWeight: "600",
-    color: "#555",
-  },
+  labelText: { fontWeight: "600", color: "#555" },
   descText: { 
-    fontSize: 14, 
-    marginBottom: 4,
+    fontSize: width * 0.035, 
+    marginBottom: height * 0.003,
     color: "#666",
-    lineHeight: 20,
-  },
-  photo: { 
-    width: "100%", 
-    height: 140, 
-    marginTop: 8, 
-    borderRadius: 8,
+    lineHeight: height * 0.025,
   },
   detailsCard: {
     position: "absolute",
     bottom: height * 0.1,
     left: width * 0.05,
     right: width * 0.05,
-    backgroundColor: "white",
+    backgroundColor: "#fff",
     borderRadius: 15,
-    padding: 16,
+    padding: width * 0.04,
     maxHeight: height * 0.6,
     elevation: 10,
     shadowColor: "#000",
@@ -444,8 +427,8 @@ const styles = StyleSheet.create({
   },
   detailPhoto: {
     width: "100%",
-    height: 200,
-    marginTop: 10,
+    height: height * 0.25,
+    marginTop: height * 0.01,
     borderRadius: 10,
   },
 });

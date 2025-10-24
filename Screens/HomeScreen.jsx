@@ -15,11 +15,12 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { collection, onSnapshot, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { db, auth } from "../Firebase/firebaseConfig";
+import { useTheme } from "../context/ThemeContext"; // ✅ ThemeContext
 
 const { width, height } = Dimensions.get("window");
 
-// ---------- Generic Select Component (Gender / Age) ----------
-function Select({ label, value, onSelect, options }) {
+// Generic Select Component
+function Select({ label, value, onSelect, options, themeColors }) {
   const [open, setOpen] = useState(false);
   const [buttonX, setButtonX] = useState(0);
   const currentLabel = String(options.find((o) => o.value === value)?.label || label);
@@ -27,17 +28,17 @@ function Select({ label, value, onSelect, options }) {
   return (
     <>
       <Pressable
-        style={styles.filterBtn}
-        onPress={() => setOpen(!open)}
-        onLayout={(event) => setButtonX(event.nativeEvent.layout.x)}
+        style={[styles.filterBtn, { backgroundColor: themeColors.filterBg, borderColor: themeColors.border }]}
+        onPress={() => setOpen(true)}
       >
-        <Text style={styles.filterText}>{currentLabel} ▼</Text>
+        <Text style={[styles.filterText, { color: themeColors.text }]}>{currentLabel} ▼</Text>
       </Pressable>
 
       {open && (
-        <View style={styles.statusModalCover}>
-          <Pressable style={styles.statusBackdrop} onPress={() => setOpen(false)} />
-          <View style={[styles.statusModalSheet, { left: buttonX, width: 120 }]}>
+        <View style={styles.modalCover}>
+          <Pressable style={styles.backdrop} onPress={() => setOpen(false)} />
+          <View style={[styles.modalSheet, { backgroundColor: themeColors.modalBg, borderColor: themeColors.primary }]}>
+            <Text style={[styles.modalTitle, { color: themeColors.text }]}>{String(label)}</Text>
             {options.map((opt) => (
               <TouchableOpacity
                 key={String(opt.value)}
@@ -47,9 +48,18 @@ function Select({ label, value, onSelect, options }) {
                   setOpen(false);
                 }}
               >
-                <Text style={styles.optionText}>{String(opt.label)}</Text>
+                <Text style={[styles.optionText, { color: themeColors.text }]}>{String(opt.label)}</Text>
               </TouchableOpacity>
             ))}
+            <TouchableOpacity
+              style={[styles.clearBtn, { backgroundColor: themeColors.filterBg }]}
+              onPress={() => {
+                onSelect("");
+                setOpen(false);
+              }}
+            >
+              <Text style={[styles.clearText, { color: themeColors.text }]}>Clear</Text>
+            </TouchableOpacity>
           </View>
         </View>
       )}
@@ -57,8 +67,8 @@ function Select({ label, value, onSelect, options }) {
   );
 }
 
-// ---------- Status Select Component (Missing / Found / Delete) ----------
-function StatusSelect({ value, onChange, isOwner }) {
+// Status Select Component (Missing / Found / Delete)
+function StatusSelect({ value, onChange, isOwner, themeColors }) {
   if (!isOwner) {
     return (
       <Text style={{ fontWeight: "bold", color: value === "search" ? "red" : "#7CC242" }}>
@@ -89,7 +99,7 @@ function StatusSelect({ value, onChange, isOwner }) {
       {open && (
         <View style={styles.statusModalCover}>
           <Pressable style={styles.statusBackdrop} onPress={() => setOpen(false)} />
-          <View style={styles.statusModalSheet}>
+          <View style={[styles.statusModalSheet, { backgroundColor: themeColors.modalBg }]}>
             {options.map((opt) => (
               <TouchableOpacity
                 key={opt.value}
@@ -99,7 +109,7 @@ function StatusSelect({ value, onChange, isOwner }) {
                   setOpen(false);
                 }}
               >
-                <Text style={styles.optionText}>{opt.label}</Text>
+                <Text style={[styles.optionText, { color: themeColors.text }]}>{opt.label}</Text>
               </TouchableOpacity>
             ))}
           </View>
@@ -112,6 +122,7 @@ function StatusSelect({ value, onChange, isOwner }) {
 // ---------- HomeScreen Component ----------
 export default function HomeScreen() {
   const navigation = useNavigation();
+  const { isDark } = useTheme(); // ✅ ThemeContext
   const [reports, setReports] = useState([]);
   const [activeTab, setActiveTab] = useState("search");
   const [selectedCategory, setSelectedCategory] = useState("Person");
@@ -119,6 +130,19 @@ export default function HomeScreen() {
   const [ageGroup, setAgeGroup] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
 
+  // ---------- Theme Colors ----------
+  const themeColors = {
+    bg: isDark ? "#1E1E1E" : "#fff",
+    text: isDark ? "#E0E0E0" : "#222",
+    border: isDark ? "#555" : "#ccc",
+    filterBg: isDark ? "#333" : "#e0e0e0",
+    modalBg: isDark ? "#2A2A2A" : "#fff",
+    selectBg: isDark ? "#3A3A3A" : "#f9f9f9",
+    primary: "#7CC242",
+    cardBg: isDark ? "#2A2A2A" : "#fff",
+  };
+
+  // Firestore fetch
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, "reports"), (snapshot) => {
       const allReports = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
@@ -178,28 +202,29 @@ export default function HomeScreen() {
   const imgFor = (r) => (r?.photo ? { uri: r.photo } : require("../assets/dude.webp"));
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: themeColors.bg }]}>
       {/* Header */}
       <View style={styles.header}>
         <Image source={require("../assets/log.png")} style={styles.logo} />
         <View style={styles.headerIcons}>
           <TextInput
             placeholder=" Search..."
+            placeholderTextColor={isDark ? "#aaa" : "#888"}
             value={searchQuery}
             onChangeText={setSearchQuery}
             style={{
               borderWidth: 1,
               borderRadius: 10,
-              borderColor: "#ccc",
+              borderColor: themeColors.border,
               width: 245,
               fontSize: 14,
               paddingVertical: 6,
+              color: themeColors.text,
+              backgroundColor: themeColors.selectBg,
             }}
           />
-          <Ionicons name="search-outline" size={26} color="black" style={{ marginRight: 8 }} />
-          <Ionicons name="chatbubble-ellipses-outline" size={26} color="#7CC242" style={{ marginLeft: 10 }}
-            onPress={() => navigation.navigate('InboxScreen')}
-          />
+          <Ionicons name="search-outline" size={26} color={themeColors.text} style={{ marginRight: 8 }} />
+          <Ionicons name="chatbubble-ellipses-outline" size={26} color={themeColors.primary} style={{ marginLeft: 10 }} />
         </View>
       </View>
 
@@ -209,18 +234,14 @@ export default function HomeScreen() {
           style={[styles.tabBtn, activeTab === "search" ? styles.activeTab : styles.inactiveTab]}
           onPress={() => setActiveTab("search")}
         >
-          <Text style={activeTab === "search" ? styles.activeTabText : styles.inactiveTabText}>
-            Still In Search
-          </Text>
+          <Text style={activeTab === "search" ? styles.activeTabText : styles.inactiveTabText}>Still In Search</Text>
           {activeTab === "search" && <View style={styles.activeLine} />}
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tabBtn, activeTab === "found" ? styles.activeTab : styles.inactiveTab]}
           onPress={() => setActiveTab("found")}
         >
-          <Text style={activeTab === "found" ? styles.activeTabText : styles.inactiveTabText}>
-            Found
-          </Text>
+          <Text style={activeTab === "found" ? styles.activeTabText : styles.inactiveTabText}>Found</Text>
           {activeTab === "found" && <View style={styles.activeLine} />}
         </TouchableOpacity>
       </View>
@@ -239,7 +260,13 @@ export default function HomeScreen() {
           <Ionicons name="alert-circle-outline" size={28} color="white" />
           <Text style={styles.catText}>Wanted</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => setSelectedCategory("Panic")} style={[styles.category, { backgroundColor: "#FFB300" }]}>
+        <TouchableOpacity
+          onPress={() => {
+            setSelectedCategory("Panic");
+            navigation.navigate("Panic");
+          }}
+          style={[styles.category, { backgroundColor: "#FFB300" }]}
+        >
           <Ionicons name="warning-outline" size={28} color="white" />
           <Text style={styles.catText}>Panic</Text>
         </TouchableOpacity>
@@ -247,28 +274,8 @@ export default function HomeScreen() {
 
       {/* Filters */}
       <View style={styles.filters}>
-        <Select
-          label="Gender"
-          value={gender}
-          onSelect={setGender}
-          options={[
-            { label: "All", value: "" },
-            { label: "Male", value: "male" },
-            { label: "Female", value: "female" },
-          ]}
-        />
-        <Select
-          label="Age"
-          value={ageGroup}
-          onSelect={setAgeGroup}
-          options={[
-            { label: "All", value: "" },
-            { label: "0-12 (Child)", value: "child" },
-            { label: "13-19 (Teen)", value: "teen" },
-            { label: "20-40 (Adult)", value: "adult" },
-            { label: "40+ (Senior)", value: "senior" },
-          ]}
-        />
+        <Select label="Gender" value={gender} onSelect={setGender} options={[{ label: "All", value: "" }, { label: "Male", value: "male" }, { label: "Female", value: "female" }]} themeColors={themeColors} />
+        <Select label="Age" value={ageGroup} onSelect={setAgeGroup} options={[{ label: "All", value: "" }, { label: "0-12 (Child)", value: "child" }, { label: "13-19 (Teen)", value: "teen" }, { label: "20-40 (Adult)", value: "adult" }, { label: "40+ (Senior)", value: "senior" }]} themeColors={themeColors} />
       </View>
 
       {/* Report List */}
@@ -276,65 +283,52 @@ export default function HomeScreen() {
         {filtered.length === 0 ? (
           <Text style={{ textAlign: "center", color: "#666", marginTop: 16 }}>No reports found</Text>
         ) : (
-          filtered.map((r) => (
-            <View key={r.id} style={styles.card}>
+          filtered.filter(r => r).map((r) => (
+            <View key={r.id} style={[styles.card, { backgroundColor: themeColors.cardBg }]}>
               <Image source={imgFor(r)} style={styles.avatar} />
               <View style={{ flex: 1 }}>
                 <View style={styles.cardHeader}>
-                  <Text style={styles.name}>{String(r.fullName)}</Text>
-                  <StatusSelect
-                    value={r.status}
-                    onChange={(status) => handleStatusChange(r, status)}
-                    isOwner={r.userId === auth.currentUser?.uid}
-                  />
+                  <Text style={[styles.name, { color: themeColors.text }]}>{String(r.fullName)}</Text>
+                  <StatusSelect value={r.status} onChange={(status) => handleStatusChange(r, status)} isOwner={r.userId === auth.currentUser?.uid} themeColors={themeColors} />
                 </View>
-                <Text style={styles.details}>{String(r.age)} • {String(r.gender)}</Text>
-                <Text style={styles.details}>{String(r.lastSeenLocation)}</Text>
+                <Text style={[styles.details, { color: themeColors.text }]}>{String(r.age)} • {String(r.gender)}</Text>
+                <Text style={[styles.details, { color: themeColors.text }]}>{String(r.lastSeenLocation)}</Text>
 
-                <TouchableOpacity
-                  style={styles.viewBtn}
-                  onPress={() => navigation.navigate("Details", { report: r })}
-                >
+                <TouchableOpacity style={styles.viewBtn} onPress={() => navigation.navigate("Details", { report: r })}>
                   <Text style={styles.viewText}>View Details</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={styles.viewBtn}
-                  onPress={() => navigation.navigate("Comments", { reportId: r.id })}
-                >
+                <TouchableOpacity style={styles.viewBtn} onPress={() => navigation.navigate("Comments", { reportId: r.id })}>
                   <Text style={styles.viewText}>Add/View Comments</Text>
                 </TouchableOpacity>
 
-                <Text style={styles.time}>{new Date(r.createdAt?.seconds ? r.createdAt.toDate() : r.createdAt).toLocaleString()}</Text>
+                <Text style={[styles.time, { color: themeColors.text }]}>{new Date(r.createdAt?.seconds ? r.createdAt.toDate() : r.createdAt).toLocaleString()}</Text>
               </View>
             </View>
           ))
         )}
       </ScrollView>
 
-      {/* ---------- Bottom Navigation ---------- */}
-      <View style={styles.bottomNav}>
-        <TouchableOpacity style={styles.navItem}>
-          <Ionicons name="home-outline" size={24} color="#7CC242" />
-          <Text style={[styles.navText, { color: "#7CC242" }]}>Home</Text>
+      {/* Bottom Navigation */}
+      <View style={[styles.bottomNav, { backgroundColor: themeColors.bg }]}>
+        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate("Home")}>
+          <Ionicons name="home-outline" size={24} color={themeColors.primary} />
+          <Text style={[styles.navText, { color: themeColors.primary }]}>Home</Text>
         </TouchableOpacity>
-
-        <TouchableOpacity style={styles.navItem}>
-          <Ionicons name="notifications-outline" size={24} color="black" />
-          <Text style={styles.navText}>Alerts</Text>
+        <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate("Alerts")}>
+          <Ionicons name="notifications-outline" size={24} color={themeColors.text} />
+          <Text style={[styles.navText, { color: themeColors.text }]}>Alerts</Text>
         </TouchableOpacity>
-
-        {/* Placeholder for Report */}
-        <View style={{ width: 60 }} />
-
+        <TouchableOpacity style={styles.reportBtn} onPress={() => navigation.navigate("Report")}>
+          <Ionicons name="add" size={30} color="white" />
+        </TouchableOpacity>
         <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate("MapScreen")}>
-          <Ionicons name="map-outline" size={24} color="black" />
-          <Text style={styles.navText}>Map</Text>
+          <Ionicons name="map-outline" size={24} color={themeColors.text} />
+          <Text style={[styles.navText, { color: themeColors.text }]}>Map</Text>
         </TouchableOpacity>
-
         <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate("ProfilePage")}>
-          <Ionicons name="person-outline" size={24} color="black" />
-          <Text style={styles.navText}>Profile</Text>
+          <Ionicons name="person-outline" size={24} color={themeColors.text} />
+          <Text style={[styles.navText, { color: themeColors.text }]}>Profile</Text>
         </TouchableOpacity>
 
         {/* Report Button */}

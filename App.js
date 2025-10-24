@@ -7,8 +7,9 @@ import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./Firebase/firebaseConfig";
 import { DataProvider } from "./context/DataContext";
 import { AuthProvider } from "./context/AuthContext";
+import { ThemeProvider, useTheme } from "./context/ThemeContext";
 
-// Main Screens
+// Screens
 import HomeScreen from "./Screens/HomeScreen.jsx";
 import ReportScreen from "./Screens/ReportScreen.jsx";
 import DetailsScreen from "./Screens/DetailsScreen.jsx";
@@ -28,6 +29,9 @@ import ChatScreen from "./Screens/ChatScreen.jsx";
 
 // 🗺️ Import your new Map Screen
 import MapScreen from "./Screens/MapScreen.jsx";
+import Panic from "./Screens/Panic.jsx";
+import Alerts from "./Screens/Alerts.jsx";
+import NotificationDetails from "./Screens/NotificationDetails.jsx";
 
 const Stack = createNativeStackNavigator();
 
@@ -38,7 +42,6 @@ export default function App() {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      console.log("Current user:", currentUser ? currentUser.email : "None");
       setUser(currentUser);
       setLoading(false);
     });
@@ -47,14 +50,7 @@ export default function App() {
 
   if (loading) {
     return (
-      <View
-        style={{
-          flex: 1,
-          justifyContent: "center",
-          alignItems: "center",
-          backgroundColor: "#fff",
-        }}
-      >
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#fff" }}>
         <ActivityIndicator size="large" color="#0FC436" />
       </View>
     );
@@ -63,19 +59,14 @@ export default function App() {
   return (
     <AuthProvider>
       <DataProvider>
-        <NavigationContainer>
-          <View style={{ flex: 1 }}>
-            <Stack.Navigator
-              initialRouteName={user ? "Home" : "LogIn"}
-              screenOptions={{ headerShown: false }}
-            >
-              {/* Auth Screens */}
-              <Stack.Screen name="SignUp" component={SignUp} />
-              <Stack.Screen name="LogIn" component={LogIn} />
-              <Stack.Screen
-                name="ResetPassword"
-                component={ResetPasswordScreen}
-              />
+        <ThemeProvider>
+          <NavigationContainer>
+            <View style={{ flex: 1 }}>
+              <Stack.Navigator initialRouteName={user ? "Home" : "LogIn"} screenOptions={{ headerShown: false }}>
+                {/* Auth Screens */}
+                <Stack.Screen name="SignUp" component={SignUp} />
+                <Stack.Screen name="LogIn" component={LogIn} />
+                <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
 
               {/* Main Screens */}
               <Stack.Screen name="Home" component={HomeScreen} />
@@ -90,57 +81,42 @@ export default function App() {
               <Stack.Screen name='InboxScreen' component={InboxScreen}/>
               <Stack.Screen name='ChatScreen' component={ChatScreen}/>
 
-              {/* Settings Sub-Screens */}
-              <Stack.Screen name="FAQScreen" component={FAQScreen} />
-              <Stack.Screen name="ContactUs" component={ContactUs} />
-              <Stack.Screen
-                name="TermsPrivacyScreen"
-                component={TermsPrivacyScreen}
-              />
-              <Stack.Screen name="EditProfile" component={EditProfile} />
+                {/* Settings Sub-Screens */}
+                <Stack.Screen name="FAQScreen" component={FAQScreen} />
+                <Stack.Screen name="ContactUs" component={ContactUs} />
+                <Stack.Screen name="TermsPrivacyScreen" component={TermsPrivacyScreen} />
+                <Stack.Screen name="EditProfile" component={EditProfile} />
 
-              {/* 🗺️ Google Maps Screen */}
-              <Stack.Screen name="MapScreen" component={MapScreen} />
-            </Stack.Navigator>
+                {/* Map, Panic & Alerts */}
+                <Stack.Screen name="MapScreen" component={MapScreen} />
+                <Stack.Screen name="Panic" component={Panic} />
+                <Stack.Screen name="Alerts" component={Alerts} />
+                <Stack.Screen name="NotificationDetails" component={NotificationDetails} />
+              </Stack.Navigator>
 
-            {/* 💬 Floating Chat Button */}
-            <TouchableOpacity
-              style={{
-                position: "absolute",
-                bottom: 20,
-                right: 20,
-                backgroundColor: "#7CC242",
-                padding: 16,
-                borderRadius: 50,
-                elevation: 4,
-                marginBottom: 65,
-              }}
-              onPress={() => setChatVisible(true)}
-            >
-              <Ionicons name="chatbubble-ellipses" size={28} color="#fff" />
-            </TouchableOpacity>
+              {/* 💬 Floating Chat Button */}
+              <TouchableOpacity
+                style={{ position: "absolute", bottom: 20, right: 20, backgroundColor: "#7CC242", padding: 16, borderRadius: 50, elevation: 4, marginBottom: 65 }}
+                onPress={() => setChatVisible(true)}
+              >
+                <Ionicons name="chatbubble-ellipses" size={28} color="#fff" />
+              </TouchableOpacity>
 
-            {/* 🤖 Chatbot Modal */}
-            <Modal visible={chatVisible} animationType="slide">
-              <View style={{ flex: 1 }}>
-                <ChatbotScreen />
-                <TouchableOpacity
-                  style={{
-                    position: "absolute",
-                    top: 40,
-                    right: 20,
-                    backgroundColor: "#222",
-                    padding: 10,
-                    borderRadius: 20,
-                  }}
-                  onPress={() => setChatVisible(false)}
-                >
-                  <Ionicons name="close" size={24} color="#fff" />
-                </TouchableOpacity>
-              </View>
-            </Modal>
-          </View>
-        </NavigationContainer>
+              {/* 🤖 Chatbot Modal */}
+              <Modal visible={chatVisible} animationType="slide">
+                <View style={{ flex: 1 }}>
+                  <ChatbotScreen />
+                  <TouchableOpacity
+                    style={{ position: "absolute", top: 40, right: 20, backgroundColor: "#222", padding: 10, borderRadius: 20 }}
+                    onPress={() => setChatVisible(false)}
+                  >
+                    <Ionicons name="close" size={24} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+              </Modal>
+            </View>
+          </NavigationContainer>
+        </ThemeProvider>
       </DataProvider>
     </AuthProvider>
   );

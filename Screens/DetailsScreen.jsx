@@ -2,20 +2,29 @@ import React from "react";
 import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "../context/ThemeContext"; // ✅ ThemeContext
 
 export default function DetailsScreen({ route }) {
   const { report } = route.params;
   const navigation = useNavigation();
+  const { isDark } = useTheme();
+
+  // ---------- Theme Colors ----------
+  const themeColors = {
+    bg: isDark ? "#1E1E1E" : "#fff",
+    text: isDark ? "#E0E0E0" : "#222",
+    subText: isDark ? "#aaa" : "#555",
+    section: "#7CC242",
+    textLight: isDark ? "#ccc" : "#333",
+    small: isDark ? "#777" : "#999",
+  };
 
   return (
-    <ScrollView style={styles.container}>
-      {/* Header */}
+    <ScrollView style={[styles.container, { backgroundColor: themeColors.bg }]}>
       <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="arrow-back" size={24} color={themeColors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Report Details</Text>
-        <View style={{ width: 24 }} /> 
       </View>
 
       {/* Image */}

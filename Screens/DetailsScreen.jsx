@@ -9,74 +9,145 @@ export default function DetailsScreen({ route }) {
 
   return (
     <ScrollView style={styles.container}>
+      {/* Header */}
       <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => navigation.goBack()}><Ionicons name="arrow-back" size={24} color="#222" /></TouchableOpacity>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="#333" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Report Details</Text>
+        <View style={{ width: 24 }} /> 
       </View>
 
-      {report.photo ? <Image source={{ uri: report.photo }} style={styles.image} /> : null}
+      {/* Image */}
+      {report.photo ? (
+        <Image source={{ uri: report.photo }} style={styles.image} />
+      ) : (
+        <View style={styles.noImage}>
+          <Ionicons name="image-outline" size={60} color="#aaa" />
+          <Text style={styles.noImageText}>No Photo Available</Text>
+        </View>
+      )}
 
-      <Text style={styles.title}>{report.fullName}</Text>
-      <Text style={styles.sub}>{report.age} • {report.gender} • {report.type}</Text>
+      {/* Info Card */}
+      <View style={styles.card}>
+        <Text style={styles.name}>{report.fullName}</Text>
+        <Text style={styles.subText}>
+          {report.age} • {report.gender} • {report.type}
+        </Text>
 
-      <Text style={styles.section}>Last Seen</Text>
-      <Text style={styles.text}>{report.lastSeenDate}</Text>
-      <Text style={styles.text}>{report.lastSeenLocation}</Text>
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>Last Seen</Text>
+          <Text style={styles.sectionText}>{report.lastSeenDate}</Text>
+          <Text style={styles.sectionText}>{report.lastSeenLocation}</Text>
+        </View>
 
-      <Text style={styles.section}>Description</Text>
-      <Text style={styles.text}>{report.description || "N/A"}</Text>
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>Description</Text>
+          <Text style={styles.sectionText}>
+            {report.description || "No description provided."}
+          </Text>
+        </View>
 
-      <Text style={styles.section}>Contact</Text>
-      <Text style={styles.text}>Name: {report.contactName || "N/A"}</Text>
-      <Text style={styles.text}>Phone: {report.contactNumber || "N/A"}</Text>
+        <View style={styles.sectionContainer}>
+          <Text style={styles.sectionTitle}>Contact Information</Text>
+          <Text style={styles.sectionText}>Name: {report.contactName || "N/A"}</Text>
+          <Text style={styles.sectionText}>Phone: {report.contactNumber || "N/A"}</Text>
+        </View>
 
-      <Text style={styles.small}>Reported: {new Date(report.createdAt).toLocaleString()}</Text>
-
-     
+        <Text style={styles.footerText}>
+          Reported on {new Date(report.createdAt).toLocaleString()}
+        </Text>
+      </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1,
-    backgroundColor: "#fff",
-    padding: 16 },
-  headerRow: { 
+  container: {
+    flex: 1,
+    backgroundColor: "#F8F9FB",
+  },
+  headerRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 8
-    },
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    backgroundColor: "#fff",
+    elevation: 2,
+    borderBottomColor: "#eee",
+    borderBottomWidth: 1,
+  },
+  backButton: {
+    padding: 4,
+    marginTop: 50
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#333",
+  },
   image: {
-    width: "100%", 
-    height: 260, 
-    borderRadius: 10, 
-    marginBottom: 12 
+    width: "100%",
+    height: 280,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    resizeMode: "cover",
   },
-  title: { 
-    fontSize: 22, 
-    fontWeight: "800", 
-    color: "#222", 
-    marginBottom: 6 
+  noImage: {
+    width: "100%",
+    height: 260,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#eee",
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
   },
-  sub: { 
-    fontSize: 15, 
-    color: "#555", 
-    marginBottom: 12 
+  noImageText: {
+    marginTop: 6,
+    color: "#999",
   },
-  section: { 
-    fontSize: 16, 
-    fontWeight: "700", 
-    color: "#7CC242", 
-    marginTop: 12, 
-    marginBottom: 6 
+  card: {
+    backgroundColor: "#fff",
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
   },
-  text: { 
-    fontSize: 15, 
-    color: "#333", 
-    marginBottom: 8 
+  name: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#222",
+    marginBottom: 4,
   },
-  small: { 
-    fontSize: 12, 
-    color: "#999", 
-    marginTop: 12
+  subText: {
+    fontSize: 15,
+    color: "#555",
+    marginBottom: 12,
+  },
+  sectionContainer: {
+    marginBottom: 14,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#4EAF50",
+    marginBottom: 6,
+  },
+  sectionText: {
+    fontSize: 15,
+    color: "#333",
+    lineHeight: 22,
+  },
+  footerText: {
+    fontSize: 12,
+    color: "#999",
+    marginTop: 12,
+    textAlign: "right",
   },
 });

@@ -109,9 +109,19 @@ export default function DetailsScreen({ route }) {
         </View>
 
         <Text style={styles.footerText}>
-          Reported on {new Date(report.createdAt).toLocaleString()}
+          Reported: {report.createdAt?.seconds ? new Date(report.createdAt.seconds * 1000).toLocaleString() : "N/A"}
+
         </Text>
       </View>
+
+      {user && report.userId === user.uid && (
+        <View style={styles.deleteContainer}>
+          <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
+            <Ionicons name="trash-outline" size={20} color="#fff" />
+            <Text style={styles.deleteText}>Delete Report</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -142,8 +152,9 @@ const styles = StyleSheet.create({
     color: "#333",
   },
   image: {
-    width: "100%",
+    width: "90%",
     height: 280,
+    marginHorizontal: "5%",
     borderBottomLeftRadius: 16,
     borderBottomRightRadius: 16,
     resizeMode: "cover",
@@ -207,13 +218,14 @@ const styles = StyleSheet.create({
   gotToInboxBtn: {
     width: 100,
     height: 50
-  }
+  },
 
   //Delete Button Styles
   deleteContainer: {
   marginTop: 20,
   alignItems: "center",
   marginBottom: 40,
+  
   },
   deleteButton: {
     flexDirection: "row",
@@ -223,7 +235,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 10,
-    width: "100%",
+    width: "90%",
     elevation: 3,
   },
   deleteText: {

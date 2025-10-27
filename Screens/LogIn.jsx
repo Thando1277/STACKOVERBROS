@@ -23,7 +23,7 @@ import { auth, db } from '../Firebase/firebaseConfig';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 const { height } = Dimensions.get('window');
-const defaultAvatar = "https://res.cloudinary.com/datb9a7ad/image/upload/v1760652949/pq4g9scvt4a6hijqlsrb.jpg";
+const defaultAvatar = null;
 
 // Custom Alert Component
 const CustomAlert = ({ visible, title, message, type, onClose }) => {

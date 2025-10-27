@@ -33,6 +33,7 @@ export default function MapScreen() {
   const [searchMarker, setSearchMarker] = useState(null);
   const [markers, setMarkers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showLegend, setShowLegend] = useState(false);
 
   useEffect(() => {
     const fetchReports = async () => {
@@ -217,10 +218,41 @@ export default function MapScreen() {
               }}
               title={searchMarker.title}
               description={searchMarker.description}
-              pinColor="orange"
+              pinColor="green"
             />
           )}
         </MapView>
+
+        {/* Legend Toggle Button */}
+        <TouchableOpacity 
+          style={styles.legendToggle}
+          onPress={() => setShowLegend(!showLegend)}
+        >
+          <Ionicons name="information-circle" size={28} color="#7CC242" />
+        </TouchableOpacity>
+
+        {/* Legend */}
+        {showLegend && (
+          <View style={styles.legendCard}>
+            <Text style={styles.legendTitle}>Pin Colors</Text>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: 'purple' }]} />
+              <Text style={styles.legendText}>Person</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: 'blue' }]} />
+              <Text style={styles.legendText}>Pet</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: 'red' }]} />
+              <Text style={styles.legendText}>Wanted</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: 'green' }]} />
+              <Text style={styles.legendText}>Search Location</Text>
+            </View>
+          </View>
+        )}
 
         {/* Marker Details */}
         {selectedMarker && (
@@ -322,7 +354,7 @@ const styles = StyleSheet.create({
   map: { flex: 1 },
   searchContainer: {
     position: "absolute",
-    top: isIOS ? height * 0.08 : height * 0.06, // lower search bar
+    top: isIOS ? height * 0.08 : height * 0.06,
     left: width * 0.03,
     right: width * 0.03,
     zIndex: 100,
@@ -430,5 +462,58 @@ const styles = StyleSheet.create({
     height: height * 0.25,
     marginTop: height * 0.01,
     borderRadius: 10,
+  },
+  legendToggle: {
+    position: "absolute",
+    top: isIOS ? height * 0.19 : height * 0.17,
+    right: width * 0.05,
+    backgroundColor: "#fff",
+    borderRadius: 25,
+    width: 50,
+    height: 50,
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    zIndex: 100,
+  },
+  legendCard: {
+    position: "absolute",
+    top: isIOS ? height * 0.26 : height * 0.24,
+    right: width * 0.05,
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    padding: width * 0.04,
+    elevation: 8,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    zIndex: 99,
+    minWidth: width * 0.4,
+  },
+  legendTitle: {
+    fontSize: width * 0.04,
+    fontWeight: "bold",
+    marginBottom: height * 0.01,
+    color: "#333",
+  },
+  legendItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: height * 0.005,
+  },
+  legendDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: width * 0.025,
+  },
+  legendText: {
+    fontSize: width * 0.035,
+    color: "#666",
   },
 });

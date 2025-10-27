@@ -10,6 +10,8 @@ import {
   Dimensions,
   Pressable,
   TextInput,
+  Platform,
+  StatusBar,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
@@ -203,6 +205,8 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: themeColors.bg }]}>
+      {Platform.OS === 'android' && <StatusBar backgroundColor={themeColors.bg} barStyle={isDark ? "light-content" : "dark-content"} />}
+      
       {/* Header */}
       <View style={styles.header}>
         <Image source={require("../assets/log.png")} style={styles.logo} />
@@ -281,7 +285,10 @@ export default function HomeScreen() {
       </View>
 
       {/* Report List */}
-      <ScrollView style={styles.list}>
+      <ScrollView 
+        style={styles.list}
+        contentContainerStyle={Platform.OS === 'android' ? { paddingBottom: 90 } : {}}
+      >
         {filtered.length === 0 ? (
           <Text style={{ textAlign: "center", color: "#666", marginTop: 16 }}>No reports found</Text>
         ) : (
@@ -344,7 +351,11 @@ export default function HomeScreen() {
 
 // ---------- STYLES ----------
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: { 
+    flex: 1, 
+    backgroundColor: "#fff",
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+  },
   header: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 15, paddingTop: 10, alignItems: "center" },
   logo: { width: 50, height: 40, resizeMode: "contain" },
   headerIcons: { flexDirection: "row", alignItems: "center" },
@@ -361,6 +372,54 @@ const styles = StyleSheet.create({
   filters: { flexDirection: "row", justifyContent: "space-evenly", marginHorizontal: 20, marginVertical: 10 },
   filterBtn: { flex: 1, borderWidth: 1, borderColor: "#ccc", marginHorizontal: 5, borderRadius: 8, backgroundColor: "#e0e0e0", alignItems: "center", paddingVertical: 8 },
   filterText: { color: "#444", fontWeight: "500" },
+  
+  modalCover: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1000,
+  },
+  
+  backdrop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  
+  modalSheet: {
+    width: width * 0.7,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    padding: 16,
+    elevation: 10,
+  },
+  
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  
+  clearBtn: {
+    marginTop: 12,
+    padding: 10,
+    borderRadius: 8,
+    alignItems: "center",
+  },
+  
+  clearText: {
+    fontWeight: "600",
+    fontSize: 14,
+  },
+  
   optionRow: { flexDirection: "row", justifyContent: "space-around", alignItems: "center", paddingVertical:12 },
   optionText: { fontSize: 13, color: "#333", fontWeight: "600", paddingHorizontal: 10 },
   list: { flex: 1, paddingHorizontal: 20, marginTop: 5, zIndex: 1 },

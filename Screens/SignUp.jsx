@@ -21,7 +21,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../Firebase/firebaseConfig';
 import { db } from '../Firebase/firebaseConfig';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 
 
 const { height } = Dimensions.get('window');
@@ -87,11 +87,43 @@ export default function AuthScreen({ navigation }) {
 
     setLoadingSignUp(true);
     try {
-      await createUserWithEmailAndPassword(auth, emailSignUp, passwordSignUp);
+      console.log('🔵 Starting signup process...');
+      console.log('📝 Full Name:', fullName);
+      console.log('📧 Email:', emailSignUp);
+      console.log('📱 Phone:', phone);
+      
+      // Create authentication account
+      const userCredential = await createUserWithEmailAndPassword(auth, emailSignUp, passwordSignUp);
+      const userId = userCredential.user.uid;
+      console.log('✅ Auth account created. User ID:', userId);
+
+      // Save user data to Firestore
+      const userData = {
+        fullname: fullName,
+        email: emailSignUp,
+        phone: phone,
+        createdAt: serverTimestamp(),
+      };
+      
+      console.log('💾 Saving to Firestore:', userData);
+      await setDoc(doc(db, "users", userId), userData);
+      console.log('✅ User data saved to Firestore successfully!');
+
+      // Verify it was saved
+      const savedDoc = await getDoc(doc(db, "users", userId));
+      if (savedDoc.exists()) {
+        console.log('✅ VERIFIED: Document exists in Firestore:', savedDoc.data());
+      } else {
+        console.log('❌ ERROR: Document was NOT saved to Firestore!');
+      }
+
       Alert.alert('Success', 'Account created successfully!');
       navigation.navigate('Home');
     } catch (error) {
-      Alert.alert('Sign Up Failed', 'Please check your details and try again.');
+      console.error('❌ Sign up error:', error);
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
+      Alert.alert('Sign Up Failed', error.message || 'Please check your details and try again.');
     } finally {
       setLoadingSignUp(false);
     }

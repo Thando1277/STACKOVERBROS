@@ -7,6 +7,7 @@
     "icon": "./assets/FINDSOS-LOGO2.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "scheme": "findsos",      
     "platforms": [
       "ios",
       "android",
@@ -19,6 +20,7 @@
     },
     "ios": {
       "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.FindSOS",
       "config": {
         "googleMapsApiKey": "AIzaSyBNkhpJ5AKndXYUZ4G5aMYZ3oVc3jKqssQ"
       }
@@ -29,15 +31,18 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
+      "package": "com.anonymous.FindSOS", 
       "config": {
         "googleMaps": {
           "apiKey": "AIzaSyBNkhpJ5AKndXYUZ4G5aMYZ3oVc3jKqssQ"
         }
-      },
-      "package": "com.anonymous.FindSOS"
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "expo-web-browser"
+    ]
   }
 }

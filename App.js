@@ -14,7 +14,6 @@ import HomeScreen from "./Screens/HomeScreen.jsx";
 import ReportScreen from "./Screens/ReportScreen.jsx";
 import DetailsScreen from "./Screens/DetailsScreen.jsx";
 import ChatbotScreen from "./Screens/ChatbotScreen.jsx";
-import SignUp from "./Screens/SignUp.jsx";
 import LogIn from "./Screens/LogIn.jsx";
 import ProfilePage from "./Screens/ProfilePage.jsx";
 import CommentsScreen from "./Screens/CommentsScreen.jsx";
@@ -64,7 +63,6 @@ export default function App() {
             <View style={{ flex: 1 }}>
               <Stack.Navigator initialRouteName={user ? "Home" : "LogIn"} screenOptions={{ headerShown: false }}>
                 {/* Auth Screens */}
-                <Stack.Screen name="SignUp" component={SignUp} />
                 <Stack.Screen name="LogIn" component={LogIn} />
                 <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
 

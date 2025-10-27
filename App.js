@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { View, TouchableOpacity, Modal, ActivityIndicator } from "react-native";
+import { View, TouchableOpacity, Modal, ActivityIndicator, Dimensions  } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -25,6 +25,8 @@ import TermsPrivacyScreen from "./Screens/TermsPrivacyScreen.jsx";
 import EditProfile from "./Screens/EditProfile.jsx";
 import InboxScreen from "./Screens/InboxScreen.jsx";
 import ChatScreen from "./Screens/ChatScreen.jsx";
+import DraggableIcon from "./Screens/DragChat.jsx";
+
 
 // 🗺️ Import your new Map Screen
 import MapScreen from "./Screens/MapScreen.jsx";
@@ -38,6 +40,8 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [chatVisible, setChatVisible] = useState(false);
+  const { width, height } = Dimensions.get("window");
+
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -93,12 +97,30 @@ export default function App() {
               </Stack.Navigator>
 
               {/* 💬 Floating Chat Button */}
-              <TouchableOpacity
-                style={{ position: "absolute", bottom: 20, right: 20, backgroundColor: "#7CC242", padding: 16, borderRadius: 50, elevation: 4, marginBottom: 65 }}
-                onPress={() => setChatVisible(true)}
-              >
-                <Ionicons name="chatbubble-ellipses" size={28} color="#fff" />
-              </TouchableOpacity>
+              <DraggableIcon
+                  startX={width - 70} 
+                  startY={height - 150} 
+                  onPress={() => setChatVisible(true)}
+                >
+                  <View style={{
+                      backgroundColor: "#65a730ff",
+                      padding: 16,
+                      borderRadius: 50,
+                      justifyContent: "center",
+                      alignItems: "center",
+                      shadowColor: "#000",
+                      shadowOffset: { width: 0, height: 2 },
+                      shadowOpacity: 0.3,
+                      shadowRadius: 3,
+                      elevation: 5,
+                      borderWidth: 1,
+                      borderColor: "#fff",
+                  }}>
+                    <Ionicons name="chatbubble-ellipses" size={28} color="#fff" />
+                  </View>
+              </DraggableIcon>
+
+
 
               {/* 🤖 Chatbot Modal */}
               <Modal visible={chatVisible} animationType="slide">

@@ -39,6 +39,12 @@ export default function ProfileScreen() {
   const [showPopup, setShowPopup] = useState(false);
   const [totalReports, setTotalReports] = useState(0);
 
+  const [allReports, setAllReports] = useState([]);
+  const totalFound = allReports.filter(r => r.status === "found").length;
+
+
+
+
 
   // Fetch user info & reports
   useEffect(() => {
@@ -72,14 +78,23 @@ export default function ProfileScreen() {
 
         
 
-        const reportsQuery = query(collection(db, "reports"), where("userId", "==", userId));
-        const reportsSnapshot = await getDocs(reportsQuery);
-        const userReports = reportsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setReports(userReports);
+        // const reportsQuery = query(collection(db, "reports"), where("userId", "==", userId));
+        // const reportsSnapshot = await getDocs(reportsQuery);
+        // const userReports = reportsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        // setReports(userReports);
 
-        // Fetch total reports
-        const totalSnapshot = await getDocs(collection(db, "reports"));
-        setTotalReports(totalSnapshot.size);
+        // // Fetch total reports
+        // const totalSnapshot = await getDocs(collection(db, "reports"));
+        // setTotalReports(totalSnapshot.size);
+
+        const allReportsSnapshot = await getDocs(collection(db, "reports"));
+        const fetchedReports  = allReportsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        const userReports = fetchedReports.filter(report => report.userId === userId);
+
+        setReports(userReports);
+        setTotalReports(fetchedReports.length);
+        setAllReports(fetchedReports);
 
       } catch (error) {
         console.log("Error fetching data:", error);
@@ -268,8 +283,8 @@ export default function ProfileScreen() {
         </View>
 
           <View style={styles.statBox}>
-            <Text style={styles.statNum}>0</Text>
-            <Text style={styles.statLabel}>Bookmarks</Text>
+            <Text style={styles.statNum}>{totalFound}</Text>
+            <Text style={styles.statLabel}>Found</Text>
           </View>
         </View>
 

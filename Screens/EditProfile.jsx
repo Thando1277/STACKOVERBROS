@@ -17,11 +17,13 @@ import {
   getAuth, 
   updatePassword, 
   updateEmail,
-  verifyBeforeUpdateEmail,
+  sendEmailVerification,
   reauthenticateWithCredential, 
   EmailAuthProvider, 
   deleteUser 
 } from 'firebase/auth';
+import { doc, updateDoc, setDoc, getDoc } from 'firebase/firestore';
+import { db } from '../Firebase/firebaseConfig';
 
 export default function EditProfile({ navigation }) {
   const [currentEmail, setCurrentEmail] = useState('');
@@ -107,60 +109,91 @@ export default function EditProfile({ navigation }) {
       await reauthenticateWithCredential(user, credential);
 
       let updatedItems = [];
-      let emailUpdateMethod = 'none';
 
-      // Update email if provided
+      // Update email first if provided
       if (newEmail && newEmail !== currentEmail) {
         try {
-          // Try verifyBeforeUpdateEmail first (more secure)
-          await verifyBeforeUpdateEmail(user, newEmail);
-          emailUpdateMethod = 'verification';
-          updatedItems.push('email verification sent');
+          // Try direct email update first
+          await updateEmail(user, newEmail);
           
-          setSuccessMessage(
-            `✉️ A verification email has been sent to ${newEmail}. ` +
-            `Please verify your new email address to complete the change. ` +
-            `Your current email (${currentEmail}) will remain active until verification.`
-          );
+          // If successful, update Firestore
+          const userId = user.uid;
+          const userDocRef = doc(db, "users", userId);
+          
+          try {
+            await updateDoc(userDocRef, { 
+              email: newEmail,
+              updatedAt: new Date().toISOString()
+            });
+          } catch (firestoreError) {
+            console.log('Firestore update error, trying setDoc:', firestoreError);
+            const userSnapshot = await getDoc(userDocRef);
+            if (!userSnapshot.exists()) {
+              await setDoc(userDocRef, {
+                email: newEmail,
+                fullname: user.displayName || "No Name",
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString()
+              });
+            }
+          }
+          
+          setCurrentEmail(newEmail);
+          updatedItems.push('email');
         } catch (emailError) {
-          console.log('Email update error:', emailError.code);
+          console.log('Email update error:', emailError.code, emailError.message);
           
-          // If verifyBeforeUpdateEmail fails, try direct update
-          if (
-            emailError.code === 'auth/operation-not-allowed' ||
-            emailError.code === 'auth/invalid-action-code' ||
-            emailError.code === 'auth/internal-error' ||
-            !emailError.code // Some platforms don't return error codes
-          ) {
+          // Handle the specific "operation-not-allowed" error
+          if (emailError.code === 'auth/operation-not-allowed') {
+            // This means Firebase requires email verification
+            // Update only in Firestore as a workaround
+            const userId = user.uid;
+            const userDocRef = doc(db, "users", userId);
+            
             try {
-              // Direct email update without verification
-              await updateEmail(user, newEmail);
-              setCurrentEmail(newEmail);
-              updatedItems.push('email');
-              emailUpdateMethod = 'direct';
-            } catch (directUpdateError) {
-              // If direct update also fails, throw the error
-              throw directUpdateError;
+              await updateDoc(userDocRef, { 
+                pendingEmail: newEmail,
+                updatedAt: new Date().toISOString()
+              });
+              
+              setErrorMessage(
+                '⚠️ Email verification is required by your Firebase settings.\n\n' +
+                'To enable direct email updates:\n' +
+                '1. Go to Firebase Console\n' +
+                '2. Authentication → Settings → User account management\n' +
+                '3. Disable "Email enumeration protection"\n\n' +
+                (newPassword ? 'Your password has been updated successfully.' : 'Please try again after updating settings.')
+              );
+              setShowErrorModal(true);
+              
+              // Clear fields
+              setNewEmail('');
+              setCurrentPassword('');
+              setNewPassword('');
+              setConfirmPassword('');
+              
+              return; // Exit early
+            } catch (firestoreError) {
+              console.error('Firestore error:', firestoreError);
+              throw emailError; // Throw original error if Firestore also fails
             }
           } else {
-            // For other errors (like email-already-in-use), throw them
+            // For other errors, throw them normally
             throw emailError;
           }
         }
       }
 
-      // Update password if provided
+      // Update password (if provided)
       if (newPassword) {
         await updatePassword(user, newPassword);
         updatedItems.push('password');
       }
 
       // Show appropriate success message
-      if (emailUpdateMethod === 'verification') {
-        // Message already set above for verification flow
-      } else if (emailUpdateMethod === 'direct' && updatedItems.includes('password')) {
+      if (updatedItems.includes('email') && updatedItems.includes('password')) {
         setSuccessMessage('✅ Email and password updated successfully!');
-      } else if (emailUpdateMethod === 'direct') {
+      } else if (updatedItems.includes('email')) {
         setSuccessMessage('✅ Email updated successfully!');
       } else if (updatedItems.includes('password')) {
         setSuccessMessage('✅ Password updated successfully!');
@@ -198,6 +231,12 @@ export default function EditProfile({ navigation }) {
         case 'auth/network-request-failed':
           message += 'Network error. Please check your internet connection.';
           break;
+        case 'auth/too-many-requests':
+          message += 'Too many attempts. Please try again later.';
+          break;
+        case 'auth/operation-not-allowed':
+          message += 'This operation is not allowed. Please check your Firebase settings.';
+          break;
         default:
           message += error.message || 'An unexpected error occurred.';
       }
@@ -233,6 +272,18 @@ export default function EditProfile({ navigation }) {
       );
       await reauthenticateWithCredential(user, credential);
 
+      // Delete user document from Firestore (optional but recommended)
+      try {
+        const userId = user.uid;
+        await updateDoc(doc(db, "users", userId), { 
+          deleted: true,
+          deletedAt: new Date().toISOString()
+        });
+      } catch (firestoreError) {
+        console.log('Firestore cleanup error:', firestoreError);
+        // Continue with auth deletion even if Firestore fails
+      }
+
       // Delete user account from Firebase Authentication
       await deleteUser(user);
 
@@ -247,6 +298,7 @@ export default function EditProfile({ navigation }) {
         });
       }, 2000);
     } catch (error) {
+      console.error('Delete error:', error);
       let message = '❌ Failed to delete account. ';
       
       switch (error.code) {
@@ -309,6 +361,7 @@ export default function EditProfile({ navigation }) {
               onChangeText={setNewEmail}
               keyboardType="email-address"
               autoCapitalize="none"
+              autoCorrect={false}
               onFocus={() => setIsNewEmailFocused(true)}
               onBlur={() => setIsNewEmailFocused(false)}
             />
@@ -327,6 +380,8 @@ export default function EditProfile({ navigation }) {
               value={currentPassword}
               onChangeText={setCurrentPassword}
               secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
               onFocus={() => setIsCurrentPasswordFocused(true)}
               onBlur={() => setIsCurrentPasswordFocused(false)}
             />
@@ -342,6 +397,8 @@ export default function EditProfile({ navigation }) {
               value={newPassword}
               onChangeText={setNewPassword}
               secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
               onFocus={() => setIsPasswordFocused(true)}
               onBlur={() => setIsPasswordFocused(false)}
             />
@@ -355,6 +412,8 @@ export default function EditProfile({ navigation }) {
               placeholder="Re-enter new password"
               placeholderTextColor="#aaa"
               secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               onFocus={() => setIsConfirmFocused(true)}

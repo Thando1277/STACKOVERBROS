@@ -3,6 +3,10 @@ import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity } from "rea
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext"; // ✅ ThemeContext
+import { Alert } from "react-native";
+import { doc, deleteDoc } from "firebase/firestore";
+import { db, auth } from "../Firebase/firebaseConfig";
+
 
 export default function DetailsScreen({ route }) {
   const { report } = route.params;
@@ -18,6 +22,33 @@ export default function DetailsScreen({ route }) {
     textLight: isDark ? "#ccc" : "#333",
     small: isDark ? "#777" : "#999",
   };
+  const user = auth.currentUser;
+
+
+  const handleDelete = async () => {
+    Alert.alert(
+      "Delete Report",
+      "Are you sure you want to delete this report? This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await deleteDoc(doc(db, "reports", report.id));
+              Alert.alert("Deleted", "The report has been successfully deleted.");
+              navigation.goBack(); // return to profile
+            } catch (error) {
+              console.error("Error deleting report:", error);
+              Alert.alert("Error", "Failed to delete the report. Please try again.");
+            }
+          },
+        },
+      ]
+    );
+  };
+
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: themeColors.bg }]}>
@@ -78,9 +109,19 @@ export default function DetailsScreen({ route }) {
         </View>
 
         <Text style={styles.footerText}>
-          Reported on {new Date(report.createdAt).toLocaleString()}
+          Reported: {report.createdAt?.seconds ? new Date(report.createdAt.seconds * 1000).toLocaleString() : "N/A"}
+
         </Text>
       </View>
+
+      {user && report.userId === user.uid && (
+        <View style={styles.deleteContainer}>
+          <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
+            <Ionicons name="trash-outline" size={20} color="#fff" />
+            <Text style={styles.deleteText}>Delete Report</Text>
+          </TouchableOpacity>
+        </View>
+      )}
     </ScrollView>
   );
 }
@@ -111,8 +152,9 @@ const styles = StyleSheet.create({
     color: "#333",
   },
   image: {
-    width: "100%",
+    width: "90%",
     height: 280,
+    marginHorizontal: "5%",
     borderBottomLeftRadius: 16,
     borderBottomRightRadius: 16,
     resizeMode: "cover",
@@ -176,5 +218,31 @@ const styles = StyleSheet.create({
   gotToInboxBtn: {
     width: 100,
     height: 50
-  }
+  },
+
+  //Delete Button Styles
+  deleteContainer: {
+  marginTop: 20,
+  alignItems: "center",
+  marginBottom: 40,
+  
+  },
+  deleteButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#E74C3C",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    width: "90%",
+    elevation: 3,
+  },
+  deleteText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+    marginLeft: 8,
+  },
+
 });

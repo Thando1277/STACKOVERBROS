@@ -19,9 +19,11 @@ import {
 import Icon from 'react-native-vector-icons/FontAwesome';
 import { LinearGradient } from 'expo-linear-gradient';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '../Firebase/firebaseConfig';
+import { auth, db } from '../Firebase/firebaseConfig';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 const { height } = Dimensions.get('window');
+const defaultAvatar = "https://res.cloudinary.com/datb9a7ad/image/upload/v1760652949/pq4g9scvt4a6hijqlsrb.jpg";
 
 // Custom Alert Component
 const CustomAlert = ({ visible, title, message, type, onClose }) => {
@@ -105,15 +107,30 @@ export default function AuthScreen({ navigation }) {
       showAlert('Password Mismatch', 'Passwords do not match.', 'error');
       return;
     }
+
     setLoadingSignUp(true);
+
     try {
-      await createUserWithEmailAndPassword(auth, emailSignUp, passwordSignUp);
+      // Create user in Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, emailSignUp, passwordSignUp);
+      const user = userCredential.user;
+
+      // Save user data to Firestore
+      await setDoc(doc(db, "users", user.uid), {
+        fullname: fullName,
+        email: emailSignUp,
+        phone: phone,
+        avatar: defaultAvatar,
+        createdAt: serverTimestamp(),
+      });
+
       setLoadingSignUp(false);
       showAlert('Success', 'Account created successfully!', 'success');
       setTimeout(() => navigation.navigate('Home'), 1500);
-    } catch {
+    } catch (error) {
       setLoadingSignUp(false);
-      showAlert('Sign Up Failed', 'Please check your details and try again.', 'error');
+      console.log("SignUp Error:", error.message);
+      showAlert('Sign Up Failed', error.message, 'error');
     }
   };
 
@@ -122,14 +139,16 @@ export default function AuthScreen({ navigation }) {
       showAlert('Missing Fields', 'Please enter both email and password.', 'error');
       return;
     }
+
     setLoadingLogin(true);
     try {
       await signInWithEmailAndPassword(auth, emailLogin, passwordLogin);
       setLoadingLogin(false);
       showAlert('Success', 'You are logged in!', 'success');
       setTimeout(() => navigation.navigate('Home'), 1500);
-    } catch {
+    } catch (error) {
       setLoadingLogin(false);
+      console.log("Login Error:", error.message);
       showAlert('Login Failed', 'Email or password is incorrect.', 'error');
     }
   };
@@ -155,7 +174,7 @@ export default function AuthScreen({ navigation }) {
               </View>
 
               <View style={styles.formContainer}>
-                {/* Full Name */}
+                {/** Full Name */}
                 <View style={styles.fieldGroup}>
                   <Text style={styles.label}>Full Name</Text>
                   <View style={styles.inputGroup}>
@@ -170,7 +189,7 @@ export default function AuthScreen({ navigation }) {
                   </View>
                 </View>
 
-                {/* Email */}
+                {/** Email */}
                 <View style={styles.fieldGroup}>
                   <Text style={styles.label}>Email</Text>
                   <View style={styles.inputGroup}>
@@ -184,7 +203,7 @@ export default function AuthScreen({ navigation }) {
                   </View>
                 </View>
 
-                {/* Phone */}
+                {/** Phone */}
                 <View style={styles.fieldGroup}>
                   <Text style={styles.label}>Phone Number</Text>
                   <View style={styles.inputGroup}>
@@ -197,7 +216,7 @@ export default function AuthScreen({ navigation }) {
                   </View>
                 </View>
 
-                {/* Password */}
+                {/** Password */}
                 <View style={styles.fieldGroup}>
                   <Text style={styles.label}>Password</Text>
                   <View style={styles.inputGroup}>
@@ -210,7 +229,7 @@ export default function AuthScreen({ navigation }) {
                   </View>
                 </View>
 
-                {/* Confirm Password */}
+                {/** Confirm Password */}
                 <View style={styles.fieldGroup}>
                   <Text style={styles.label}>Confirm Password</Text>
                   <View style={styles.inputGroup}>
@@ -237,22 +256,6 @@ export default function AuthScreen({ navigation }) {
                     <TouchableOpacity onPress={handleGoToLogin}>
                       <Text style={styles.link}>Log In</Text>
                     </TouchableOpacity>
-                  </View>
-
-                  {/* Continue with */}
-                  <View style={{alignItems:'center', marginTop:15, width:'95%'}}>
-                    <Text style={{color:'#555', marginBottom:10}}>Or continue with</Text>
-                    <View style={{flexDirection:'row', justifyContent:'center', width:'100%'}}>
-                      <TouchableOpacity style={styles.socialBtn} onPress={() => showAlert('Google Login', 'Google login feature coming soon!', 'warning')}>
-                        <Icon name="google" size={18} color="#DB4437" />
-                        <Text style={styles.socialText}>Google</Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity style={styles.socialBtn} onPress={() => showAlert('Apple Login', 'Apple login feature coming soon!', 'warning')}>
-                        <Icon name="apple" size={18} color="#000" />
-                        <Text style={styles.socialText}>Apple</Text>
-                      </TouchableOpacity>
-                    </View>
                   </View>
                 </View>
               </View>
@@ -301,7 +304,6 @@ export default function AuthScreen({ navigation }) {
                   </LinearGradient>
                 </TouchableOpacity>
 
-                {/* Don't have account + Social */}
                 <View style={{alignItems:'center', marginTop:8}}>
                   <View style={styles.textRow}>
                     <Text style={styles.text}>Don't have an account? </Text>
@@ -312,24 +314,7 @@ export default function AuthScreen({ navigation }) {
                   <TouchableOpacity onPress={() => navigation.navigate('ResetPassword')}>
                     <Text style={[styles.link, {marginTop:5, fontSize:12}]}>Forgot Password?</Text>
                   </TouchableOpacity>
-
-                  {/* Continue with */}
-                  <View style={{alignItems:'center', marginTop:15, width:'95%'}}>
-                    <Text style={{color:'#555', marginBottom:10}}>Or continue with</Text>
-                    <View style={{flexDirection:'row', justifyContent:'center', width:'100%'}}>
-                      <TouchableOpacity style={styles.socialBtn} onPress={() => showAlert('Google Login', 'Google login feature coming soon!', 'warning')}>
-                        <Icon name="google" size={18} color="#DB4437" />
-                        <Text style={styles.socialText}>Google</Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity style={styles.socialBtn} onPress={() => showAlert('Apple Login', 'Apple login feature coming soon!', 'warning')}>
-                        <Icon name="apple" size={18} color="#000" />
-                        <Text style={styles.socialText}>Apple</Text>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
                 </View>
-
               </View>
             </Animated.View>
 

@@ -29,6 +29,8 @@ import {
   arrayUnion,
   arrayRemove,
   getDoc,
+  where,
+  getDocs,
 } from "firebase/firestore";
 import { db, auth } from "../Firebase/firebaseConfig";
 
@@ -43,6 +45,7 @@ export default function CommentsScreen({ route }) {
   const [showConfirm, setShowConfirm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [currentUserName, setCurrentUserName] = useState("Anonymous");
+  const [reportOwnerId, setReportOwnerId] = useState(null);
   const flatListRef = useRef(null);
 
   // Fetch current user's name from Firestore
@@ -92,6 +95,52 @@ export default function CommentsScreen({ route }) {
     fetchUserName();
   }, []);
 
+  // Fetch report owner ID
+  useEffect(() => {
+    const fetchReportOwner = async () => {
+      try {
+        const reportDoc = await getDoc(doc(db, "reports", reportId));
+        if (reportDoc.exists()) {
+          setReportOwnerId(reportDoc.data().userId);
+        }
+      } catch (error) {
+        console.error("Error fetching report owner:", error);
+      }
+    };
+    
+    fetchReportOwner();
+  }, [reportId]);
+
+  // Mark notifications as read when screen opens
+  useEffect(() => {
+    const markNotificationsAsRead = async () => {
+      try {
+        const userId = auth.currentUser?.uid;
+        if (!userId) return;
+
+        const notificationsRef = collection(db, "notifications");
+        const q = query(
+          notificationsRef,
+          where("userId", "==", userId),
+          where("reportId", "==", reportId),
+          where("read", "==", false)
+        );
+
+        const snapshot = await getDocs(q);
+        const updatePromises = snapshot.docs.map(docSnapshot => 
+          updateDoc(doc(db, "notifications", docSnapshot.id), { read: true })
+        );
+
+        await Promise.all(updatePromises);
+        console.log('✅ Marked notifications as read');
+      } catch (error) {
+        console.error("Error marking notifications as read:", error);
+      }
+    };
+
+    markNotificationsAsRead();
+  }, [reportId]);
+
   // Fetch comments from Firebase in real-time
   useEffect(() => {
     const commentsRef = collection(db, "reports", reportId, "comments");
@@ -112,6 +161,35 @@ export default function CommentsScreen({ route }) {
 
     return () => unsubscribe();
   }, [reportId]);
+
+  // Create notification for report owner
+  const createNotification = async (commentType) => {
+    try {
+      const userId = auth.currentUser?.uid;
+      
+      // Don't create notification if commenting on own post
+      if (!reportOwnerId || userId === reportOwnerId) {
+        console.log('⏭️ Skipping notification: user is commenting on own post');
+        return;
+      }
+
+      const notificationData = {
+        userId: reportOwnerId, // Send to report owner
+        reportId: reportId,
+        commenterName: currentUserName,
+        commenterId: userId,
+        type: commentType, // 'comment' or 'reply'
+        message: `${currentUserName} commented on your post`,
+        createdAt: serverTimestamp(),
+        read: false,
+      };
+
+      await addDoc(collection(db, "notifications"), notificationData);
+      console.log('✅ Notification created for report owner');
+    } catch (error) {
+      console.error("Error creating notification:", error);
+    }
+  };
 
   // ➕ Add Comment or Reply
   const handleAddComment = async () => {
@@ -142,6 +220,9 @@ export default function CommentsScreen({ route }) {
           replies: arrayUnion(newReply),
         });
         console.log('✅ Reply added successfully');
+        
+        // Create notification
+        await createNotification('reply');
       } else {
         // Add top-level comment
         const commentsRef = collection(db, "reports", reportId, "comments");
@@ -156,6 +237,9 @@ export default function CommentsScreen({ route }) {
         console.log('💬 Adding comment:', newComment);
         await addDoc(commentsRef, newComment);
         console.log('✅ Comment added successfully');
+        
+        // Create notification
+        await createNotification('comment');
       }
 
       setCommentText("");

@@ -26,6 +26,7 @@ import EditProfile from "./Screens/EditProfile.jsx";
 import InboxScreen from "./Screens/InboxScreen.jsx";
 import ChatScreen from "./Screens/ChatScreen.jsx";
 import DraggableIcon from "./Screens/DragChat.jsx";
+import FeedbackHints from "./Screens/FeedbackHints.jsx";
 
 
 // 🗺️ Import your new Map Screen
@@ -88,6 +89,7 @@ export default function App() {
                 <Stack.Screen name="ContactUs" component={ContactUs} />
                 <Stack.Screen name="TermsPrivacyScreen" component={TermsPrivacyScreen} />
                 <Stack.Screen name="EditProfile" component={EditProfile} />
+                <Stack.Screen name='FeedbackHints' component={FeedbackHints} />
 
                 {/* Map, Panic & Alerts */}
                 <Stack.Screen name="MapScreen" component={MapScreen} />

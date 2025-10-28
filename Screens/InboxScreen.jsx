@@ -1,30 +1,82 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, FlatList, ActivityIndicator } from 'react-native';
+import {
+  StyleSheet,
+  Text,
+  View,
+  FlatList,
+  ActivityIndicator,
+  TextInput,
+  SafeAreaView,
+} from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { collection, onSnapshot, query } from 'firebase/firestore';
-import { db } from '../Firebase/firebaseConfig'; // make sure this path matches your setup
+import { getAuth } from 'firebase/auth';
+import {
+  collection,
+  doc,
+  getDoc,
+  onSnapshot,
+  query,
+  orderBy,
+} from 'firebase/firestore';
+import { db } from '../Firebase/firebaseConfig';
 import UserItem from '../components/UserItem';
 
 const InboxScreen = () => {
   const navigation = useNavigation();
   const [users, setUsers] = useState([]);
+  const [filteredUsers, setFilteredUsers] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchText, setSearchText] = useState('');
 
   useEffect(() => {
-    // Fetch all users in real-time from Firestore
-    const q = query(collection(db, 'users'));
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
+    if (!currentUser) return;
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const list = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+    const q = query(
+      collection(db, 'inbox', currentUser.uid, 'chats'),
+      orderBy('lastMessageAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      const list = await Promise.all(
+        snapshot.docs.map(async (docSnap) => {
+          const chatData = docSnap.data();
+          const userId = docSnap.id;
+
+          // Get the latest user info from the 'users' collection
+          const userDoc = await getDoc(doc(db, 'users', userId));
+          const userData = userDoc.exists() ? userDoc.data() : {};
+
+          return {
+            id: userId,
+            fullName: userData.fullname || chatData.fullName || 'Unknown',
+            avatar: userData.avatar || '',
+            lastMessage: chatData.lastMessage || '',
+            lastMessageAt: chatData.lastMessageAt || null,
+          };
+        })
+      );
+
       setUsers(list);
+      setFilteredUsers(list);
       setLoading(false);
     });
 
     return unsubscribe;
   }, []);
+
+  // Filter users based on search input
+  useEffect(() => {
+    if (!searchText) {
+      setFilteredUsers(users);
+    } else {
+      const filtered = users.filter((user) =>
+        user.fullName.toLowerCase().includes(searchText.toLowerCase())
+      );
+      setFilteredUsers(filtered);
+    }
+  }, [searchText, users]);
 
   if (loading) {
     return (
@@ -35,28 +87,56 @@ const InboxScreen = () => {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <Text style={styles.header}>Inbox</Text>
 
-      {users.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyText}>No users found.</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={users}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <UserItem
-              name={item.fullname}
-              profilePic={item.avatar}
-              lastMessage={item.lastMessage}
-              onPress={() => navigation.navigate('ChatScreen', { user: item })}
-            />
-          )}
+      {/* Search Input */}
+      <View style={styles.searchContainer}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search messages..."
+          placeholderTextColor="#999"
+          value={searchText}
+          onChangeText={setSearchText}
         />
-      )}
-    </View>
+      </View>
+
+      {/* Messages List */}
+      <View style={styles.listContainer}>
+        {filteredUsers.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No results</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={filteredUsers}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <UserItem
+                name={item.fullName}
+                profilePic={item.avatar}
+                lastMessage={item.lastMessage}
+                onPress={() =>
+                  navigation.navigate('ChatScreen', {
+                    user: {
+                      id: item.id,
+                      fullname: item.fullName,
+                      avatar: item.avatar,
+                    },
+                  })
+                }
+              />
+            )}
+            contentContainerStyle={{ paddingBottom: 60 }}
+          />
+        )}
+      </View>
+
+      {/* FindSOS Trademark */}
+      <View style={styles.trademarkContainer}>
+        <Text style={styles.trademarkText}>FindSOS™</Text>
+      </View>
+    </SafeAreaView>
   );
 };
 
@@ -68,7 +148,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8F9FB',
   },
   header: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '800',
     color: '#222',
     paddingHorizontal: 16,
@@ -76,6 +156,31 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#eee',
     backgroundColor: '#fff',
+  },
+  searchContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  searchInput: {
+    height: 42,
+    backgroundColor: '#F0F0F0',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    fontSize: 15,
+    color: '#333',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  listContainer: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 10,
   },
   loaderContainer: {
     flex: 1,
@@ -86,9 +191,20 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    marginTop: 50,
   },
   emptyText: {
     fontSize: 16,
     color: '#999',
+  },
+  trademarkContainer: {
+    alignItems: 'center',
+    paddingVertical: 10,
+    backgroundColor: '#F8F9FB',
+  },
+  trademarkText: {
+    fontSize: 12,
+    color: '#999',
+    fontWeight: '600',
   },
 });

@@ -24,7 +24,6 @@ const { width, height } = Dimensions.get("window");
 // Generic Select Component
 function Select({ label, value, onSelect, options, themeColors }) {
   const [open, setOpen] = useState(false);
-  const [buttonX, setButtonX] = useState(0);
   const currentLabel = String(options.find((o) => o.value === value)?.label || label);
 
   return (
@@ -33,26 +32,41 @@ function Select({ label, value, onSelect, options, themeColors }) {
         style={[styles.filterBtn, { backgroundColor: themeColors.filterBg, borderColor: themeColors.border }]}
         onPress={() => setOpen(true)}
       >
-        <Text style={[styles.filterText, { color: themeColors.text }]}>{currentLabel} ▼</Text>
+        <Text style={[styles.filterText, { color: themeColors.text }]}>{currentLabel}</Text>
+        <Ionicons name="chevron-down" size={16} color={themeColors.text} style={{ marginLeft: 4 }} />
       </Pressable>
 
       {open && (
         <View style={styles.modalCover}>
           <Pressable style={styles.backdrop} onPress={() => setOpen(false)} />
-          <View style={[styles.modalSheet, { backgroundColor: themeColors.modalBg, borderColor: themeColors.primary }]}>
-            <Text style={[styles.modalTitle, { color: themeColors.text }]}>{String(label)}</Text>
+          <View style={[styles.modalSheet, { backgroundColor: themeColors.modalBg }]}>
+            <Text style={[styles.modalTitle, { color: themeColors.text }]}>Select {String(label)}</Text>
+            
             {options.map((opt) => (
               <TouchableOpacity
                 key={String(opt.value)}
-                style={styles.optionRow}
+                style={[
+                  styles.optionRow,
+                  { backgroundColor: value === opt.value ? themeColors.primary + '20' : 'transparent' }
+                ]}
                 onPress={() => {
                   onSelect(opt.value);
                   setOpen(false);
                 }}
               >
-                <Text style={[styles.optionText, { color: themeColors.text }]}>{String(opt.label)}</Text>
+                <Ionicons 
+                  name={value === opt.value ? "checkmark-circle" : "ellipse-outline"} 
+                  size={22} 
+                  color={value === opt.value ? themeColors.primary : "#999"} 
+                  style={{ marginRight: 12 }}
+                />
+                <Text style={[
+                  styles.optionText, 
+                  { color: value === opt.value ? themeColors.primary : themeColors.text }
+                ]}>{String(opt.label)}</Text>
               </TouchableOpacity>
             ))}
+            
             <TouchableOpacity
               style={[styles.clearBtn, { backgroundColor: themeColors.filterBg }]}
               onPress={() => {
@@ -60,7 +74,7 @@ function Select({ label, value, onSelect, options, themeColors }) {
                 setOpen(false);
               }}
             >
-              <Text style={[styles.clearText, { color: themeColors.text }]}>Clear</Text>
+              <Text style={[styles.clearText, { color: themeColors.text }]}>Clear Selection</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -121,6 +135,109 @@ function StatusSelect({ value, onChange, isOwner, themeColors }) {
   );
 }
 
+// Filter Modal Component
+function FilterModal({ visible, onClose, themeColors, gender, setGender, ageGroup, setAgeGroup }) {
+  if (!visible) return null;
+
+  const genderOptions = [
+    { label: "All", value: "" },
+    { label: "Male", value: "male" },
+    { label: "Female", value: "female" }
+  ];
+
+  const ageOptions = [
+    { label: "All", value: "" },
+    { label: "0-12 (Child)", value: "child" },
+    { label: "13-19 (Teen)", value: "teen" },
+    { label: "20-40 (Adult)", value: "adult" },
+    { label: "40+ (Senior)", value: "senior" }
+  ];
+
+  const clearAllFilters = () => {
+    setGender("");
+    setAgeGroup("");
+  };
+
+  return (
+    <View style={styles.filterModalCover}>
+      <Pressable style={styles.filterBackdrop} onPress={onClose} />
+      <View style={[styles.filterModalSheet, { backgroundColor: themeColors.modalBg }]}>
+        <Text style={[styles.filterModalTitle, { color: themeColors.text }]}>Filters</Text>
+        
+        {/* Gender Filter */}
+        <View style={styles.filterSection}>
+          <Text style={[styles.filterSectionTitle, { color: themeColors.text }]}>Gender</Text>
+          <View style={styles.filterOptions}>
+            {genderOptions.map((opt) => (
+              <TouchableOpacity
+                key={opt.value}
+                style={[
+                  styles.filterOptionBtn,
+                  { 
+                    backgroundColor: gender === opt.value ? themeColors.primary : themeColors.filterBg,
+                    borderColor: themeColors.border
+                  }
+                ]}
+                onPress={() => setGender(opt.value)}
+              >
+                <Text style={[
+                  styles.filterOptionText, 
+                  { color: gender === opt.value ? "#fff" : themeColors.text }
+                ]}>
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* Age Group Filter */}
+        <View style={styles.filterSection}>
+          <Text style={[styles.filterSectionTitle, { color: themeColors.text }]}>Age Group</Text>
+          <View style={styles.filterOptions}>
+            {ageOptions.map((opt) => (
+              <TouchableOpacity
+                key={opt.value}
+                style={[
+                  styles.filterOptionBtn,
+                  { 
+                    backgroundColor: ageGroup === opt.value ? themeColors.primary : themeColors.filterBg,
+                    borderColor: themeColors.border
+                  }
+                ]}
+                onPress={() => setAgeGroup(opt.value)}
+              >
+                <Text style={[
+                  styles.filterOptionText, 
+                  { color: ageGroup === opt.value ? "#fff" : themeColors.text }
+                ]}>
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        {/* Action Buttons */}
+        <View style={styles.filterActions}>
+          <TouchableOpacity
+            style={[styles.filterActionBtn, styles.clearAllBtn, { backgroundColor: themeColors.filterBg }]}
+            onPress={clearAllFilters}
+          >
+            <Text style={[styles.filterActionText, { color: themeColors.text }]}>Clear All</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.filterActionBtn, styles.applyBtn, { backgroundColor: themeColors.primary }]}
+            onPress={onClose}
+          >
+            <Text style={[styles.filterActionText, { color: "#fff" }]}>Apply Filters</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </View>
+  );
+}
+
 // ---------- HomeScreen Component ----------
 export default function HomeScreen() {
   const navigation = useNavigation();
@@ -131,6 +248,7 @@ export default function HomeScreen() {
   const [gender, setGender] = useState("");
   const [ageGroup, setAgeGroup] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [showFilterModal, setShowFilterModal] = useState(false);
 
   // ---------- Theme Colors ----------
   const themeColors = {
@@ -252,36 +370,118 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Categories */}
+      {/* Categories - All borders are grey */}
       <View style={styles.categories}>
-        <TouchableOpacity onPress={() => setSelectedCategory("Person")} style={[styles.category, { backgroundColor: "#7C4DFF" }]}>
-          <Ionicons name="person-circle-outline" size={28} color="white" />
-          <Text style={styles.catText}>Person</Text>
+        <TouchableOpacity 
+          onPress={() => setSelectedCategory("Person")} 
+          style={[
+            styles.category, 
+            { 
+              backgroundColor: selectedCategory === "Person" ? "#7C4DFF" : "transparent",
+              borderColor: themeColors.border
+            }
+          ]}
+        >
+          <Ionicons 
+            name="person-outline" 
+            size={28} 
+            color={selectedCategory === "Person" ? "white" : "#7C4DFF"} 
+          />
+          <Text style={[
+            styles.catText, 
+            { color: selectedCategory === "Person" ? "white" : "#7C4DFF" }
+          ]}>
+            Person
+          </Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => setSelectedCategory("Pet")} style={[styles.category, { backgroundColor: "#2196F3" }]}>
-          <MaterialCommunityIcons name="paw" size={28} color="white" />
-          <Text style={styles.catText}>Pet</Text>
+        
+        <TouchableOpacity 
+          onPress={() => setSelectedCategory("Pet")} 
+          style={[
+            styles.category, 
+            { 
+              backgroundColor: selectedCategory === "Pet" ? "#2196F3" : "transparent",
+              borderColor: themeColors.border
+            }
+          ]}
+        >
+          <MaterialCommunityIcons 
+            name="paw" 
+            size={28} 
+            color={selectedCategory === "Pet" ? "white" : "#2196F3"} 
+          />
+          <Text style={[
+            styles.catText, 
+            { color: selectedCategory === "Pet" ? "white" : "#2196F3" }
+          ]}>
+            Pet
+          </Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => setSelectedCategory("Wanted")} style={[styles.category, { backgroundColor: "#E53935" }]}>
-          <Ionicons name="alert-circle-outline" size={28} color="white" />
-          <Text style={styles.catText}>Wanted</Text>
+        
+        <TouchableOpacity 
+          onPress={() => setSelectedCategory("Wanted")} 
+          style={[
+            styles.category, 
+            { 
+              backgroundColor: selectedCategory === "Wanted" ? "#E53935" : "transparent",
+              borderColor: themeColors.border
+            }
+          ]}
+        >
+          <Ionicons 
+            name="alert-circle-outline" 
+            size={28} 
+            color={selectedCategory === "Wanted" ? "white" : "#E53935"} 
+          />
+          <Text style={[
+            styles.catText, 
+            { color: selectedCategory === "Wanted" ? "white" : "#E53935" }
+          ]}>
+            Wanted
+          </Text>
         </TouchableOpacity>
+        
         <TouchableOpacity
           onPress={() => {
             setSelectedCategory("Panic");
             navigation.navigate("Panic");
           }}
-          style={[styles.category, { backgroundColor: "#FFB300" }]}
+          style={[
+            styles.category, 
+            { 
+              backgroundColor: selectedCategory === "Panic" ? "#FFB300" : "transparent",
+              borderColor: themeColors.border
+            }
+          ]}
         >
-          <Ionicons name="warning-outline" size={28} color="white" />
-          <Text style={styles.catText}>Panic</Text>
+          <Ionicons 
+            name="warning-outline" 
+            size={28} 
+            color={selectedCategory === "Panic" ? "white" : "#FFB300"} 
+          />
+          <Text style={[
+            styles.catText, 
+            { color: selectedCategory === "Panic" ? "white" : "#FFB300" }
+          ]}>
+            Panic
+          </Text>
         </TouchableOpacity>
       </View>
 
-      {/* Filters */}
-      <View style={styles.filters}>
-        <Select label="Gender" value={gender} onSelect={setGender} options={[{ label: "All", value: "" }, { label: "Male", value: "male" }, { label: "Female", value: "female" }]} themeColors={themeColors} />
-        <Select label="Age" value={ageGroup} onSelect={setAgeGroup} options={[{ label: "All", value: "" }, { label: "0-12 (Child)", value: "child" }, { label: "13-19 (Teen)", value: "teen" }, { label: "20-40 (Adult)", value: "adult" }, { label: "40+ (Senior)", value: "senior" }]} themeColors={themeColors} />
+      {/* Filters Button - Size reduced by 30% */}
+      <View style={styles.filtersContainer}>
+        <TouchableOpacity 
+          style={[styles.filtersButton, { backgroundColor: themeColors.primary }]}
+          onPress={() => setShowFilterModal(true)}
+        >
+          <Ionicons name="filter" size={14} color="white" />
+          <Text style={styles.filtersButtonText}>Filters</Text>
+          {(gender || ageGroup) && (
+            <View style={styles.filterBadge}>
+              <Text style={styles.filterBadgeText}>{(gender ? 1 : 0) + (ageGroup ? 1 : 0)}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
       </View>
 
       {/* Report List */}
@@ -318,6 +518,17 @@ export default function HomeScreen() {
         )}
       </ScrollView>
 
+      {/* Filter Modal */}
+      <FilterModal 
+        visible={showFilterModal}
+        onClose={() => setShowFilterModal(false)}
+        themeColors={themeColors}
+        gender={gender}
+        setGender={setGender}
+        ageGroup={ageGroup}
+        setAgeGroup={setAgeGroup}
+      />
+
       {/* Bottom Navigation */}
       <View style={[styles.bottomNav, { backgroundColor: themeColors.bg }]}>
         <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate("Home")}>
@@ -328,9 +539,7 @@ export default function HomeScreen() {
           <Ionicons name="notifications-outline" size={24} color={themeColors.text} />
           <Text style={[styles.navText, { color: themeColors.text }]}>Alerts</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.reportBtn} onPress={() => navigation.navigate("Report")}>
-          <Ionicons name="add" size={30} color="white" />
-        </TouchableOpacity>
+        <View style={styles.navItem} />
         <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate("MapScreen")}>
           <Ionicons name="map-outline" size={24} color={themeColors.text} />
           <Text style={[styles.navText, { color: themeColors.text }]}>Map</Text>
@@ -339,12 +548,16 @@ export default function HomeScreen() {
           <Ionicons name="person-outline" size={24} color={themeColors.text} />
           <Text style={[styles.navText, { color: themeColors.text }]}>Profile</Text>
         </TouchableOpacity>
-
-        {/* Report Button */}
-        <TouchableOpacity style={styles.reportBtn} onPress={() => navigation.navigate("Report")}>
-          <Ionicons name="add" size={30} color="white" />
-        </TouchableOpacity>
       </View>
+
+      {/* Report Button - Outside bottom nav */}
+      <TouchableOpacity 
+        style={styles.reportBtn} 
+        onPress={() => navigation.navigate("Report")}
+        activeOpacity={0.8}
+      >
+        <Ionicons name="add" size={30} color="white" />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 }
@@ -366,9 +579,160 @@ const styles = StyleSheet.create({
   activeTabText: { color: "white", fontWeight: "bold", fontSize: 14 },
   inactiveTabText: { color: "black", fontWeight: "600", fontSize: 14 },
   activeLine: { marginTop: 5, height: 3, width: "60%", backgroundColor: "white", borderRadius: 2 },
-  categories: { flexDirection: "row", justifyContent: "space-between", marginHorizontal: 20, marginVertical: 12 },
-  category: { borderRadius: 12, alignItems: "center", width: width * 0.2, paddingVertical: 8, height: 90 },
-  catText: { color: "white", fontSize: 12, marginTop: 17, fontWeight: "800" },
+  
+  // Categories - All borders are grey
+  categories: { 
+    flexDirection: "row", 
+    justifyContent: "space-between", 
+    marginHorizontal: 20, 
+    marginVertical: 12 
+  },
+  category: { 
+    borderRadius: 12, 
+    alignItems: "center", 
+    width: width * 0.2, 
+    paddingVertical: 8, 
+    height: 90,
+    borderWidth: 1,
+  },
+  catText: { 
+    color: "white", 
+    fontSize: 12, 
+    marginTop: 17, 
+    fontWeight: "800" 
+  },
+  
+  // Filters Container - Size reduced by 30%
+  filtersContainer: { 
+    flexDirection: "row", 
+    justifyContent: "center", 
+    marginHorizontal: 20, 
+    marginVertical: 7 // Reduced from 9
+  },
+  filtersButton: { 
+    flexDirection: "row", 
+    alignItems: "center", 
+    backgroundColor: "#7CC242", 
+    paddingHorizontal: 12.6, // Reduced from 18
+    paddingVertical: 7.56, // Reduced from 10.8
+    borderRadius: 15.75, // Reduced from 22.5
+    elevation: 3,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+  },
+  filtersButtonText: { 
+    color: "white", 
+    fontWeight: "bold", 
+    fontSize: 10.08, // Reduced from 14.4
+    marginLeft: 5.04 // Reduced from 7.2
+  },
+  filterBadge: {
+    position: "absolute",
+    top: -3.15, // Reduced from -4.5
+    right: -3.15, // Reduced from -4.5
+    backgroundColor: "red",
+    borderRadius: 6.3, // Reduced from 9
+    width: 12.6, // Reduced from 18
+    height: 12.6, // Reduced from 18
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  filterBadgeText: {
+    color: "white",
+    fontSize: 7.56, // Reduced from 10.8
+    fontWeight: "bold",
+  },
+
+  // Filter Modal Styles
+  filterModalCover: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 1000,
+  },
+  filterBackdrop: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  filterModalSheet: {
+    width: width * 0.9,
+    maxHeight: height * 0.8,
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 20,
+    elevation: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+  },
+  filterModalTitle: {
+    fontSize: 22,
+    fontWeight: "bold",
+    marginBottom: 20,
+    textAlign: "center",
+    color: "#222",
+  },
+  filterSection: {
+    marginBottom: 24,
+  },
+  filterSectionTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginBottom: 12,
+    color: "#222",
+  },
+  filterOptions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+  filterOptionBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    minWidth: 80,
+    alignItems: "center",
+  },
+  filterOptionText: {
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  filterActions: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 10,
+    gap: 10,
+  },
+  filterActionBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  clearAllBtn: {
+    backgroundColor: "#f0f0f0",
+  },
+  applyBtn: {
+    backgroundColor: "#7CC242",
+  },
+  filterActionText: {
+    fontSize: 16,
+    fontWeight: "600",
+  },
+
+  // Existing styles
   filters: { flexDirection: "row", justifyContent: "space-evenly", marginHorizontal: 20, marginVertical: 10 },
   filterBtn: { flex: 1, borderWidth: 1, borderColor: "#ccc", marginHorizontal: 5, borderRadius: 8, backgroundColor: "#e0e0e0", alignItems: "center", paddingVertical: 8 },
   filterText: { color: "#444", fontWeight: "500" },
@@ -379,7 +743,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.5)",
+    backgroundColor: "rgba(0,0,0,0.6)",
     justifyContent: "center",
     alignItems: "center",
     zIndex: 1000,
@@ -394,34 +758,53 @@ const styles = StyleSheet.create({
   },
   
   modalSheet: {
-    width: width * 0.7,
+    width: width * 0.8,
     backgroundColor: "#fff",
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 16,
+    padding: 20,
     elevation: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
   },
   
   modalTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "bold",
-    marginBottom: 12,
+    marginBottom: 16,
     textAlign: "center",
+    color: "#222",
   },
   
   clearBtn: {
-    marginTop: 12,
-    padding: 10,
-    borderRadius: 8,
+    marginTop: 16,
+    padding: 12,
+    borderRadius: 10,
     alignItems: "center",
+    backgroundColor: "#f0f0f0",
   },
   
   clearText: {
     fontWeight: "600",
-    fontSize: 14,
+    fontSize: 15,
+    color: "#555",
   },
   
-  optionRow: { flexDirection: "row", justifyContent: "space-around", alignItems: "center", paddingVertical:12 },
-  optionText: { fontSize: 13, color: "#333", fontWeight: "600", paddingHorizontal: 10 },
+  optionRow: { 
+    flexDirection: "row", 
+    justifyContent: "flex-start", 
+    alignItems: "center", 
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginVertical: 4,
+  },
+  optionText: { 
+    fontSize: 16, 
+    color: "#333", 
+    fontWeight: "500", 
+  },
   list: { flex: 1, paddingHorizontal: 20, marginTop: 5, zIndex: 1 },
   card: { flexDirection: "row", backgroundColor: "#fff", borderRadius: 12, padding: 14, marginBottom: 20, elevation: 3, shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 4, height: height * 0.25, borderWidth: 0.3, borderColor: "#02c048ff" },
   avatar: { width: 100, height: "100%", borderRadius: 12, marginRight: 12 },
@@ -434,32 +817,33 @@ const styles = StyleSheet.create({
   
   bottomNav: {
     flexDirection: "row",
-    justifyContent: "space-between", // equal spacing
-    alignItems: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 11,
+    justifyContent: "space-around",
+    paddingVertical: height * 0.015,
     borderTopWidth: 1,
     borderColor: "#ddd",
     backgroundColor: "#fff",
-    position: "relative",
   },
 
   navItem: { alignItems: "center" },
-  navText: { fontSize: 12, color: "black" },
+  navText: { fontSize: width * 0.03, color: "black" },
 
   // ---------- Report Button ----------
   reportBtn: {
+    position: "absolute",
+    bottom: height * 0.04,
+    left: width / 2 - width * 0.075,
     backgroundColor: "#7CC242",
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: width * 0.15,
+    height: width * 0.15,
+    borderRadius: width * 0.075,
     justifyContent: "center",
     alignItems: "center",
-    position: "absolute",
-    bottom: 10,
-    left: (width / 2) - 30,
     elevation: 5,
-    zIndex: 500,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    zIndex: 1000,
   },
 
   // ---------- StatusSelect Styles ----------

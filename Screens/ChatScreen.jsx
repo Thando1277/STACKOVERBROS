@@ -9,6 +9,7 @@ import {
   Platform,
   SafeAreaView,
   TouchableOpacity,
+  Image,
 } from 'react-native';
 import { useRoute } from '@react-navigation/native';
 import { getAuth } from 'firebase/auth';
@@ -23,24 +24,41 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '../Firebase/firebaseConfig';
+import { Ionicons } from "@expo/vector-icons";
 
-const ChatScreen = () => {
+const ChatScreen = ({ navigation }) => {
   const route = useRoute();
-  const { user } = route.params; // the user you are chatting with
   const currentUser = getAuth().currentUser;
 
+  const [chatUser, setChatUser] = useState(route.params?.user);
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState('');
   const [typing, setTyping] = useState(false);
-
   const flatListRef = useRef();
+
+  // Update chatUser if route params change
+  useEffect(() => {
+    if (route.params?.user) {
+      setChatUser(route.params.user);
+    }
+  }, [route.params?.user]);
+
+  if (!chatUser) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Text>Loading chat...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   // ---------- Listen to messages ----------
   useEffect(() => {
     const chatId =
-      currentUser.uid > user.id
-        ? `${currentUser.uid}_${user.id}`
-        : `${user.id}_${currentUser.uid}`;
+      currentUser.uid > chatUser.id
+        ? `${currentUser.uid}_${chatUser.id}`
+        : `${chatUser.id}_${currentUser.uid}`;
 
     const q = query(
       collection(db, 'chats', chatId, 'messages'),
@@ -52,40 +70,37 @@ const ChatScreen = () => {
     });
 
     return unsubscribe;
-  }, [user.id]);
+  }, [chatUser.id]);
 
   // ---------- Send message ----------
   const sendMessage = async () => {
     if (!text.trim()) return;
 
     const chatId =
-      currentUser.uid > user.id
-        ? `${currentUser.uid}_${user.id}`
-        : `${user.id}_${currentUser.uid}`;
+      currentUser.uid > chatUser.id
+        ? `${currentUser.uid}_${chatUser.id}`
+        : `${chatUser.id}_${currentUser.uid}`;
 
-    // 1️⃣ Add message to messages subcollection
     await addDoc(collection(db, 'chats', chatId, 'messages'), {
       text,
       senderId: currentUser.uid,
-      receiverId: user.id,
+      receiverId: chatUser.id,
       createdAt: serverTimestamp(),
     });
 
-    // 2️⃣ Update inbox for current user
     await setDoc(
-      doc(db, 'inbox', currentUser.uid, 'chats', user.id),
+      doc(db, 'inbox', currentUser.uid, 'chats', chatUser.id),
       {
-        fullName: user.fullname,
-        avatar: user.avatar,
+        fullName: chatUser.fullname,
+        avatar: chatUser.avatar,
         lastMessage: text,
         lastMessageAt: serverTimestamp(),
       },
       { merge: true }
     );
 
-    // 3️⃣ Update inbox for receiver
     await setDoc(
-      doc(db, 'inbox', user.id, 'chats', currentUser.uid),
+      doc(db, 'inbox', chatUser.id, 'chats', currentUser.uid),
       {
         fullName: currentUser.displayName || 'User',
         avatar: currentUser.photoURL || null,
@@ -96,6 +111,9 @@ const ChatScreen = () => {
     );
 
     setText('');
+
+    // Scroll to bottom after sending
+    flatListRef.current?.scrollToEnd({ animated: true });
   };
 
   return (
@@ -106,8 +124,19 @@ const ChatScreen = () => {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 80}
       >
         <View style={styles.container}>
-          {/* Header */}
-          <Text style={styles.header}>{user.fullname}</Text>
+          {/* Sticky Header */}
+          <View style={styles.headerWrapper}>
+            <TouchableOpacity
+              style={styles.backBtn}
+              onPress={() => navigation.goBack()}
+            >
+              <Ionicons name="arrow-back" size={24} color="black" />
+            </TouchableOpacity>
+            {chatUser.avatar && (
+              <Image source={{ uri: chatUser.avatar }} style={styles.avatar} />
+            )}
+            <Text style={styles.header}>{chatUser.fullname}</Text>
+          </View>
 
           {/* Messages list */}
           <FlatList
@@ -126,7 +155,7 @@ const ChatScreen = () => {
                 <Text>{item.text}</Text>
               </View>
             )}
-            contentContainerStyle={{ paddingBottom: 10 }}
+            contentContainerStyle={{ paddingBottom: 10, paddingTop: 10 }}
             onContentSizeChange={() =>
               flatListRef.current?.scrollToEnd({ animated: true })
             }
@@ -162,8 +191,32 @@ export default ChatScreen;
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#F8F9FB' },
-  container: { flex: 1, padding: 10 },
-  header: { fontWeight: 'bold', fontSize: 18, marginBottom: 10 },
+  container: { flex: 1, paddingHorizontal: 10 },
+
+  headerWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1,
+    paddingHorizontal: 10,
+  },
+  backBtn: {
+    padding: 6,
+    borderRadius: 20,
+    marginRight: 10,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatar: { width: 40, height: 40, borderRadius: 20, marginRight: 10 },
+  header: { fontWeight: 'bold', fontSize: 18 },
+
   messageBubble: {
     padding: 10,
     borderRadius: 10,
@@ -172,6 +225,7 @@ const styles = StyleSheet.create({
   },
   sent: { alignSelf: 'flex-end', backgroundColor: '#DCF8C6' },
   received: { alignSelf: 'flex-start', backgroundColor: '#FFF' },
+
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -179,6 +233,7 @@ const styles = StyleSheet.create({
     borderColor: '#ccc',
     paddingTop: 8,
     paddingBottom: Platform.OS === 'ios' ? 20 : 10,
+    backgroundColor: '#fff',
   },
   input: {
     flex: 1,

@@ -4,7 +4,7 @@ import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext"; // ✅ ThemeContext
 import { Alert } from "react-native";
-import { doc, deleteDoc } from "firebase/firestore";
+import { doc, getDoc, deleteDoc } from "firebase/firestore";
 import { db, auth } from "../Firebase/firebaseConfig";
 
 
@@ -94,17 +94,30 @@ export default function DetailsScreen({ route }) {
           <Text style={styles.sectionText}>Phone: {report.contactNumber || "N/A"}</Text>
           <TouchableOpacity
             style={styles.gotToInboxBtn}
-            onPress={() => navigation.navigate('ChatScreen',
-              {
-                user: {
-                  id: report.userId,
-                  fullName: report.fullName,
-                  avatar: report.avatar,
+            onPress={async () => {
+              try {
+                const userDoc = await getDoc(doc(db, 'users', report.userId));
+
+                if (userDoc.exists()){
+                  const userData = userDoc.data();
+
+                  navigation.navigate('ChatScreen', {
+                    user: {
+                      id: report.userId,
+                      fullname: userData.fullname,
+                      avatar: userData.avatar || null
+                    }
+                  })
+                  console.log('Fetched user data: ', userData)
+                }else{
+                  console.warn('User not found for ID:', report.userId);
                 }
+              }catch(error){
+                console.error('Error fetching user data:', error);
               }
-            )}
+            }}
           >
-            <Text>Go to inbox</Text>
+            <Text>Reply Privately</Text>
           </TouchableOpacity>
         </View>
 

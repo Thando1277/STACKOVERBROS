@@ -26,9 +26,13 @@ import {
 import { db } from '../Firebase/firebaseConfig';
 import { Ionicons } from "@expo/vector-icons";
 
+
+const HEADER_HEIGHT = 60; // adjust if needed
+
 const ChatScreen = ({ navigation }) => {
   const route = useRoute();
   const currentUser = getAuth().currentUser;
+  const reportId = route.params?.reportId;
 
   const [chatUser, setChatUser] = useState(route.params?.user);
   const [messages, setMessages] = useState([]);
@@ -36,7 +40,6 @@ const ChatScreen = ({ navigation }) => {
   const [typing, setTyping] = useState(false);
   const flatListRef = useRef();
 
-  // Update chatUser if route params change
   useEffect(() => {
     if (route.params?.user) {
       setChatUser(route.params.user);
@@ -53,7 +56,6 @@ const ChatScreen = ({ navigation }) => {
     );
   }
 
-  // ---------- Listen to messages ----------
   useEffect(() => {
     const chatId =
       currentUser.uid > chatUser.id
@@ -72,7 +74,6 @@ const ChatScreen = ({ navigation }) => {
     return unsubscribe;
   }, [chatUser.id]);
 
-  // ---------- Send message ----------
   const sendMessage = async () => {
     if (!text.trim()) return;
 
@@ -86,6 +87,7 @@ const ChatScreen = ({ navigation }) => {
       senderId: currentUser.uid,
       receiverId: chatUser.id,
       createdAt: serverTimestamp(),
+      reportId: reportId || null
     });
 
     await setDoc(
@@ -111,8 +113,6 @@ const ChatScreen = ({ navigation }) => {
     );
 
     setText('');
-
-    // Scroll to bottom after sending
     flatListRef.current?.scrollToEnd({ animated: true });
   };
 
@@ -130,7 +130,7 @@ const ChatScreen = ({ navigation }) => {
               style={styles.backBtn}
               onPress={() => navigation.goBack()}
             >
-              <Ionicons name="arrow-back" size={24} color="black" />
+              <Ionicons name="arrow-back" size={24} color="#007AFF" />
             </TouchableOpacity>
             {chatUser.avatar && (
               <Image source={{ uri: chatUser.avatar }} style={styles.avatar} />
@@ -155,7 +155,10 @@ const ChatScreen = ({ navigation }) => {
                 <Text>{item.text}</Text>
               </View>
             )}
-            contentContainerStyle={{ paddingBottom: 10, paddingTop: 10 }}
+            contentContainerStyle={{ 
+              paddingBottom: 10, 
+              paddingTop: HEADER_HEIGHT + 10, // <- ensure first message is visible
+            }}
             onContentSizeChange={() =>
               flatListRef.current?.scrollToEnd({ animated: true })
             }
@@ -206,6 +209,7 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 1,
     paddingHorizontal: 10,
+    height: HEADER_HEIGHT, // same as HEADER_HEIGHT constant
   },
   backBtn: {
     padding: 6,

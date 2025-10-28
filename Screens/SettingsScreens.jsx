@@ -1,10 +1,18 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../context/ThemeContext';
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+} from "firebase/firestore";
+import { db, auth } from "../Firebase/firebaseConfig";
 
 export default function SettingsScreen({ navigation }) {
   const { isDark, toggleTheme } = useTheme();
+  const [totalUnreadComments, setTotalUnreadComments] = useState(0);
 
   const colors = {
     background: isDark ? '#121212' : '#fff',
@@ -14,6 +22,35 @@ export default function SettingsScreen({ navigation }) {
     border: isDark ? '#333' : '#ccc',
     accent: '#7CC242',
   };
+
+  // Listen for all unread notifications for current user
+  useEffect(() => {
+    const userId = auth.currentUser?.uid;
+    if (!userId) return;
+
+    console.log('👀 Listening for all notifications for user:', userId);
+
+    const notificationsRef = collection(db, "notifications");
+    const q = query(
+      notificationsRef,
+      where("userId", "==", userId),
+      where("read", "==", false)
+    );
+
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const count = snapshot.docs.length;
+        console.log('🔔 Total unread notifications:', count);
+        setTotalUnreadComments(count);
+      },
+      (error) => {
+        console.error("Error listening to notifications:", error);
+      }
+    );
+
+    return () => unsubscribe();
+  }, []);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -40,7 +77,13 @@ export default function SettingsScreen({ navigation }) {
 
         {/* Follow Up */}
         <SectionTitle text="Follow Up" color={colors.accent} />
-        <SettingsItem icon="comment-text-outline" label="Feedback, Hints….." colors={colors} />
+        <SettingsItemWithBadge 
+          icon="comment-text-outline" 
+          label="Feedback, Hints….."    
+          onPress={() => navigation.navigate('FeedbackHints')}  
+          colors={colors}
+          badgeCount={totalUnreadComments}
+        />
 
         {/* Notifications */}
         <SectionTitle text="Notifications" color={colors.accent} />
@@ -62,9 +105,26 @@ export default function SettingsScreen({ navigation }) {
 }
 
 const SectionTitle = ({ text, color }) => <Text style={[styles.sectionTitle, { color }]}>{text}</Text>;
+
 const SettingsItem = ({ icon, label, onPress, colors }) => (
   <TouchableOpacity style={[styles.item, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={onPress}>
     <Icon name={icon} size={22} color={colors.accent} style={styles.itemIcon} />
+    <Text style={[styles.itemLabel, { color: colors.text }]}>{label}</Text>
+  </TouchableOpacity>
+);
+
+const SettingsItemWithBadge = ({ icon, label, onPress, colors, badgeCount }) => (
+  <TouchableOpacity style={[styles.item, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={onPress}>
+    <View style={styles.iconContainer}>
+      <Icon name={icon} size={22} color={colors.accent} style={styles.itemIcon} />
+      {badgeCount > 0 && (
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>
+            {badgeCount > 99 ? '99+' : badgeCount}
+          </Text>
+        </View>
+      )}
+    </View>
     <Text style={[styles.itemLabel, { color: colors.text }]}>{label}</Text>
   </TouchableOpacity>
 );
@@ -78,6 +138,26 @@ const styles = StyleSheet.create({
   avatar: { width: 50, height: 50, borderRadius: 25, marginRight: 12 },
   sectionTitle: { fontSize: 14, fontWeight: '700', marginTop: 15, marginBottom: 6 },
   item: { flexDirection: 'row', alignItems: 'center', borderRadius: 8, paddingVertical: 14, paddingHorizontal: 12, marginBottom: 10, borderWidth: 1 },
-  itemIcon: { marginRight: 10 },
+  iconContainer: { position: 'relative', marginRight: 10 },
+  itemIcon: { marginRight: 0 },
   itemLabel: { fontSize: 16, flexShrink: 1 },
+  badge: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#FF4444',
+    borderRadius: 12,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 5,
+    borderWidth: 2,
+    borderColor: '#1e1e1e',
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
 });

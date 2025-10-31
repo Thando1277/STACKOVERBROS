@@ -115,67 +115,84 @@ export default function EnhancedChatBot({ navigation }) {
   }, [messages]);
 
   return (
-  <View style={{ flex: 1 }}>
-    <StatusBar barStyle="light-content" backgroundColor="#8f8d8dff"/>
-    {/* Header */}
-    <View style={{
-      flexDirection: "row",
-      alignItems: "center",
-      backgroundColor: "#8f8d8dff", // dark background
-      paddingVertical: 12,
-      paddingHorizontal: 10,
-      paddingTop: StatusBar.currentHeight + 3,
-    }}>
-      <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: 10 }}>
-        <Icon name="chevron-left" size={28} color="#fff" />
-      </TouchableOpacity>
-      <Text style={{ color: "#fff", fontSize: 18, fontWeight: "bold" }}>Back</Text>
-    </View>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"} // adjust on iOS vs Android
+      keyboardVerticalOffset={Platform.OS === "ios" ? 60 : 0} // adjust for header height
+    >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <View style={{ flex: 1 }}>
+          <StatusBar barStyle="light-content" backgroundColor="#8f8d8dff"/>
+          
+          {/* Header */}
+          <View style={{
+            flexDirection: "row",
+            alignItems: "center",
+            backgroundColor: "#8f8d8dff",
+            paddingVertical: 12,
+            paddingHorizontal: 10,
+            paddingTop: StatusBar.currentHeight + 3,
+          }}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginRight: 10 }}>
+              <Icon name="chevron-left" size={28} color="#fff" />
+            </TouchableOpacity>
+            <Text style={{ color: "#fff", fontSize: 18, fontWeight: "bold" }}>Back</Text>
+          </View>
 
-    {/* Chat content */}
-    <View style={{ flex: 1, padding: 20 }}>
-      <ScrollView ref={scrollRef} contentContainerStyle={{ paddingBottom: 20 }}>
-        {messages.map((m, i) => (
-          <Text
-            key={i}
-            style={{
-              alignSelf: m.from === "user" ? "flex-end" : "flex-start",
-              backgroundColor: m.from === "user" ? "#DCF8C6" : "#EAEAEA",
-              borderRadius: 10,
-              padding: 10,
-              marginVertical: 4,
-              maxWidth: "80%",
-            }}
-          >
-            {m.text}
-          </Text>
-        ))}
-        {loading && <ActivityIndicator size="small" color="gray" />}
-      </ScrollView>
+          {/* <ImageBackground source={require("../assets/ChatBot_back.png")} style={{ flex: 1 }}> */}
+            <View style={{
+                ...StyleSheet.absoluteFillObject,
+                backgroundColor: 'rgba(42, 54, 42, 0.3)' // 0.2 = 20% opacity dark overlay
+            }} />
+          {/* Chat Area */}{/* Chat content */}
+            <View style={{ flex: 1, padding: 20 }}>
+              <ScrollView ref={scrollRef} contentContainerStyle={{ paddingBottom: 20 }}>
+                {messages.map((m, i) => (
+                  <Text
+                    key={i}
+                    style={{
+                      alignSelf: m.from === "user" ? "flex-end" : "flex-start",
+                      backgroundColor: m.from === "user" ? "#DCF8C6" : "#EAEAEA",
+                      borderRadius: 10,
+                      padding: 10,
+                      marginVertical: 4,
+                      maxWidth: "80%",
+                    }}
+                  >
+                    {m.text}
+                  </Text>
+                ))}
+                {loading && <ActivityIndicator size="small" color="gray" />}
+              </ScrollView>
 
-      {/* Input */}
-      <View style={{ flexDirection: "row", marginTop: 10 }}>
-        <TextInput
-          style={{
-            flex: 1,
-            borderWidth: 1,
-            borderColor: "#0d8b42ff",
-            borderRadius: 8,
-            padding: 10,
-            margin: 5,
-            height: 40,
-          }}
-          placeholder="Type your message..."
-          value={input}
-          onChangeText={setInput}
-          onSubmitEditing={sendMessage}
-        />
-        <TouchableOpacity onPress={sendMessage} style={{ justifyContent: "center", marginLeft: 5, padding: 10, borderRadius: 8, marginBottom: 5, backgroundColor: "#0d8b42ff" }}>
-          <Text style={{ color: "#fff", fontWeight: "bold" }}>Send</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  </View>
-);
+              {/* Input */}
+              <View style={{ flexDirection: "row", marginTop: 10 }}>
+                <TextInput
+                  style={{
+                    flex: 1,
+                    borderWidth: 1,
+                    borderColor: "#0d8b42ff",
+                    borderRadius: 8,
+                    padding: 15,
+                    margin: 5,
+                    height: 50,
+                    backgroundColor: "rgba(255,255,255,0.9)"
+                  }}
+                  placeholder="Type your message..."
+                  value={input}
+                  onChangeText={setInput}
+                  onSubmitEditing={sendMessage}
+                />
+                <TouchableOpacity onPress={sendMessage} style={{ justifyContent: "center", marginLeft: 5, padding: 10, borderRadius: 8, marginBottom: 5, backgroundColor: "#0d8b42ff" }}>
+                  <Text style={{ color: "#fff", fontWeight: "bold" }}>Send</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          {/* </ImageBackground> */}
+          
+        </View>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
+  );
 
 }

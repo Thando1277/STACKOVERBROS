@@ -1,6 +1,16 @@
 // EnhancedChatBot.js
 import React, { useState, useRef, useEffect } from "react";
-import { View, TextInput, Button, StatusBar, Text, ScrollView, ActivityIndicator, TouchableOpacity} from "react-native";
+import { View, TextInput, Button, StatusBar, 
+  Text, 
+  ScrollView, 
+  ActivityIndicator, 
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  Platform,
+  TouchableWithoutFeedback,
+  Keyboard,
+  ImageBackground,
+  StyleSheet} from "react-native";
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 
 export default function EnhancedChatBot({ navigation }) {
@@ -41,7 +51,7 @@ export default function EnhancedChatBot({ navigation }) {
     let reply = "";
 
     if (text.includes("report")) {
-      reply = "Okay, to dlete a report, please go to Profile and under your Reports section, click the report you wish to remove and click the Delete report button at the bottom of the report.";
+      reply = "Okay, to delete a report, please go to Profile and under your Reports section, click the report you wish to remove and click the Delete report button at the bottom of the report.";
       setAwaitingDeleteType(false);
     } else if (text.includes("profile")) {
       reply = "Ok, to delete your Profile, go to the Profile tab and click the settings icon at the top. Scroll down until you see Edit Profile under Account & Profile Management and click on it, click on the Delete Account button at the bottom .We're sorry to see you go 😢";
@@ -57,9 +67,9 @@ export default function EnhancedChatBot({ navigation }) {
     const text = msg.toLowerCase();
 
     // Delete / Remove detection
-    if (text.includes("delete") || text.includes("remove")) {
+    if (text.includes("delete") || text.includes("remove") || text.includes("erase") && text.includes("account") || text.includes("profile")) {
       setAwaitingDeleteType(true);
-      return "Do you want to remove a Report or your Profile?";
+      return "Do you want to remove/delete a Report or your Profile?";
     }
 
     // Remember user's name

@@ -357,7 +357,6 @@ export default function HomeScreen() {
         >
           <View style={{
               backgroundColor: "#65a730ff",
-              padding: 16,
               borderRadius: 50,
               justifyContent: "center",
               alignItems: "center",
@@ -367,9 +366,8 @@ export default function HomeScreen() {
               shadowRadius: 3,
               elevation: 5,
               borderWidth: 1,
-              borderColor: "#fff",
           }}>
-              <Ionicons name="chatbubble-ellipses" size={28} color="#fff" />
+              <Image source={require("../assets/chatbot.webp")} style={styles.logo} />
           </View>
         </DraggableIcon>
     </SafeAreaView>
@@ -384,7 +382,7 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   header: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 15, paddingTop: 10, alignItems: "center" },
-  logo: { width: 50, height: 40, resizeMode: "contain" , borderRadius: 15},
+  logo: { width: 70, height: 70, resizeMode: "contain" , borderRadius: 10},
   headerIcons: { flexDirection: "row", alignItems: "center" },
   tabs: { flexDirection: "row", marginHorizontal: 20, marginTop: 12, marginBottom: 5 },
   tabBtn: { flex: 1, alignItems: "center", paddingVertical: 8, borderRadius: 8, marginHorizontal: 5 },

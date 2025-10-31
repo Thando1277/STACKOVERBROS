@@ -12,8 +12,11 @@ import {
   Keyboard,
   Modal,
 } from 'react-native';
+import { useTheme } from '../context/ThemeContext';
 
 export default function ContactSupportScreen({ navigation }) {
+  const { colors } = useTheme();
+
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [message, setMessage] = useState('');
@@ -22,7 +25,6 @@ export default function ContactSupportScreen({ navigation }) {
   const [isEmailFocused, setIsEmailFocused] = useState(false);
   const [isMessageFocused, setIsMessageFocused] = useState(false);
 
-  // Modal state
   const [modalVisible, setModalVisible] = useState(false);
 
   const handleSend = () => {
@@ -34,37 +36,29 @@ export default function ContactSupportScreen({ navigation }) {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: '#121212' }}
+      style={{ flex: 1, backgroundColor: colors.background }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={0}
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <View style={{ flex: 1, backgroundColor: '#121212' }}>
-          {/* Back button */}
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={styles.backButtonText}>← Back</Text>
+        <View style={{ flex: 1, backgroundColor: colors.background }}>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Text style={[styles.backButtonText, { color: '#7CC242' }]}>← Back</Text>
           </TouchableOpacity>
 
-          <ScrollView
-            contentContainerStyle={styles.scroll}
-            keyboardShouldPersistTaps="handled"
-          >
+          <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
             <View style={styles.formContainer}>
-              <Text style={styles.title}>Contact Us</Text>
-              <Text style={styles.subtitle}>
+              <Text style={[styles.title, { color: '#7CC242' }]}>Contact Us</Text>
+              <Text style={[styles.subtitle, { color: colors.subText }]}>
                 We’re here to help. Fill out the form below and our support team will respond shortly.
               </Text>
 
               <TextInput
                 style={[
                   styles.input,
-                  { borderColor: isNameFocused ? '#7CC242' : '#444' },
+                  { borderColor: isNameFocused ? '#7CC242' : '#444', color: colors.text, backgroundColor: colors.card },
                 ]}
                 placeholder="Your Name"
-                placeholderTextColor="#aaa"
+                placeholderTextColor={colors.subText}
                 value={name}
                 onChangeText={setName}
                 onFocus={() => setIsNameFocused(true)}
@@ -74,10 +68,10 @@ export default function ContactSupportScreen({ navigation }) {
               <TextInput
                 style={[
                   styles.input,
-                  { borderColor: isEmailFocused ? '#7CC242' : '#444' },
+                  { borderColor: isEmailFocused ? '#7CC242' : '#444', color: colors.text, backgroundColor: colors.card },
                 ]}
                 placeholder="Your Email"
-                placeholderTextColor="#aaa"
+                placeholderTextColor={colors.subText}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 value={email}
@@ -90,10 +84,10 @@ export default function ContactSupportScreen({ navigation }) {
                 style={[
                   styles.input,
                   styles.messageBox,
-                  { borderColor: isMessageFocused ? '#7CC242' : '#444' },
+                  { borderColor: isMessageFocused ? '#7CC242' : '#444', color: colors.text, backgroundColor: colors.card },
                 ]}
                 placeholder="Your Message"
-                placeholderTextColor="#aaa"
+                placeholderTextColor={colors.subText}
                 multiline
                 value={message}
                 onChangeText={setMessage}
@@ -101,29 +95,21 @@ export default function ContactSupportScreen({ navigation }) {
                 onBlur={() => setIsMessageFocused(false)}
               />
 
-              <TouchableOpacity style={styles.button} onPress={handleSend}>
-                <Text style={styles.buttonText}>Send Message</Text>
+              <TouchableOpacity style={[styles.button, { backgroundColor: '#7CC242' }]} onPress={handleSend}>
+                <Text style={[styles.buttonText, { color: colors.text }]}>Send Message</Text>
               </TouchableOpacity>
             </View>
           </ScrollView>
 
-          {/* Custom Message Sent Modal */}
-          <Modal
-            visible={modalVisible}
-            transparent
-            animationType="fade"
-          >
-            <View style={styles.modalBackground}>
-              <View style={styles.modalContainer}>
-                <Text style={styles.modalTitle}>Message Sent!</Text>
-                <Text style={styles.modalText}>
+          <Modal visible={modalVisible} transparent animationType="fade">
+            <View style={[styles.modalBackground, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
+              <View style={[styles.modalContainer, { backgroundColor: colors.card }]}>
+                <Text style={[styles.modalTitle, { color: '#7CC242' }]}>Message Sent!</Text>
+                <Text style={[styles.modalText, { color: colors.text }]}>
                   Thank you for reaching out. Our support team will respond shortly.
                 </Text>
-                <TouchableOpacity
-                  style={styles.modalButton}
-                  onPress={() => setModalVisible(false)}
-                >
-                  <Text style={styles.modalButtonText}>OK</Text>
+                <TouchableOpacity style={[styles.modalButton, { backgroundColor: '#7CC242' }]} onPress={() => setModalVisible(false)}>
+                  <Text style={[styles.modalButtonText, { color: colors.text }]}>OK</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -135,112 +121,20 @@ export default function ContactSupportScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  backButton: {
-    padding: 15,
-    position: 'absolute',
-    top: 10,
-    left: 10,
-    zIndex: 1,
-  },
-  backButtonText: {
-    color: '#7CC242',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  scroll: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 40,
-  },
-  formContainer: {
-    width: '100%',
-    maxWidth: 400,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    color: '#7CC242',
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#ccc',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  input: {
-    backgroundColor: '#1e1e1e',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 14,
-    fontSize: 16,
-    marginBottom: 15,
-    borderWidth: 2,
-    color: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  messageBox: {
-    height: 120,
-    textAlignVertical: 'top',
-  },
-  button: {
-    backgroundColor: 'green',
-    borderRadius: 8,
-    paddingVertical: 15,
-    alignItems: 'center',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  modalBackground: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContainer: {
-    width: '80%',
-    backgroundColor: '#1e1e1e',
-    borderRadius: 12,
-    padding: 25,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-    elevation: 6,
-  },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#7CC242',
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  modalText: {
-    fontSize: 16,
-    color: '#ccc',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  modalButton: {
-    backgroundColor: '#7CC242',
-    paddingVertical: 12,
-    paddingHorizontal: 30,
-    borderRadius: 8,
-  },
-  modalButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+  backButton: { padding: 15, position: 'absolute', top: 10, left: 10, zIndex: 1 },
+  backButtonText: { fontSize: 16, fontWeight: '600' },
+  scroll: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 40 },
+  formContainer: { width: '100%', maxWidth: 400 },
+  title: { fontSize: 28, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' },
+  subtitle: { fontSize: 16, marginBottom: 20, textAlign: 'center' },
+  input: { borderRadius: 12, paddingHorizontal: 12, paddingVertical: 14, fontSize: 16, marginBottom: 15, borderWidth: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 4 },
+  messageBox: { height: 120, textAlignVertical: 'top' },
+  button: { borderRadius: 8, paddingVertical: 15, alignItems: 'center' },
+  buttonText: { fontSize: 18, fontWeight: '600' },
+  modalBackground: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  modalContainer: { width: '80%', borderRadius: 12, padding: 25, alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 6 },
+  modalTitle: { fontSize: 22, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' },
+  modalText: { fontSize: 16, textAlign: 'center', marginBottom: 20 },
+  modalButton: { paddingVertical: 12, paddingHorizontal: 30, borderRadius: 8, alignItems: 'center' },
+  modalButtonText: { fontSize: 16, fontWeight: '600' },
 });

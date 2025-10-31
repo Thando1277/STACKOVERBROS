@@ -1,4 +1,3 @@
-// screens/Panic.js
 import React, { useEffect, useRef, useState } from "react";
 import {
   View,
@@ -7,10 +6,10 @@ import {
   StyleSheet,
   ScrollView,
   TextInput,
-  Modal,
   ActivityIndicator,
   Alert,
-  Platform,
+  Image,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -18,19 +17,14 @@ import * as Location from "expo-location";
 import { WebView } from "react-native-webview";
 import { useData } from "../context/DataContext";
 import { useNavigation } from "@react-navigation/native";
-import { useTheme } from "../context/ThemeContext"; // ✅ Added for dark/light mode
-
-let Voice;
-try {
-  Voice = require("@react-native-voice/voice").default;
-} catch (e) {
-  Voice = null;
-}
+import { useTheme } from "../context/ThemeContext";
+import { auth, db } from "../Firebase/firebaseConfig";
+import { doc, getDoc, collection, addDoc } from "firebase/firestore";
 
 export default function Panic() {
   const nav = useNavigation();
   const { addReport } = useData();
-  const { isDark } = useTheme(); // ✅ use theme
+  const { isDark } = useTheme();
 
   const [anonymous, setAnonymous] = useState(false);
   const [severity, setSeverity] = useState("High");
@@ -38,72 +32,34 @@ export default function Panic() {
   const [gettingLoc, setGettingLoc] = useState(false);
   const [description, setDescription] = useState("");
   const [speechModalVisible, setSpeechModalVisible] = useState(false);
-  const [isListeningNative, setIsListeningNative] = useState(false);
+  const [userInfo, setUserInfo] = useState(null);
 
   const webRef = useRef(null);
 
+  // ✅ Load user info
   useEffect(() => {
-    if (Voice) {
-      Voice.onSpeechStart = () => setIsListeningNative(true);
-      Voice.onSpeechEnd = () => setIsListeningNative(false);
-      Voice.onSpeechResults = (e) => {
-        const text = (e.value && e.value[0]) || "";
-        setDescription((p) => (p ? p + " " + text : text));
-      };
-      Voice.onSpeechError = (e) => {
-        console.warn("voice error", e);
-        setIsListeningNative(false);
-        Alert.alert("Speech error", e?.error || "Voice error");
-      };
-
-      if (Platform.OS === "android") {
-        try {
-          Voice.onSpeechPartialResults = (e) => {
-            const text = (e.value && e.value[0]) || "";
-            setDescription((p) => (p ? p + " " + text : text));
-          };
-        } catch (err) {}
-      }
-    }
-    return () => {
-      if (Voice) {
-        Voice.destroy().then(() => Voice.removeAllListeners && Voice.removeAllListeners());
+    const fetchUser = async () => {
+      try {
+        const user = auth.currentUser;
+        if (!user) return;
+        const ref = doc(db, "users", user.uid);
+        const snap = await getDoc(ref);
+        if (snap.exists()) setUserInfo(snap.data());
+      } catch (e) {
+        console.warn("Error fetching user info:", e);
       }
     };
+    fetchUser();
   }, []);
 
-  const startStopNative = async () => {
-    if (!Voice) {
-      Alert.alert("Native voice not installed", "Using WebView fallback instead.");
-      setSpeechModalVisible(true);
-      return;
-    }
-    try {
-      if (isListeningNative) {
-        await Voice.stop();
-        setIsListeningNative(false);
-      } else {
-        await Voice.start("en-US");
-        setIsListeningNative(true);
-      }
-    } catch (err) {
-      console.warn("voice start err", err);
-      Alert.alert("Voice error", String(err));
-    }
-  };
-
-  const speechHtml = `
-  <!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif}#box{width:100%;max-width:420px;padding:16px;text-align:center}button{padding:14px 22px;border-radius:8px;border:0;background:#2E7D32;color:white;font-size:18px}#status{margin-top:12px;color:#333}</style></head><body><div id="box"><button id="btn">Start Listening</button><div id="status">Press to start</div></div><script>const Speech = window.SpeechRecognition||window.webkitSpeechRecognition;if(!Speech){document.getElementById('status').innerText='SpeechRecognition not available';document.getElementById('btn').disabled=true;}else{const rec=new Speech();rec.lang='en-US';rec.continuous=false;rec.interimResults=false;let listening=false;rec.onstart=()=>{listening=true;document.getElementById('status').innerText='Listening...';document.getElementById('btn').textContent='Stop'};rec.onend=()=>{listening=false;document.getElementById('status').innerText='Stopped';document.getElementById('btn').textContent='Start Listening'};rec.onerror=(e)=>{window.ReactNativeWebView.postMessage(JSON.stringify({type:'error',error:e.error}));};rec.onresult=(evt)=>{const t=evt.results[0][0].transcript;window.ReactNativeWebView.postMessage(JSON.stringify({type:'result',text:t}));};document.getElementById('btn').addEventListener('click',()=>{if(listening)rec.stop();else rec.start();});}</script></body></html>
-  `;
-
+  // 📍 Location
   const reverseGeocode = async (lat, lon) => {
     try {
       const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`;
       const res = await fetch(url, { headers: { "User-Agent": "FindSOSApp/1.0" } });
       const data = await res.json();
       return data.display_name || `${lat}, ${lon}`;
-    } catch (e) {
-      console.warn("reverse geocode err", e);
+    } catch {
       return `${lat}, ${lon}`;
     }
   };
@@ -120,96 +76,145 @@ export default function Panic() {
       const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest });
       const address = await reverseGeocode(pos.coords.latitude, pos.coords.longitude);
       setLocationText(address);
-      setGettingLoc(false);
-    } catch (err) {
-      console.warn(err);
+    } catch {
       Alert.alert("Error", "Couldn't get location.");
+    } finally {
       setGettingLoc(false);
     }
   };
 
-  const onWebviewMessage = (e) => {
-    try {
-      const data = JSON.parse(e.nativeEvent.data);
-      if (data.type === "result") {
-        setDescription((prev) => (prev ? prev + " " + data.text : data.text));
-        setSpeechModalVisible(false);
-      } else if (data.type === "error") {
-        Alert.alert("Speech error", data.error || "Speech error");
-      }
-    } catch (err) {
-      console.warn("webview message parse failed", err);
-    }
-  };
-
-  const sendAlert = () => {
+  // 🚨 Send alert with Firestore
+  const sendAlert = async () => {
     if (!locationText || !description.trim()) {
       Alert.alert("Missing info", "Please get location and provide a description (or use speech).");
       return;
     }
+
+    const reporterName = anonymous
+      ? "Anonymous"
+      : userInfo?.fullname || userInfo?.name || "Unknown User";
+
     const payload = {
-      reporter: anonymous ? "Anonymous" : "John Doe",
+      reporter: reporterName,
+      reporterAvatar: anonymous
+        ? "https://cdn-icons-png.flaticon.com/512/456/456141.png"
+        : userInfo?.avatar || null,
       severity,
       location: locationText,
       description,
       type: "Panic",
       createdAt: new Date().toISOString(),
       status: "search",
+      comments: [],
     };
-    addReport(payload);
-    Alert.alert("Success", "Panic alert submitted.");
-    nav.navigate("Alerts");
-  };
 
-  const sevColor = (s) => {
-    switch ((s || "").toLowerCase()) {
-      case "low":
-        return "#4CAF50";
-      case "medium":
-        return "#FFB300";
-      case "high":
-        return "#FF7043";
-      case "urgent":
-        return "#D32F2F";
-      default:
-        return "#999";
+    try {
+      // 1️⃣ Add locally
+      addReport(payload);
+
+      // 2️⃣ Add to Firestore
+      await addDoc(collection(db, "reports"), payload);
+
+      Alert.alert("Success", "Panic alert submitted.");
+      nav.navigate("Alerts");
+    } catch (e) {
+      console.error("Error saving panic report:", e);
+      Alert.alert("Error", "Failed to submit panic alert. Please try again.");
     }
   };
 
-  // ✅ Apply dynamic theme colors
+  // 🎙 Web Speech API fallback
+  const htmlContent = `
+  <!DOCTYPE html>
+  <html>
+  <head>
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+  </head>
+  <body style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;font-family:sans-serif;">
+    <h3>Tap to Speak</h3>
+    <button id="startVoice" style="padding:14px 30px;font-size:18px;border:none;border-radius:10px;background-color:#2E7D32;color:#fff;">
+      🎤 Start Speaking
+    </button>
+    <p id="status" style="margin-top:20px;font-size:16px;"></p>
+
+    <script>
+      const btn = document.getElementById('startVoice');
+      const status = document.getElementById('status');
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) {
+        status.innerText = 'Speech recognition not supported on this device.';
+      } else {
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'en-US';
+        recognition.interimResults = false;
+        recognition.continuous = false;
+
+        btn.addEventListener('click', () => {
+          try {
+            recognition.start();
+            status.innerText = 'Listening...';
+          } catch (e) {}
+        });
+
+        recognition.onresult = (e) => {
+          const transcript = e.results[0][0].transcript;
+          window.ReactNativeWebView.postMessage(transcript);
+          status.innerText = 'Received: ' + transcript;
+        };
+        recognition.onerror = recognition.onend = () => {
+          status.innerText = 'Stopped listening.';
+        };
+      }
+    </script>
+  </body>
+  </html>`;
+
+  const startStopNative = () => setSpeechModalVisible(true);
+
+  // 🔵 Colors
   const bg = isDark ? "#121212" : "#fff";
-  const text = isDark ? "#eee" : "#000";
+  const text = isDark ? "#cfcfcf" : "#000";
   const subText = isDark ? "#bbb" : "#555";
   const inputBg = isDark ? "#1e1e1e" : "#fafafa";
   const borderColor = isDark ? "#333" : "#e6e6e6";
+
+  const sevColor = (s) => {
+    switch ((s || "").toLowerCase()) {
+      case "low": return "#4CAF50";
+      case "medium": return "#FFB300";
+      case "high": return "#FF7043";
+      case "urgent": return "#D32F2F";
+      default: return "#999";
+    }
+  };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: bg }}>
       <ScrollView contentContainerStyle={[styles.container, { backgroundColor: bg }]}>
         <Text style={[styles.title, { color: text }]}>EMERGENCY REPORT</Text>
 
+        {/* Identity row */}
         <View style={styles.identityRow}>
-          <Ionicons name="person-circle-outline" size={28} color={subText} />
+          <Image
+            source={{
+              uri: anonymous
+                ? "https://cdn-icons-png.flaticon.com/512/456/456141.png"
+                : userInfo?.avatar || "https://cdn-icons-png.flaticon.com/512/149/149071.png",
+            }}
+            style={{ width: 32, height: 32, borderRadius: 16 }}
+          />
           <Text style={[styles.identityText, { color: text }]}>
-            Report as {anonymous ? "Anonymous" : "John Doe"}
+            Report as {anonymous ? "Anonymous" : userInfo?.fullname || "User"}
           </Text>
 
           <TouchableOpacity
-            style={[
-              styles.anonBtn,
-              anonymous ? { backgroundColor: "#2E7D32" } : {},
-            ]}
+            style={[styles.anonBtn, anonymous ? { backgroundColor: "#2E7D32" } : {}]}
             onPress={() => setAnonymous((v) => !v)}
           >
             <Text style={styles.anonBtnText}>
               {anonymous ? "Report as User" : "REPORT ANONYMOUSLY"}
             </Text>
-            <Ionicons
-              name="shield-checkmark"
-              size={16}
-              color="#fff"
-              style={{ marginLeft: 8 }}
-            />
+            <Ionicons name="shield-checkmark" size={16} color="#fff" style={{ marginLeft: 8 }} />
           </TouchableOpacity>
         </View>
 
@@ -220,31 +225,17 @@ export default function Panic() {
             return (
               <TouchableOpacity
                 key={s}
-                style={[
-                  styles.sevChip,
-                  { backgroundColor: active ? sevColor(s) : "#f2f2f2" },
-                ]}
+                style={[styles.sevChip, { backgroundColor: active ? sevColor(s) : "#f2f2f2" }]}
                 onPress={() => setSeverity(s)}
               >
-                <Text
-                  style={[
-                    styles.sevChipText,
-                    { color: active ? "#fff" : text },
-                  ]}
-                >
-                  {s}
-                </Text>
+                <Text style={[styles.sevChipText, { color: active ? "#fff" : text }]}>{s}</Text>
               </TouchableOpacity>
             );
           })}
         </View>
 
         <Text style={[styles.sectionTitle, { marginTop: 16, color: text }]}>LOCATION</Text>
-        <TouchableOpacity
-          style={styles.getLocBtn}
-          onPress={getLocation}
-          disabled={gettingLoc}
-        >
+        <TouchableOpacity style={styles.getLocBtn} onPress={getLocation} disabled={gettingLoc}>
           {gettingLoc ? (
             <ActivityIndicator color="#fff" />
           ) : (
@@ -261,11 +252,7 @@ export default function Panic() {
         <TextInput
           style={[
             styles.description,
-            {
-              backgroundColor: inputBg,
-              borderColor: borderColor,
-              color: text,
-            },
+            { backgroundColor: inputBg, borderColor: borderColor, color: text },
           ]}
           placeholder="Briefly describe what happened..."
           placeholderTextColor={subText}
@@ -277,69 +264,34 @@ export default function Panic() {
         <Text style={[styles.orText, { color: subText }]}>OR</Text>
 
         <View style={{ alignItems: "center" }}>
-          {Voice ? (
-            <TouchableOpacity style={styles.micBtn} onPress={startStopNative}>
-              <Ionicons
-                name={isListeningNative ? "stop-circle-outline" : "mic"}
-                size={28}
-                color="#fff"
-              />
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              style={styles.micBtn}
-              onPress={() => setSpeechModalVisible(true)}
-            >
-              <Ionicons name="mic" size={26} color="#fff" />
-            </TouchableOpacity>
-          )}
-          <Text
-            style={{
-              marginTop: 10,
-              fontWeight: "700",
-              color: text,
-            }}
-          >
-            {Voice
-              ? isListeningNative
-                ? "Listening..."
-                : "Tap to speak (native)"
-              : "Record (WebView fallback)"}
-          </Text>
+          <TouchableOpacity style={styles.micBtn} onPress={startStopNative}>
+            <Ionicons name="mic" size={28} color="#fff" />
+          </TouchableOpacity>
+          <Text style={{ marginTop: 10, fontWeight: "700", color: text }}>Tap to Speak</Text>
         </View>
 
         <TouchableOpacity style={styles.sendBtn} onPress={sendAlert}>
           <Text style={styles.sendText}>SEND ALERT</Text>
         </TouchableOpacity>
-
-        <Modal
-          visible={speechModalVisible}
-          animationType="slide"
-          onRequestClose={() => setSpeechModalVisible(false)}
-        >
-          <View style={{ flex: 1 }}>
-            <View style={styles.webHeader}>
-              <TouchableOpacity
-                onPress={() => setSpeechModalVisible(false)}
-                style={{ padding: 12 }}
-              >
-                <Ionicons name="close" size={22} color="#333" />
-              </TouchableOpacity>
-              <Text style={{ fontWeight: "700", fontSize: 16 }}>Speech to Text</Text>
-              <View style={{ width: 44 }} />
-            </View>
-
-            <WebView
-              originWhitelist={["*"]}
-              source={{ html: speechHtml }}
-              onMessage={onWebviewMessage}
-              javaScriptEnabled
-              ref={webRef}
-              style={{ flex: 1 }}
-            />
-          </View>
-        </Modal>
       </ScrollView>
+
+      {/* WebView modal */}
+      <Modal visible={speechModalVisible} animationType="slide">
+        <SafeAreaView style={{ flex: 1 }}>
+          <WebView
+            ref={webRef}
+            originWhitelist={["*"]}
+            source={{ html: htmlContent }}
+            onMessage={(event) => {
+              const text = event.nativeEvent.data;
+              setSpeechModalVisible(false);
+              if (text) {
+                setDescription((prev) => (prev ? prev + " " + text : text));
+              }
+            }}
+          />
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -392,7 +344,7 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: "#2E7D32",
+    backgroundColor: "#7CC242",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -404,13 +356,4 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   sendText: { color: "#fff", fontWeight: "900", fontSize: 16 },
-  webHeader: {
-    height: 60,
-    backgroundColor: "#fff",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 6,
-    elevation: 2,
-  },
 });

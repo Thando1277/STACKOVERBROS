@@ -1,4 +1,3 @@
-// ReportScreen.js
 import React, { useState, useRef } from "react";
 import {
   View,
@@ -21,16 +20,32 @@ import { auth, db } from "../Firebase/firebaseConfig";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { useNavigation } from "@react-navigation/native";
 import SuccessCheck from "../components/SuccessCheck";
+import { useTheme } from "../context/ThemeContext";
 
-
-function Select({ label, value, onSelect, options }) {
+function Select({ label, value, onSelect, options, isDark }) {
   const [open, setOpen] = useState(false);
   const currentLabel = options.find((o) => o.value === value)?.label || label;
 
   return (
     <>
-      <Pressable style={styles.inputBox} onPress={() => setOpen(true)}>
-        <Text style={styles.placeholder}>{currentLabel} ▼</Text>
+      <Pressable
+        style={[
+          styles.inputBox,
+          {
+            backgroundColor: isDark ? "#2b2b2b" : "#fafafa",
+            borderColor: isDark ? "#444" : "#ddd",
+          },
+        ]}
+        onPress={() => setOpen(true)}
+      >
+        <Text
+          style={[
+            styles.placeholder,
+            { color: isDark ? "#ccc" : "#666" },
+          ]}
+        >
+          {currentLabel} ▼
+        </Text>
       </Pressable>
 
       <Modal
@@ -40,8 +55,20 @@ function Select({ label, value, onSelect, options }) {
         onRequestClose={() => setOpen(false)}
       >
         <Pressable style={styles.modalBackdrop} onPress={() => setOpen(false)}>
-          <View style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>{String(label)}</Text>
+          <View
+            style={[
+              styles.modalSheet,
+              { backgroundColor: isDark ? "#333" : "#fff" },
+            ]}
+          >
+            <Text
+              style={[
+                styles.modalTitle,
+                { color: isDark ? "#fff" : "#000" },
+              ]}
+            >
+              {String(label)}
+            </Text>
 
             {options.map((opt) => (
               <TouchableOpacity
@@ -52,18 +79,35 @@ function Select({ label, value, onSelect, options }) {
                   setOpen(false);
                 }}
               >
-                <Text style={styles.optionText}>{String(opt.label)}</Text>
+                <Text
+                  style={[
+                    styles.optionText,
+                    { color: isDark ? "#eee" : "#222" },
+                  ]}
+                >
+                  {String(opt.label)}
+                </Text>
               </TouchableOpacity>
             ))}
 
             <TouchableOpacity
-              style={styles.clearBtn}
+              style={[
+                styles.clearBtn,
+                { backgroundColor: isDark ? "#555" : "#e0e0e0" },
+              ]}
               onPress={() => {
                 onSelect("");
                 setOpen(false);
               }}
             >
-              <Text style={styles.clearText}>Clear</Text>
+              <Text
+                style={[
+                  styles.clearText,
+                  { color: isDark ? "#ddd" : "#444" },
+                ]}
+              >
+                Clear
+              </Text>
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -75,6 +119,7 @@ function Select({ label, value, onSelect, options }) {
 export default function ReportScreen() {
   const navigation = useNavigation();
   const successRef = useRef();
+  const { isDark } = useTheme();
 
   const [fullName, setFullName] = useState("");
   const [age, setAge] = useState("");
@@ -90,6 +135,9 @@ export default function ReportScreen() {
   const [contactName, setContactName] = useState("");
   const [contactNumber, setContactNumber] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [crimeWantedFor, setCrimeWantedFor] = useState("");
+  const [armedWith, setArmedWith] = useState("");
+  const [rewardOffered, setRewardOffered] = useState("");
 
   const pickImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -97,12 +145,10 @@ export default function ReportScreen() {
       alert("Permission required to access photos.");
       return;
     }
-
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       quality: 0.6,
     });
-
     if (!result.canceled && result.assets?.[0]?.uri) {
       setPhoto(String(result.assets[0].uri));
     }
@@ -117,7 +163,11 @@ export default function ReportScreen() {
     if (!photo) missing.push("Photo");
     if (!lastSeenDate) missing.push("Last Seen Date");
     if (!lastSeenLocation.trim()) missing.push("Last Seen Location");
-
+    if (type === "Wanted") {
+      if (!crimeWantedFor.trim()) missing.push("Crime wanted for");
+      if (!armedWith.trim()) missing.push("Armed with");
+      if (!rewardOffered.trim()) missing.push("Reward offered");
+    }
     if (missing.length) {
       alert("Please fill all required fields: " + missing.join(", "));
       return false;
@@ -127,18 +177,14 @@ export default function ReportScreen() {
 
   const submit = async () => {
     if (!validate()) return;
-
     const user = auth.currentUser;
     if (!user) {
       alert("You must be logged in to submit a report.");
       return;
     }
-
     setSubmitting(true);
-
     try {
       let photoUrl = null;
-
       if (photo) {
         const data = new FormData();
         data.append("file", {
@@ -147,15 +193,12 @@ export default function ReportScreen() {
           name: `report-${Date.now()}.jpg`,
         });
         data.append("upload_preset", "UserPosts");
-
         const res = await fetch(
           "https://api.cloudinary.com/v1_1/dpo2fiwoz/image/upload",
           { method: "POST", body: data }
         );
-
         const json = await res.json();
         if (!json.secure_url) throw new Error("Cloudinary upload failed");
-
         photoUrl = json.secure_url;
       }
 
@@ -173,12 +216,16 @@ export default function ReportScreen() {
         status: "search",
         userId: user.uid,
         createdAt: serverTimestamp(),
+        ...(type === "Wanted" && {
+          crimeWantedFor: crimeWantedFor.trim(),
+          armedWith: armedWith.trim(),
+          rewardOffered: rewardOffered.trim(),
+        }),
       };
 
       await addDoc(collection(db, "reports"), payload);
 
       if (successRef.current) successRef.current.play();
-
       setTimeout(() => {
         setSubmitting(false);
         navigation.goBack();
@@ -190,22 +237,18 @@ export default function ReportScreen() {
     }
   };
 
-  // ✅ Android: Show date picker first, then time picker
   const handleDateChange = (event, selectedDate) => {
     if (Platform.OS === "android") {
       setShowDatePicker(false);
-      
       if (event.type === "set" && selectedDate) {
         if (selectedDate <= new Date()) {
           setTempDate(selectedDate);
-          // After date is selected, show time picker
           setShowTimePicker(true);
         } else {
           Alert.alert("Invalid Date", "Please select today or a past date.");
         }
       }
     } else {
-      // iOS: Update immediately
       if (selectedDate && selectedDate <= new Date()) {
         setLastSeenDate(selectedDate);
       } else if (selectedDate) {
@@ -216,13 +259,10 @@ export default function ReportScreen() {
 
   const handleTimeChange = (event, selectedTime) => {
     setShowTimePicker(false);
-    
     if (event.type === "set" && selectedTime) {
-      // Combine the date from tempDate with the time from selectedTime
       const combined = new Date(tempDate);
       combined.setHours(selectedTime.getHours());
       combined.setMinutes(selectedTime.getMinutes());
-      
       if (combined <= new Date()) {
         setLastSeenDate(combined);
       } else {
@@ -246,64 +286,124 @@ export default function ReportScreen() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
     >
       <ScrollView
-        style={styles.container}
+        style={[
+          styles.container,
+          { backgroundColor: isDark ? "#1f1f1f" : "#fff" },
+        ]}
         contentContainerStyle={{ paddingBottom: 60 }}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Ionicons name="chevron-back" size={28} color="#7CC242" />
+            <Ionicons
+              name="chevron-back"
+              size={28}
+              color={isDark ? "#7CC242" : "#7CC242"}
+            />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Submit Report</Text>
+          <Text
+            style={[
+              styles.headerTitle,
+              { color: isDark ? "#7CC242" : "#7CC242" },
+            ]}
+          >
+            Submit Report
+          </Text>
           <View style={{ width: 28 }} />
         </View>
 
         {/* Personal Info */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Personal Information</Text>
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: isDark ? "#2a2a2a" : "#fff",
+              borderColor: isDark ? "#333" : "#eee",
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.cardTitle,
+              { color: isDark ? "#7CC242" : "#7CC242" },
+            ]}
+          >
+            Personal Information
+          </Text>
 
-          <Text style={styles.label}>Full Names*</Text>
+          <Text style={[styles.label, { color: isDark ? "#ccc" : "#222" }]}>
+            Full Name*
+          </Text>
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              {
+                backgroundColor: isDark ? "#333" : "#fafafa",
+                color: isDark ? "#fff" : "#000",
+                borderColor: isDark ? "#444" : "#ddd",
+              },
+            ]}
             placeholder="Bob Smith"
+            placeholderTextColor={isDark ? "#aaa" : "#888"}
             value={fullName}
             onChangeText={setFullName}
           />
 
-          <Text style={styles.label}>Age*</Text>
+          <Text style={[styles.label, { color: isDark ? "#ccc" : "#222" }]}>
+            Age*
+          </Text>
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              {
+                backgroundColor: isDark ? "#333" : "#fafafa",
+                color: isDark ? "#fff" : "#000",
+                borderColor: isDark ? "#444" : "#ddd",
+              },
+            ]}
             placeholder="30"
+            placeholderTextColor={isDark ? "#aaa" : "#888"}
             keyboardType="numeric"
             value={age}
             onChangeText={setAge}
           />
 
-          <Text style={styles.label}>Gender*</Text>
+          <Text style={[styles.label, { color: isDark ? "#ccc" : "#222" }]}>
+            Gender*
+          </Text>
           <Select
             label="Gender"
             value={gender}
             onSelect={setGender}
+            isDark={isDark}
             options={[
               { label: "Male", value: "male" },
               { label: "Female", value: "female" },
             ]}
           />
 
-          <Text style={[styles.label, { marginTop: 12 }]}>Person / Pet*</Text>
+          <Text style={[styles.label, { color: isDark ? "#ccc" : "#222" }]}>
+            Report Type*
+          </Text>
           <Select
             label="Type"
             value={type}
             onSelect={setType}
+            isDark={isDark}
             options={[
               { label: "Person", value: "Person" },
               { label: "Pet", value: "Pet" },
+              { label: "Wanted", value: "Wanted" },
             ]}
           />
 
-          <Text style={[styles.label, { marginTop: 12 }]}>Recent Photo*</Text>
-          <TouchableOpacity style={styles.uploadBtn} onPress={pickImage}>
+          <Text style={[styles.label, { color: isDark ? "#ccc" : "#222" }]}>
+            Recent Photo*
+          </Text>
+          <TouchableOpacity
+            style={[styles.uploadBtn, { backgroundColor: "#7CC242" }]}
+            onPress={pickImage}
+          >
             <Text style={styles.uploadText}>
               {photo ? "Change Photo" : "Upload Recent Photo"}
             </Text>
@@ -312,15 +412,40 @@ export default function ReportScreen() {
         </View>
 
         {/* Last Seen Info */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Last Seen Information</Text>
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: isDark ? "#2a2a2a" : "#fff",
+              borderColor: isDark ? "#333" : "#eee",
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.cardTitle,
+              { color: isDark ? "#7CC242" : "#7CC242" },
+            ]}
+          >
+            Last Seen Information
+          </Text>
 
-          <Text style={styles.label}>Last Seen Date & Time*</Text>
+          <Text style={[styles.label, { color: isDark ? "#ccc" : "#222" }]}>
+            Last Seen Date & Time*
+          </Text>
           <TouchableOpacity
-            style={styles.inputBox}
+            style={[
+              styles.inputBox,
+              {
+                backgroundColor: isDark ? "#333" : "#fafafa",
+                borderColor: isDark ? "#444" : "#ddd",
+              },
+            ]}
             onPress={openDateTimePicker}
           >
-            <Text style={styles.placeholder}>
+            <Text
+              style={[styles.placeholder, { color: isDark ? "#ccc" : "#666" }]}
+            >
               {lastSeenDate.toLocaleString()}
             </Text>
           </TouchableOpacity>
@@ -334,7 +459,6 @@ export default function ReportScreen() {
               onChange={handleDateChange}
             />
           )}
-
           {showTimePicker && Platform.OS === "android" && (
             <DateTimePicker
               value={tempDate}
@@ -344,40 +468,170 @@ export default function ReportScreen() {
             />
           )}
 
-          <Text style={styles.label}>Last Seen Location*</Text>
+          <Text style={[styles.label, { color: isDark ? "#ccc" : "#222" }]}>
+            Last Seen Location*
+          </Text>
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              {
+                backgroundColor: isDark ? "#333" : "#fafafa",
+                color: isDark ? "#fff" : "#000",
+                borderColor: isDark ? "#444" : "#ddd",
+              },
+            ]}
             placeholder="Brixton, Johannesburg"
+            placeholderTextColor={isDark ? "#aaa" : "#888"}
             value={lastSeenLocation}
             onChangeText={setLastSeenLocation}
           />
 
-          <Text style={styles.label}>Description</Text>
+          <Text style={[styles.label, { color: isDark ? "#ccc" : "#222" }]}>
+            Description
+          </Text>
           <TextInput
-            style={[styles.input, { height: 90 }]}
+            style={[
+              styles.input,
+              {
+                height: 90,
+                backgroundColor: isDark ? "#333" : "#fafafa",
+                color: isDark ? "#fff" : "#000",
+                borderColor: isDark ? "#444" : "#ddd",
+              },
+            ]}
             placeholder="Short description (height, clothing, marks...)"
+            placeholderTextColor={isDark ? "#aaa" : "#888"}
             multiline
             value={description}
             onChangeText={setDescription}
           />
         </View>
 
-        {/* Reporter Contact */}
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>Reporter Contact</Text>
+        {type === "Wanted" && (
+          <View
+            style={[
+              styles.card,
+              {
+                backgroundColor: isDark ? "#2a2a2a" : "#fff",
+                borderColor: isDark ? "#333" : "#eee",
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.cardTitle,
+                { color: isDark ? "#7CC242" : "#7CC242" },
+              ]}
+            >
+              Wanted Details
+            </Text>
+            <Text style={[styles.label, { color: isDark ? "#ccc" : "#222" }]}>
+              Crime wanted for*
+            </Text>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  backgroundColor: isDark ? "#333" : "#fafafa",
+                  color: isDark ? "#fff" : "#000",
+                  borderColor: isDark ? "#444" : "#ddd",
+                },
+              ]}
+              placeholder="e.g. Robbery, Fraud"
+              placeholderTextColor={isDark ? "#aaa" : "#888"}
+              value={crimeWantedFor}
+              onChangeText={setCrimeWantedFor}
+            />
 
-          <Text style={styles.label}>Contact Name</Text>
+            <Text style={[styles.label, { color: isDark ? "#ccc" : "#222" }]}>
+              Armed with*
+            </Text>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  backgroundColor: isDark ? "#333" : "#fafafa",
+                  color: isDark ? "#fff" : "#000",
+                  borderColor: isDark ? "#444" : "#ddd",
+                },
+              ]}
+              placeholder="e.g. Firearm, Knife"
+              placeholderTextColor={isDark ? "#aaa" : "#888"}
+              value={armedWith}
+              onChangeText={setArmedWith}
+            />
+
+            <Text style={[styles.label, { color: isDark ? "#ccc" : "#222" }]}>
+              Reward offered*
+            </Text>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  backgroundColor: isDark ? "#333" : "#fafafa",
+                  color: isDark ? "#fff" : "#000",
+                  borderColor: isDark ? "#444" : "#ddd",
+                },
+              ]}
+              placeholder="e.g. R10,000"
+              placeholderTextColor={isDark ? "#aaa" : "#888"}
+              value={rewardOffered}
+              onChangeText={setRewardOffered}
+            />
+          </View>
+        )}
+
+        {/* Reporter Contact */}
+        <View
+          style={[
+            styles.card,
+            {
+              backgroundColor: isDark ? "#2a2a2a" : "#fff",
+              borderColor: isDark ? "#333" : "#eee",
+            },
+          ]}
+        >
+          <Text
+            style={[
+              styles.cardTitle,
+              { color: isDark ? "#7CC242" : "#7CC242" },
+            ]}
+          >
+            Reporter Contact
+          </Text>
+
+          <Text style={[styles.label, { color: isDark ? "#ccc" : "#222" }]}>
+            Contact Name
+          </Text>
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              {
+                backgroundColor: isDark ? "#333" : "#fafafa",
+                color: isDark ? "#fff" : "#000",
+                borderColor: isDark ? "#444" : "#ddd",
+              },
+            ]}
             placeholder="John Doe"
+            placeholderTextColor={isDark ? "#aaa" : "#888"}
             value={contactName}
             onChangeText={setContactName}
           />
 
-          <Text style={styles.label}>Contact Number</Text>
+          <Text style={[styles.label, { color: isDark ? "#ccc" : "#222" }]}>
+            Contact Number
+          </Text>
           <TextInput
-            style={styles.input}
+            style={[
+              styles.input,
+              {
+                backgroundColor: isDark ? "#333" : "#fafafa",
+                color: isDark ? "#fff" : "#000",
+                borderColor: isDark ? "#444" : "#ddd",
+              },
+            ]}
             placeholder="0710000000"
+            placeholderTextColor={isDark ? "#aaa" : "#888"}
             keyboardType="phone-pad"
             value={contactNumber}
             onChangeText={setContactNumber}
@@ -386,7 +640,10 @@ export default function ReportScreen() {
         </View>
 
         <TouchableOpacity
-          style={styles.submitBtn}
+          style={[
+            styles.submitBtn,
+            { backgroundColor: "#7CC242", opacity: submitting ? 0.7 : 1 },
+          ]}
           onPress={submit}
           disabled={submitting}
         >
@@ -401,50 +658,42 @@ export default function ReportScreen() {
   );
 }
 
-// ---------- STYLES ----------
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff", padding: 16 },
+  container: { flex: 1, padding: 16 },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 12,
   },
-  headerTitle: { fontSize: 18, fontWeight: "800", color: "#7CC242" },
+  headerTitle: { fontSize: 18, fontWeight: "800" },
   card: {
-    backgroundColor: "#fff",
     borderRadius: 12,
     padding: 14,
     marginBottom: 14,
     elevation: 2,
     borderWidth: 1,
-    borderColor: "#eee",
   },
   cardTitle: {
     fontSize: 16,
     fontWeight: "800",
-    color: "#7CC242",
     marginBottom: 10,
   },
-  label: { fontSize: 14, fontWeight: "700", marginBottom: 6, color: "#222" },
+  label: { fontSize: 14, fontWeight: "700", marginBottom: 6 },
   input: {
     borderWidth: 1,
-    borderColor: "#ddd",
     borderRadius: 8,
     padding: 10,
     marginBottom: 12,
-    backgroundColor: "#fafafa",
   },
   inputBox: {
     borderWidth: 1,
-    borderColor: "#ddd",
     borderRadius: 8,
     padding: 12,
-    backgroundColor: "#fafafa",
+    marginBottom: 12,
   },
-  placeholder: { color: "#666", fontWeight: "600" },
+  placeholder: { fontWeight: "600" },
   uploadBtn: {
-    backgroundColor: "#7CC242",
     padding: 12,
     borderRadius: 10,
     alignItems: "center",
@@ -453,7 +702,6 @@ const styles = StyleSheet.create({
   uploadText: { color: "#fff", fontWeight: "800" },
   preview: { width: "100%", height: 220, marginTop: 10, borderRadius: 8 },
   submitBtn: {
-    backgroundColor: "#7CC242",
     paddingVertical: 14,
     borderRadius: 12,
     alignItems: "center",
@@ -466,7 +714,6 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   modalSheet: {
-    backgroundColor: "#fff",
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     padding: 16,
@@ -474,17 +721,16 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 16, fontWeight: "700", marginBottom: 8 },
   optionRow: {
     paddingVertical: 12,
-    borderBottomColor: "#eee",
-    borderBottomWidth: 1,
+    borderBottomColor: "#444",
+    borderBottomWidth: 0.5,
   },
-  optionText: { fontSize: 15, color: "#222" },
+  optionText: { fontSize: 15 },
   clearBtn: {
     marginTop: 10,
     alignSelf: "flex-end",
-    backgroundColor: "#e0e0e0",
     borderRadius: 8,
     paddingVertical: 6,
     paddingHorizontal: 12,
   },
-  clearText: { color: "#444", fontWeight: "600" },
+  clearText: { fontWeight: "600" },
 });

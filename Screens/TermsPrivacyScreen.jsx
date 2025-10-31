@@ -1,5 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { Ionicons } from "@expo/vector-icons";
+
 
 export default function TermsPrivacyScreen({ navigation }) {
   const ShadowBox = ({ children }) => (
@@ -16,7 +18,7 @@ export default function TermsPrivacyScreen({ navigation }) {
           style={styles.backButtonInline}
           onPress={() => navigation.goBack()}
         >
-          <Text style={styles.backButtonText}>← Back</Text>
+          <Ionicons name="chevron-back" size={26} color="#7CC242" />
         </TouchableOpacity>
 
         {/* Terms of Service */}

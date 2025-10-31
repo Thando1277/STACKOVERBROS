@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal } from 'react-native';
+import { Ionicons } from "@expo/vector-icons";
+
 
 export default function FAQScreen({ navigation }) {
   const [selectedAnswer, setSelectedAnswer] = useState('');
@@ -34,11 +36,15 @@ export default function FAQScreen({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
-      {/* Back Button */}
+
+    <>
       <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-        <Text style={styles.backButtonText}>← Back</Text>
+        <Ionicons name="chevron-back" size={26} color="#7CC242" />
       </TouchableOpacity>
+
+      <View style={styles.container}>
+      {/* Back Button */}
+      
 
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.title}>FAQ / Help Center</Text>
@@ -71,13 +77,14 @@ export default function FAQScreen({ navigation }) {
         </View>
       </Modal>
     </View>
+    </>
+    
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#121212' },
   backButton: {
-    padding: 15,
     position: 'absolute',
     top: 50,
     left: 15,

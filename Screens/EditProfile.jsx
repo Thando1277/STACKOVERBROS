@@ -24,6 +24,7 @@ import {
 } from 'firebase/auth';
 import { doc, updateDoc, setDoc, getDoc } from 'firebase/firestore';
 import { db } from '../Firebase/firebaseConfig';
+import { Ionicons } from "@expo/vector-icons";
 
 export default function EditProfile({ navigation }) {
   const [currentEmail, setCurrentEmail] = useState('');
@@ -335,7 +336,8 @@ export default function EditProfile({ navigation }) {
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <Text style={styles.backButtonText}>← Back</Text>
+            <Ionicons name="chevron-back" size={26} color="#7CC242" />
+            {/* <Text style={styles.backButtonText}>← Back</Text> */}
           </TouchableOpacity>
 
           <View style={styles.formContainer}>
@@ -516,7 +518,6 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   backButton: {
-    padding: 15,
     position: 'absolute',
     top: 20,
     left: 15,

@@ -19,6 +19,9 @@ import { collection, onSnapshot, doc, updateDoc, deleteDoc } from "firebase/fire
 import { db, auth } from "../Firebase/firebaseConfig";
 import { useTheme } from "../context/ThemeContext"; // ✅ ThemeContext
 
+import DraggableIcon from "./DragChat.jsx";
+import JsCustomChatBot from "./JsCustomChatbot.jsx";
+
 const { width, height } = Dimensions.get("window");
 
 // Generic Select Component
@@ -227,8 +230,8 @@ export default function HomeScreen() {
               backgroundColor: themeColors.selectBg,
             }}
           />
-          <Ionicons name="search-outline" size={26} color={themeColors.text} style={{ marginRight: 8 }} />
-          <Ionicons name="chatbubble-ellipses-outline" size={26} color={themeColors.primary} style={{ marginLeft: 10 }}
+          {/* <Ionicons name="search-outline" size={26} color={themeColors.text} style={{ margin: 9 }} /> */}
+          <Ionicons name="chatbubble-ellipses-outline" size={40} color={themeColors.primary} style={{ marginLeft: 9 }}
           onPress={() => navigation.navigate('InboxScreen')}
           />
         </View>
@@ -345,6 +348,30 @@ export default function HomeScreen() {
           <Ionicons name="add" size={30} color="white" />
         </TouchableOpacity>
       </View>
+
+      {/* 💬 Floating Chat Button */}
+        <DraggableIcon
+            startX={width - 70} 
+            startY={height - 150} 
+            onPress={() => navigation.navigate("JsCustomChatBot")}
+        >
+          <View style={{
+              backgroundColor: "#65a730ff",
+              padding: 16,
+              borderRadius: 50,
+              justifyContent: "center",
+              alignItems: "center",
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.3,
+              shadowRadius: 3,
+              elevation: 5,
+              borderWidth: 1,
+              borderColor: "#fff",
+          }}>
+              <Ionicons name="chatbubble-ellipses" size={28} color="#fff" />
+          </View>
+        </DraggableIcon>
     </SafeAreaView>
   );
 }
@@ -357,7 +384,7 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   header: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 15, paddingTop: 10, alignItems: "center" },
-  logo: { width: 50, height: 40, resizeMode: "contain" },
+  logo: { width: 50, height: 40, resizeMode: "contain" , borderRadius: 15},
   headerIcons: { flexDirection: "row", alignItems: "center" },
   tabs: { flexDirection: "row", marginHorizontal: 20, marginTop: 12, marginBottom: 5 },
   tabBtn: { flex: 1, alignItems: "center", paddingVertical: 8, borderRadius: 8, marginHorizontal: 5 },

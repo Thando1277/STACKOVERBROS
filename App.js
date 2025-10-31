@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { View, TouchableOpacity, Modal, ActivityIndicator, Dimensions  } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { NavigationContainer } from "@react-navigation/native";
+import { NavigationContainer} from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth } from "./Firebase/firebaseConfig";
@@ -25,7 +25,9 @@ import TermsPrivacyScreen from "./Screens/TermsPrivacyScreen.jsx";
 import EditProfile from "./Screens/EditProfile.jsx";
 import InboxScreen from "./Screens/InboxScreen.jsx";
 import ChatScreen from "./Screens/ChatScreen.jsx";
-import DraggableIcon from "./Screens/DragChat.jsx";
+import JsCustomChatBot from "./Screens/JsCustomChatbot.jsx";
+import SmartChatBot from "./Screens/SmartBot.jsx";
+
 
 
 // 🗺️ Import your new Map Screen
@@ -41,6 +43,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [chatVisible, setChatVisible] = useState(false);
   const { width, height } = Dimensions.get("window");
+
 
 
   useEffect(() => {
@@ -76,12 +79,11 @@ export default function App() {
               <Stack.Screen name="Details" component={DetailsScreen} />
               <Stack.Screen name="ProfilePage" component={ProfilePage} />
               <Stack.Screen name="Comments" component={CommentsScreen} />
-              <Stack.Screen
-                name="SettingsScreen"
-                component={SettingsScreen}
-              />
+              <Stack.Screen name="SettingsScreen" component={SettingsScreen}/>
               <Stack.Screen name='InboxScreen' component={InboxScreen}/>
               <Stack.Screen name='ChatScreen' component={ChatScreen}/>
+              <Stack.Screen name="JsCustomChatBot" component={JsCustomChatBot} />
+              <Stack.Screen name="SmartChatBot" component={SmartChatBot} />
 
                 {/* Settings Sub-Screens */}
                 <Stack.Screen name="FAQScreen" component={FAQScreen} />
@@ -96,29 +98,7 @@ export default function App() {
                 <Stack.Screen name="NotificationDetails" component={NotificationDetails} />
               </Stack.Navigator>
 
-              {/* 💬 Floating Chat Button */}
-              <DraggableIcon
-                  startX={width - 70} 
-                  startY={height - 150} 
-                  onPress={() => setChatVisible(true)}
-                >
-                  <View style={{
-                      backgroundColor: "#65a730ff",
-                      padding: 16,
-                      borderRadius: 50,
-                      justifyContent: "center",
-                      alignItems: "center",
-                      shadowColor: "#000",
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.3,
-                      shadowRadius: 3,
-                      elevation: 5,
-                      borderWidth: 1,
-                      borderColor: "#fff",
-                  }}>
-                    <Ionicons name="chatbubble-ellipses" size={28} color="#fff" />
-                  </View>
-              </DraggableIcon>
+              
 
 
 

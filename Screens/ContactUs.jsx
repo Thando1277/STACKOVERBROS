@@ -12,6 +12,8 @@ import {
   Keyboard,
   Modal,
 } from 'react-native';
+import { Ionicons } from "@expo/vector-icons";
+
 
 export default function ContactSupportScreen({ navigation }) {
   const [name, setName] = useState('');
@@ -45,7 +47,7 @@ export default function ContactSupportScreen({ navigation }) {
             style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
-            <Text style={styles.backButtonText}>← Back</Text>
+            <Ionicons name="chevron-back" size={26} color="#7CC242" />
           </TouchableOpacity>
 
           <ScrollView
@@ -136,7 +138,6 @@ export default function ContactSupportScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   backButton: {
-    padding: 15,
     position: 'absolute',
     top: 10,
     left: 10,

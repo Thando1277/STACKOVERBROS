@@ -364,7 +364,7 @@ export default function ProfileScreen() {
 
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#121212" },
+  container: { flex: 1, backgroundColor: "#121212", paddingTop: 20 },
   scroll: { paddingBottom: 40 },
   headerRow: {
     flexDirection: "row",
@@ -373,7 +373,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     marginTop: 10,
   },
-  backBtn: { padding: 6 },
+
   title: { fontSize: 22, fontWeight: "700", color: "#7CC242" },
   coverPhotoContainer: {
     width: "100%",

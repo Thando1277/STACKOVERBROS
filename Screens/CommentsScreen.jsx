@@ -6,7 +6,6 @@ import {
   TextInput,
   TouchableOpacity,
   FlatList,
-  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
   Keyboard,
@@ -14,16 +13,17 @@ import {
   Modal,
   ActivityIndicator,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import { 
-  collection, 
-  addDoc, 
-  onSnapshot, 
-  doc, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
+import {
+  collection,
+  addDoc,
+  onSnapshot,
+  doc,
+  updateDoc,
+  deleteDoc,
+  query,
   orderBy,
   serverTimestamp,
   arrayUnion,
@@ -33,9 +33,11 @@ import {
   getDocs,
 } from "firebase/firestore";
 import { db, auth } from "../Firebase/firebaseConfig";
+import { useTheme } from "../context/ThemeContext";
 
 export default function CommentsScreen({ route }) {
   const navigation = useNavigation();
+  const { colors } = useTheme();
   const { reportId } = route.params || { reportId: "default" };
 
   const [comments, setComments] = useState([]);
@@ -48,50 +50,21 @@ export default function CommentsScreen({ route }) {
   const [reportOwnerId, setReportOwnerId] = useState(null);
   const flatListRef = useRef(null);
 
-  // Fetch current user's name from Firestore
+  // Fetch current user's name
   useEffect(() => {
     const fetchUserName = async () => {
       try {
-        console.log('🔍 Fetching user name...');
         const userId = auth.currentUser?.uid;
-        console.log('👤 Current User ID:', userId);
-        
-        if (!userId) {
-          console.log('❌ No user is logged in!');
-          setCurrentUserName("Anonymous");
-          return;
-        }
-        
-        const userDocRef = doc(db, "users", userId);
-        console.log('📄 Fetching from path: users/' + userId);
-        
-        const userDoc = await getDoc(userDocRef);
-        console.log('📄 Document exists:', userDoc.exists());
-        
+        if (!userId) return;
+
+        const userDoc = await getDoc(doc(db, "users", userId));
         if (userDoc.exists()) {
-          const userData = userDoc.data();
-          console.log('✅ User data retrieved:', userData);
-          console.log('📝 Fullname field:', userData.fullname);
-          
-          if (userData.fullname) {
-            setCurrentUserName(userData.fullname);
-            console.log('✅ Set current user name to:', userData.fullname);
-          } else {
-            console.log('⚠️ Fullname field is empty or undefined');
-            setCurrentUserName("Anonymous");
-          }
-        } else {
-          console.log('❌ No document found in Firestore for this user!');
-          console.log('⚠️ This means the user signed up before the fix was implemented');
-          setCurrentUserName("Anonymous");
+          setCurrentUserName(userDoc.data().fullname || "Anonymous");
         }
       } catch (error) {
-        console.error('❌ Error fetching user name:', error);
-        console.error('Error details:', error.message);
-        setCurrentUserName("Anonymous");
+        console.error("Error fetching username:", error);
       }
     };
-    
     fetchUserName();
   }, []);
 
@@ -107,361 +80,265 @@ export default function CommentsScreen({ route }) {
         console.error("Error fetching report owner:", error);
       }
     };
-    
     fetchReportOwner();
   }, [reportId]);
 
-  // Mark notifications as read when screen opens
+  // Mark notifications as read
   useEffect(() => {
-    const markNotificationsAsRead = async () => {
+    const markAsRead = async () => {
       try {
         const userId = auth.currentUser?.uid;
         if (!userId) return;
 
-        const notificationsRef = collection(db, "notifications");
         const q = query(
-          notificationsRef,
+          collection(db, "notifications"),
           where("userId", "==", userId),
           where("reportId", "==", reportId),
           where("read", "==", false)
         );
 
         const snapshot = await getDocs(q);
-        const updatePromises = snapshot.docs.map(docSnapshot => 
-          updateDoc(doc(db, "notifications", docSnapshot.id), { read: true })
+        const updates = snapshot.docs.map((d) =>
+          updateDoc(doc(db, "notifications", d.id), { read: true })
         );
-
-        await Promise.all(updatePromises);
-        console.log('✅ Marked notifications as read');
+        await Promise.all(updates);
       } catch (error) {
-        console.error("Error marking notifications as read:", error);
+        console.error("Error marking notifications:", error);
       }
     };
-
-    markNotificationsAsRead();
+    markAsRead();
   }, [reportId]);
 
-  // Fetch comments from Firebase in real-time
+  // Fetch comments in real-time
   useEffect(() => {
-    const commentsRef = collection(db, "reports", reportId, "comments");
-    const q = query(commentsRef, orderBy("createdAt", "asc"));
+    const q = query(
+      collection(db, "reports", reportId, "comments"),
+      orderBy("createdAt", "asc")
+    );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const fetchedComments = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-        replies: doc.data().replies || [],
-      }));
-      setComments(fetchedComments);
-      setLoading(false);
-    }, (error) => {
-      console.error("Error fetching comments:", error);
-      setLoading(false);
-    });
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const fetched = snapshot.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+          replies: d.data().replies || [],
+        }));
+        setComments(fetched);
+        setLoading(false);
+      },
+      (error) => {
+        console.error("Error fetching comments:", error);
+        setLoading(false);
+      }
+    );
 
     return () => unsubscribe();
   }, [reportId]);
 
-  // Create notification for report owner
-  const createNotification = async (commentType) => {
+  // Create notification
+  const createNotification = async (type) => {
     try {
       const userId = auth.currentUser?.uid;
-      
-      // Don't create notification if commenting on own post
-      if (!reportOwnerId || userId === reportOwnerId) {
-        console.log('⏭️ Skipping notification: user is commenting on own post');
-        return;
-      }
+      if (!reportOwnerId || userId === reportOwnerId) return;
 
-      const notificationData = {
-        userId: reportOwnerId, // Send to report owner
-        reportId: reportId,
+      await addDoc(collection(db, "notifications"), {
+        userId: reportOwnerId,
+        reportId,
         commenterName: currentUserName,
         commenterId: userId,
-        type: commentType, // 'comment' or 'reply'
+        type,
         message: `${currentUserName} commented on your post`,
         createdAt: serverTimestamp(),
         read: false,
-      };
-
-      await addDoc(collection(db, "notifications"), notificationData);
-      console.log('✅ Notification created for report owner');
+      });
     } catch (error) {
       console.error("Error creating notification:", error);
     }
   };
 
-  // ➕ Add Comment or Reply
+  // Add comment or reply
   const handleAddComment = async () => {
     if (!commentText.trim()) return;
-
     const userId = auth.currentUser?.uid;
     if (!userId) {
-      alert("You must be logged in to comment.");
+      alert("Please log in to comment.");
       return;
     }
 
-    console.log('💬 Adding comment with username:', currentUserName);
-
     try {
       if (replyToId) {
-        // Add reply to a specific comment
         const commentRef = doc(db, "reports", reportId, "comments", replyToId);
-        const newReply = {
+        const reply = {
           id: Date.now().toString(),
-          userId: userId,
+          userId,
           fullname: currentUserName,
           text: commentText,
           createdAt: new Date().toISOString(),
         };
-
-        console.log('💬 Adding reply:', newReply);
-        await updateDoc(commentRef, {
-          replies: arrayUnion(newReply),
-        });
-        console.log('✅ Reply added successfully');
-        
-        // Create notification
-        await createNotification('reply');
+        await updateDoc(commentRef, { replies: arrayUnion(reply) });
+        await createNotification("reply");
       } else {
-        // Add top-level comment
-        const commentsRef = collection(db, "reports", reportId, "comments");
-        const newComment = {
-          userId: userId,
+        await addDoc(collection(db, "reports", reportId, "comments"), {
+          userId,
           fullname: currentUserName,
           text: commentText,
           createdAt: serverTimestamp(),
           replies: [],
-        };
-
-        console.log('💬 Adding comment:', newComment);
-        await addDoc(commentsRef, newComment);
-        console.log('✅ Comment added successfully');
-        
-        // Create notification
-        await createNotification('comment');
+        });
+        await createNotification("comment");
       }
 
       setCommentText("");
       setReplyToId(null);
-
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 200);
     } catch (error) {
       console.error("Error adding comment:", error);
-      alert("Failed to add comment. Please try again.");
+      alert("Failed to add comment.");
     }
   };
 
-  // 💬 Reply
-  const handleReply = (commentId, fullname) => {
-    setReplyToId(commentId);
-    setCommentText(`@${fullname} `);
+  // Handle reply
+  const handleReply = (id, name) => {
+    setReplyToId(id);
+    setCommentText(`@${name} `);
   };
 
-  // 🗑️ Long press to delete
-  const handleLongPress = (comment, isReply = false, parentCommentId = null) => {
-    // Only allow deletion if user owns the comment
+  // Long press delete
+  const handleLongPress = (comment, isReply = false, parentId = null) => {
     if (comment.userId !== auth.currentUser?.uid) {
       alert("You can only delete your own comments.");
       return;
     }
-    setSelectedComment({ ...comment, isReply, parentCommentId });
+    setSelectedComment({ ...comment, isReply, parentId });
     setShowConfirm(true);
   };
 
-  // ✅ Confirm Delete
+  // Confirm delete
   const confirmDelete = async () => {
     try {
       if (selectedComment.isReply) {
-        // Delete reply
-        const commentRef = doc(
-          db, 
-          "reports", 
-          reportId, 
-          "comments", 
-          selectedComment.parentCommentId
-        );
-        await updateDoc(commentRef, {
-          replies: arrayRemove({
-            id: selectedComment.id,
-            userId: selectedComment.userId,
-            fullname: selectedComment.fullname,
-            text: selectedComment.text,
-            createdAt: selectedComment.createdAt,
-          }),
-        });
+        const ref = doc(db, "reports", reportId, "comments", selectedComment.parentId);
+        await updateDoc(ref, { replies: arrayRemove(selectedComment) });
       } else {
-        // Delete main comment
-        const commentRef = doc(
-          db, 
-          "reports", 
-          reportId, 
-          "comments", 
-          selectedComment.id
-        );
-        await deleteDoc(commentRef);
+        await deleteDoc(doc(db, "reports", reportId, "comments", selectedComment.id));
       }
-
       setShowConfirm(false);
       setSelectedComment(null);
     } catch (error) {
       console.error("Error deleting comment:", error);
-      alert("Failed to delete comment. Please try again.");
     }
   };
 
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-          <ActivityIndicator size="large" color="#7CC242" />
-          <Text style={{ color: "#fff", marginTop: 10 }}>Loading comments...</Text>
-        </View>
+        <ActivityIndicator size="large" color="#7CC242" />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={{ flex: 1 }}>
-            {/* Back button */}
-            <TouchableOpacity
-              style={styles.backBtn}
-              onPress={() => navigation.goBack()}
-            >
+            <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
               <Ionicons name="arrow-back" size={24} color="#7CC242" />
               <Text style={styles.backText}>Back</Text>
             </TouchableOpacity>
 
-            <Text style={styles.title}>Comments</Text>
-
-            {/* Debug display of current username */}
-            <Text style={{ color: '#7CC242', textAlign: 'center', fontSize: 12, marginBottom: 5 }}>
+            <Text style={[styles.title, { color: colors.text }]}>Comments</Text>
+            <Text style={{ color: "#7CC242", textAlign: "center", marginVertical: 5 }}>
               Logged in as: {currentUserName}
             </Text>
 
             <FlatList
               ref={flatListRef}
-              style={{ flex: 1, marginVertical: 10 }}
               data={comments}
               keyExtractor={(item) => item.id}
               renderItem={({ item, index }) => (
-                <TouchableOpacity 
-                  onLongPress={() => handleLongPress(item)}
-                  activeOpacity={0.7}
+                <View
+                  style={[
+                    styles.commentCard,
+                    { backgroundColor: index % 2 === 0 ? "#1a1919" : "#343131" },
+                  ]}
                 >
-                  <View
-                    style={[
-                      styles.commentCard,
-                      {
-                        backgroundColor:
-                          index % 2 === 0 ? "#1a1919ff" : "#343131ff",
-                      },
-                    ]}
-                  >
-                    <View style={styles.commentHeader}>
-                      <Text style={styles.commentText}>
-                        <Text style={{ color: "#7CC242", fontWeight: "bold" }}>
-                          @{item.fullname}:{" "}
-                        </Text>
-                        {item.text}
-                      </Text>
-                      {item.userId === auth.currentUser?.uid && (
-                        <Ionicons name="trash-outline" size={16} color="#ff4d4d" style={{ marginLeft: 8 }} />
-                      )}
-                    </View>
-                    <Text style={styles.commentTime}>
-                      {item.createdAt?.seconds 
-                        ? new Date(item.createdAt.toDate()).toLocaleString()
-                        : new Date(item.createdAt).toLocaleString()
-                      }
+                  <TouchableOpacity onLongPress={() => handleLongPress(item)}>
+                    <Text style={{ color: colors.text }}>
+                      <Text style={{ color: "#7CC242" }}>@{item.fullname}: </Text>
+                      {item.text}
                     </Text>
+                  </TouchableOpacity>
+                  <Text style={styles.commentTime}>
+                    {item.createdAt?.seconds
+                      ? new Date(item.createdAt.toDate()).toLocaleString()
+                      : new Date(item.createdAt).toLocaleString()}
+                  </Text>
+                  <TouchableOpacity onPress={() => handleReply(item.id, item.fullname)}>
+                    <Text style={styles.replyBtn}>Reply</Text>
+                  </TouchableOpacity>
 
-                    {/* Reply button */}
+                  {item.replies?.map((rep, idx) => (
                     <TouchableOpacity
-                      onPress={() => handleReply(item.id, item.fullname)}
+                      key={rep.id}
+                      onLongPress={() => handleLongPress(rep, true, item.id)}
                     >
-                      <Text style={styles.replyBtn}>Reply</Text>
-                    </TouchableOpacity>
-
-                    {/* Replies */}
-                    {item.replies?.map((rep, idx) => (
-                      <TouchableOpacity
-                        key={rep.id}
-                        onLongPress={() => handleLongPress(rep, true, item.id)}
-                        activeOpacity={0.7}
+                      <View
+                        style={[
+                          styles.replyCard,
+                          { backgroundColor: idx % 2 === 0 ? "#262626" : "#333333" },
+                        ]}
                       >
-                        <View
-                          style={[
-                            styles.replyCard,
-                            {
-                              backgroundColor:
-                                idx % 2 === 0 ? "#262626" : "#333333",
-                            },
-                          ]}
-                        >
-                          <View style={styles.commentHeader}>
-                            <Text style={styles.commentText}>
-                              <Text style={{ color: "#7CC242", fontWeight: "bold" }}>
-                                @{rep.fullname}:{" "}
-                              </Text>
-                              {rep.text}
-                            </Text>
-                            {rep.userId === auth.currentUser?.uid && (
-                              <Ionicons name="trash-outline" size={14} color="#ff4d4d" style={{ marginLeft: 8 }} />
-                            )}
-                          </View>
-                          <Text style={styles.commentTime}>
-                            {new Date(rep.createdAt).toLocaleString()}
-                          </Text>
-                        </View>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </TouchableOpacity>
+                        <Text style={{ color: colors.text }}>
+                          <Text style={{ color: "#7CC242" }}>@{rep.fullname}: </Text>
+                          {rep.text}
+                        </Text>
+                        <Text style={styles.commentTime}>
+                          {new Date(rep.createdAt).toLocaleString()}
+                        </Text>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
               )}
               ListEmptyComponent={
-                <Text
-                  style={{ textAlign: "center", marginTop: 20, color: "#888" }}
-                >
-                  No comments yet. Be the first to comment!
+                <Text style={{ textAlign: "center", color: colors.subText, marginTop: 20 }}>
+                  No comments yet.
                 </Text>
               }
             />
 
-            {/* Input section */}
+            {/* Input */}
             <View style={styles.inputContainer}>
               {replyToId && (
                 <View style={styles.replyingTo}>
-                  <Text style={styles.replyingToText}>Replying to comment...</Text>
-                  <TouchableOpacity onPress={() => {
-                    setReplyToId(null);
-                    setCommentText("");
-                  }}>
+                  <Text style={styles.replyingToText}>Replying...</Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      setReplyToId(null);
+                      setCommentText("");
+                    }}
+                  >
                     <Ionicons name="close-circle" size={20} color="#7CC242" />
                   </TouchableOpacity>
                 </View>
               )}
               <TextInput
-                placeholder="Type your comment..."
-                placeholderTextColor="#888"
                 value={commentText}
                 onChangeText={setCommentText}
-                style={styles.input}
+                placeholder="Type your comment..."
+                placeholderTextColor={colors.subText}
+                style={[styles.input, { backgroundColor: colors.card, color: colors.text }]}
                 multiline
               />
-              <TouchableOpacity 
-                style={[styles.addBtn, !commentText.trim() && styles.addBtnDisabled]} 
-                onPress={handleAddComment}
+              <TouchableOpacity
+                style={[styles.addBtn, !commentText.trim() && styles.addBtnDisabled]}
                 disabled={!commentText.trim()}
+                onPress={handleAddComment}
               >
                 <Text style={styles.addBtnText}>
                   {replyToId ? "Reply" : "Add Comment"}
@@ -469,29 +346,23 @@ export default function CommentsScreen({ route }) {
               </TouchableOpacity>
             </View>
 
-            {/* Delete Confirmation Modal */}
-            <Modal
-              transparent
-              visible={showConfirm}
-              animationType="fade"
-              onRequestClose={() => setShowConfirm(false)}
-            >
+            {/* Confirm Delete Modal */}
+            <Modal transparent visible={showConfirm} animationType="fade">
               <View style={styles.modalOverlay}>
                 <View style={styles.modalBox}>
                   <Text style={styles.modalTitle}>Delete Comment?</Text>
                   <Text style={styles.modalMessage}>
-                    Are you sure you want to delete this comment? This action
-                    cannot be undone.
+                    Are you sure? This cannot be undone.
                   </Text>
                   <View style={styles.modalButtons}>
                     <TouchableOpacity
-                      style={styles.cancelBtn}
+                      style={[styles.cancelBtn]}
                       onPress={() => setShowConfirm(false)}
                     >
                       <Text style={styles.cancelText}>Cancel</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={styles.confirmBtn}
+                      style={[styles.confirmBtn]}
                       onPress={confirmDelete}
                     >
                       <Text style={styles.confirmText}>Delete</Text>
@@ -508,45 +379,14 @@ export default function CommentsScreen({ route }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0D0D0D", paddingHorizontal: 20 },
-  backBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 30,
-    marginBottom: 10,
-  },
-  backText: { color: "#7CC242", fontSize: 16, fontWeight: "600", marginLeft: 5 },
-  title: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginTop: 10,
-    textAlign: "center",
-    color: "#fff",
-  },
-  commentCard: {
-    borderRadius: 12,
-    padding: 10,
-    marginVertical: 5,
-  },
-  commentHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-  },
-  replyCard: {
-    borderRadius: 10,
-    padding: 8,
-    marginTop: 5,
-    marginLeft: 15,
-  },
-  commentText: { fontSize: 14, color: "#fff", flex: 1 },
+  container: { flex: 1, paddingHorizontal: 20 },
+  backBtn: { flexDirection: "row", alignItems: "center", marginTop: 20 },
+  backText: { color: "#7CC242", marginLeft: 5, fontSize: 16, fontWeight: "600" },
+  title: { fontSize: 20, fontWeight: "bold", textAlign: "center", marginVertical: 10 },
+  commentCard: { borderRadius: 12, padding: 10, marginVertical: 5 },
+  replyCard: { borderRadius: 10, padding: 8, marginTop: 5, marginLeft: 15 },
   commentTime: { fontSize: 12, color: "#ccc", marginTop: 4 },
-  replyBtn: {
-    color: "#7CC242",
-    fontSize: 13,
-    marginTop: 4,
-    fontWeight: "600",
-  },
+  replyBtn: { color: "#7CC242", fontWeight: "600", marginTop: 4 },
   inputContainer: { marginBottom: 20 },
   replyingTo: {
     flexDirection: "row",
@@ -557,23 +397,14 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     marginBottom: 8,
   },
-  replyingToText: {
-    color: "#7CC242",
-    fontSize: 13,
-    fontStyle: "italic",
-  },
+  replyingToText: { color: "#7CC242", fontStyle: "italic" },
   input: {
     borderWidth: 1,
     borderColor: "#7CC242",
     borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 14,
-    marginBottom: 10,
+    padding: 10,
     minHeight: 50,
     textAlignVertical: "top",
-    color: "#fff",
-    backgroundColor: "#1A1A1A",
   },
   addBtn: {
     backgroundColor: "#7CC242",
@@ -581,13 +412,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     alignItems: "center",
   },
-  addBtnDisabled: {
-    backgroundColor: "#4a6b2e",
-    opacity: 0.6,
-  },
-  addBtnText: { color: "#fff", fontWeight: "bold", fontSize: 16 },
-
-  // Modal styles
+  addBtnDisabled: { backgroundColor: "#4a6b2e", opacity: 0.6 },
+  addBtnText: { color: "#fff", fontWeight: "bold" },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.7)",
@@ -600,26 +426,21 @@ const styles = StyleSheet.create({
     padding: 20,
     width: "80%",
   },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#7CC242",
-    marginBottom: 10,
-  },
-  modalMessage: { color: "#ccc", fontSize: 14, marginBottom: 20 },
-  modalButtons: { flexDirection: "row", justifyContent: "flex-end", gap: 15 },
+  modalTitle: { color: "#7CC242", fontWeight: "bold", fontSize: 18 },
+  modalMessage: { color: "#ccc", marginVertical: 10 },
+  modalButtons: { flexDirection: "row", justifyContent: "flex-end", gap: 10 },
   cancelBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 15,
     backgroundColor: "#333",
+    paddingHorizontal: 15,
+    paddingVertical: 8,
     borderRadius: 6,
   },
   confirmBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 15,
     backgroundColor: "#ff4d4d",
+    paddingHorizontal: 15,
+    paddingVertical: 8,
     borderRadius: 6,
   },
-  cancelText: { color: "#fff", fontWeight: "600" },
-  confirmText: { color: "#fff", fontWeight: "600" },
+  cancelText: { color: "#fff" },
+  confirmText: { color: "#fff" },
 });

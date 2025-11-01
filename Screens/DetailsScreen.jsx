@@ -1,19 +1,22 @@
-import React from "react";
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity } from "react-native";
+import React, { useState, useEffect } from "react";
+import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, ActivityIndicator } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import { useTheme } from "../context/ThemeContext"; // ✅ ThemeContext
+import { useTheme } from "../context/ThemeContext";
 import { Alert } from "react-native";
 import { doc, getDoc, deleteDoc } from "firebase/firestore";
 import { db, auth } from "../Firebase/firebaseConfig";
 
-
 export default function DetailsScreen({ route }) {
-  const { report } = route.params;
   const navigation = useNavigation();
   const { isDark } = useTheme();
+  const [report, setReport] = useState(null);
+  const [loading, setLoading] = useState(false);
 
-  // ---------- Theme Colors ----------
+  // Handle both cases: report object or reportId
+  const { report: reportProp, reportId } = route.params;
+
+  // Theme Colors
   const themeColors = {
     bg: isDark ? "#1E1E1E" : "#fff",
     text: isDark ? "#E0E0E0" : "#222",
@@ -22,8 +25,38 @@ export default function DetailsScreen({ route }) {
     textLight: isDark ? "#ccc" : "#333",
     small: isDark ? "#777" : "#999",
   };
+
   const user = auth.currentUser;
 
+  // Fetch report if only reportId is provided
+  useEffect(() => {
+    const fetchReport = async () => {
+      if (reportProp) {
+        // If report object is passed directly
+        setReport(reportProp);
+      } else if (reportId) {
+        // If only reportId is passed, fetch from Firestore
+        setLoading(true);
+        try {
+          const reportDoc = await getDoc(doc(db, "reports", reportId));
+          if (reportDoc.exists()) {
+            setReport({ id: reportDoc.id, ...reportDoc.data() });
+          } else {
+            Alert.alert("Error", "Report not found.");
+            navigation.goBack();
+          }
+        } catch (error) {
+          console.error("Error fetching report:", error);
+          Alert.alert("Error", "Failed to load report details.");
+          navigation.goBack();
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchReport();
+  }, [reportProp, reportId]);
 
   const handleDelete = async () => {
     Alert.alert(
@@ -38,7 +71,7 @@ export default function DetailsScreen({ route }) {
             try {
               await deleteDoc(doc(db, "reports", report.id));
               Alert.alert("Deleted", "The report has been successfully deleted.");
-              navigation.goBack(); // return to profile
+              navigation.goBack();
             } catch (error) {
               console.error("Error deleting report:", error);
               Alert.alert("Error", "Failed to delete the report. Please try again.");
@@ -49,6 +82,15 @@ export default function DetailsScreen({ route }) {
     );
   };
 
+  // Show loading indicator while fetching
+  if (loading || !report) {
+    return (
+      <View style={[styles.container, { backgroundColor: themeColors.bg, justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#7CC242" />
+        <Text style={{ color: themeColors.text, marginTop: 10 }}>Loading report...</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: themeColors.bg }]}>
@@ -98,7 +140,7 @@ export default function DetailsScreen({ route }) {
               try {
                 const userDoc = await getDoc(doc(db, 'users', report.userId));
 
-                if (userDoc.exists()){
+                if (userDoc.exists()) {
                   const userData = userDoc.data();
 
                   navigation.navigate('ChatScreen', {
@@ -107,12 +149,12 @@ export default function DetailsScreen({ route }) {
                       fullname: userData.fullname,
                       avatar: userData.avatar || null
                     }
-                  })
-                  console.log('Fetched user data: ', userData)
-                }else{
+                  });
+                  console.log('Fetched user data: ', userData);
+                } else {
                   console.warn('User not found for ID:', report.userId);
                 }
-              }catch(error){
+              } catch (error) {
                 console.error('Error fetching user data:', error);
               }
             }}
@@ -123,7 +165,6 @@ export default function DetailsScreen({ route }) {
 
         <Text style={styles.footerText}>
           Reported: {report.createdAt?.seconds ? new Date(report.createdAt.seconds * 1000).toLocaleString() : "N/A"}
-
         </Text>
       </View>
 
@@ -232,13 +273,10 @@ const styles = StyleSheet.create({
     width: 100,
     height: 50
   },
-
-  //Delete Button Styles
   deleteContainer: {
-  marginTop: 20,
-  alignItems: "center",
-  marginBottom: 40,
-  
+    marginTop: 20,
+    alignItems: "center",
+    marginBottom: 40,
   },
   deleteButton: {
     flexDirection: "row",
@@ -257,5 +295,4 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginLeft: 8,
   },
-
 });

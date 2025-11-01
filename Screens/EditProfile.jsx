@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -12,34 +12,37 @@ import {
   Keyboard,
   ScrollView,
   ActivityIndicator,
-} from 'react-native';
-import { 
-  getAuth, 
-  updatePassword, 
+} from "react-native";
+
+import {
+  getAuth,
+  updatePassword,
   updateEmail,
-  sendEmailVerification,
-  reauthenticateWithCredential, 
-  EmailAuthProvider, 
-  deleteUser 
-} from 'firebase/auth';
-import { doc, updateDoc, setDoc, getDoc } from 'firebase/firestore';
-import { db } from '../Firebase/firebaseConfig';
+  verifyBeforeUpdateEmail,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
+  deleteUser,
+} from "firebase/auth";
+
+import { doc, updateDoc, setDoc, getDoc } from "firebase/firestore";
+import { db } from "../Firebase/firebaseConfig";
+import { useTheme } from "../context/ThemeContext"; // ✅ Theme context
+
+
 
 export default function EditProfile({ navigation }) {
-  const [currentEmail, setCurrentEmail] = useState('');
-  const [newEmail, setNewEmail] = useState('');
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
+  const { isDark } = useTheme(); // ✅ theme toggle
+  const [currentEmail, setCurrentEmail] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
-
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
-
-  // Focus states for inputs
+  const [successMessage, setSuccessMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
   const [isNewEmailFocused, setIsNewEmailFocused] = useState(false);
   const [isCurrentPasswordFocused, setIsCurrentPasswordFocused] = useState(false);
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
@@ -49,51 +52,44 @@ export default function EditProfile({ navigation }) {
   const user = auth.currentUser;
 
   useEffect(() => {
-    // Load current user email
-    if (user) {
-      setCurrentEmail(user.email || '');
-    }
+    if (user) setCurrentEmail(user.email || "");
   }, [user]);
 
   const handleSaveChanges = async () => {
-    // Validate that at least one field is being updated
     if (!newEmail && !newPassword) {
-      setErrorMessage('⚠️ Please enter a new email or password to update.');
+      setErrorMessage("⚠️ Please enter a new email or password to update.");
       setShowErrorModal(true);
       return;
     }
 
-    // Validate current password is entered
     if (!currentPassword) {
-      setErrorMessage('⚠️ Please enter your current password to make changes.');
+      setErrorMessage("⚠️ Please enter your current password to make changes.");
       setShowErrorModal(true);
       return;
     }
 
-    // Validate password fields ONLY if user has entered either password field
     if (newPassword || confirmPassword) {
       if (!newPassword || !confirmPassword) {
-        setErrorMessage('⚠️ Please fill in both new password fields.');
+        setErrorMessage("⚠️ Please fill in both new password fields.");
         setShowErrorModal(true);
         return;
       }
 
       if (newPassword !== confirmPassword) {
-        setErrorMessage('⚠️ New passwords do not match.');
+        setErrorMessage("⚠️ New passwords do not match.");
         setShowErrorModal(true);
         return;
       }
 
       if (newPassword.length < 6) {
-        setErrorMessage('⚠️ Password must be at least 6 characters long.');
+        setErrorMessage("⚠️ Password must be at least 6 characters long.");
         setShowErrorModal(true);
         return;
       }
     }
 
-    // Validate email format
     if (newEmail && !/\S+@\S+\.\S+/.test(newEmail)) {
-      setErrorMessage('⚠️ Please enter a valid email address.');
+      setErrorMessage("⚠️ Please enter a valid email address.");
       setShowErrorModal(true);
       return;
     }
@@ -101,11 +97,7 @@ export default function EditProfile({ navigation }) {
     setLoading(true);
 
     try {
-      // Re-authenticate user before making changes
-      const credential = EmailAuthProvider.credential(
-        user.email,
-        currentPassword
-      );
+      const credential = EmailAuthProvider.credential(user.email, currentPassword);
       await reauthenticateWithCredential(user, credential);
 
       let updatedItems = [];
@@ -187,7 +179,7 @@ export default function EditProfile({ navigation }) {
       // Update password (if provided)
       if (newPassword) {
         await updatePassword(user, newPassword);
-        updatedItems.push('password');
+        updatedItems.push("password");
       }
 
       // Show appropriate success message
@@ -198,38 +190,33 @@ export default function EditProfile({ navigation }) {
       } else if (updatedItems.includes('password')) {
         setSuccessMessage('✅ Password updated successfully!');
       } else {
-        setSuccessMessage('✅ Profile updated successfully!');
+        setSuccessMessage("✅ Profile updated successfully!");
       }
 
       setShowSuccessModal(true);
-      
-      // Clear fields
-      setNewEmail('');
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
+      setNewEmail("");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
     } catch (error) {
-      console.error('Update error:', error);
-      let message = '❌ Failed to update profile. ';
-      
+      console.error("Update error:", error);
+      let message = "❌ Failed to update profile. ";
+
       switch (error.code) {
-        case 'auth/wrong-password':
-          message += 'Current password is incorrect.';
+        case "auth/wrong-password":
+          message += "Current password is incorrect.";
           break;
-        case 'auth/weak-password':
-          message += 'New password is too weak.';
+        case "auth/weak-password":
+          message += "New password is too weak.";
           break;
-        case 'auth/email-already-in-use':
-          message += 'This email is already in use by another account.';
+        case "auth/email-already-in-use":
+          message += "This email is already in use.";
           break;
-        case 'auth/invalid-email':
-          message += 'The email address is invalid.';
+        case "auth/invalid-email":
+          message += "Invalid email address.";
           break;
-        case 'auth/requires-recent-login':
-          message += 'Please log out and log in again before updating your profile.';
-          break;
-        case 'auth/network-request-failed':
-          message += 'Network error. Please check your internet connection.';
+        case "auth/requires-recent-login":
+          message += "Please log out and log in again first.";
           break;
         case 'auth/too-many-requests':
           message += 'Too many attempts. Please try again later.';
@@ -238,9 +225,9 @@ export default function EditProfile({ navigation }) {
           message += 'This operation is not allowed. Please check your Firebase settings.';
           break;
         default:
-          message += error.message || 'An unexpected error occurred.';
+          message += error.message || "An unexpected error occurred.";
       }
-      
+
       setErrorMessage(message);
       setShowErrorModal(true);
     } finally {
@@ -248,16 +235,12 @@ export default function EditProfile({ navigation }) {
     }
   };
 
-  const handleDeleteAccount = () => {
-    setShowDeleteModal(true);
-  };
+  const handleDeleteAccount = () => setShowDeleteModal(true);
 
   const confirmDelete = async () => {
     setShowDeleteModal(false);
-
-    // Check if current password is entered
     if (!currentPassword) {
-      setErrorMessage('⚠️ Please enter your current password to delete your account.');
+      setErrorMessage("⚠️ Please enter your current password to delete your account.");
       setShowErrorModal(true);
       return;
     }
@@ -265,11 +248,7 @@ export default function EditProfile({ navigation }) {
     setLoading(true);
 
     try {
-      // Re-authenticate before deletion
-      const credential = EmailAuthProvider.credential(
-        user.email,
-        currentPassword
-      );
+      const credential = EmailAuthProvider.credential(user.email, currentPassword);
       await reauthenticateWithCredential(user, credential);
 
       // Delete user document from Firestore (optional but recommended)
@@ -287,14 +266,13 @@ export default function EditProfile({ navigation }) {
       // Delete user account from Firebase Authentication
       await deleteUser(user);
 
-      setSuccessMessage('✅ Account deleted successfully! Redirecting to login...');
+      setSuccessMessage("✅ Account deleted successfully! Redirecting...");
       setShowSuccessModal(true);
-      
-      // Navigate to login after a delay
+
       setTimeout(() => {
         navigation.reset({
           index: 0,
-          routes: [{ name: 'SignUp' }],
+          routes: [{ name: "SignUp" }],
         });
       }, 2000);
     } catch (error) {
@@ -302,19 +280,15 @@ export default function EditProfile({ navigation }) {
       let message = '❌ Failed to delete account. ';
       
       switch (error.code) {
-        case 'auth/wrong-password':
-          message += 'Current password is incorrect.';
+        case "auth/wrong-password":
+          message += "Current password is incorrect.";
           break;
-        case 'auth/requires-recent-login':
-          message += 'Please log out and log in again before deleting your account.';
-          break;
-        case 'auth/user-not-found':
-          message += 'User account not found.';
+        case "auth/requires-recent-login":
+          message += "Please log out and log in again.";
           break;
         default:
           message += error.message;
       }
-      
       setErrorMessage(message);
       setShowErrorModal(true);
     } finally {
@@ -322,41 +296,42 @@ export default function EditProfile({ navigation }) {
     }
   };
 
+  // 🎨 Theme Colors
+  const themeColors = {
+    background: isDark ? "#1C1C1E" : "#FFFFFF",
+    text: isDark ? "#EDEDED" : "#000000",
+    inputBg: isDark ? "#2C2C2E" : "#FFFFFF",
+    border: isDark ? "#555" : "#CCC",
+    placeholder: isDark ? "#999" : "#777",
+  };
+
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: '#121212' }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 60 : 0}
+      style={{ flex: 1, backgroundColor: themeColors.background }}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 60 : 0}
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <ScrollView contentContainerStyle={styles.container}>
+        <ScrollView contentContainerStyle={[styles.container, { backgroundColor: themeColors.background }]}>
           {/* Back Button */}
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={styles.backButtonText}>← Back</Text>
+          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+            <Text style={[styles.backButtonText, { color: "#7CC242" }]}>← Back</Text>
           </TouchableOpacity>
 
           <View style={styles.formContainer}>
-            <Text style={styles.title}>Edit Profile</Text>
+            <Text style={[styles.title, { color: themeColors.text }]}>Edit Profile</Text>
 
-            {/* Current Email Display */}
-            <Text style={styles.label}>Current Email</Text>
-            <View style={styles.emailContainer}>
-              <Text style={styles.emailText}>{currentEmail}</Text>
+            <Text style={[styles.label, { color: themeColors.text }]}>Current Email</Text>
+            <View style={[styles.emailContainer, { backgroundColor: themeColors.inputBg, borderColor: themeColors.border }]}>
+              <Text style={[styles.emailText, { color: themeColors.text }]}>{currentEmail}</Text>
             </View>
 
-            {/* Update Email Section */}
-            <Text style={styles.sectionTitle}>Update Email</Text>
-            <Text style={styles.label}>New Email (optional)</Text>
+            <Text style={[styles.sectionTitle, { color: themeColors.text }]}>Update Email</Text>
+            <Text style={[styles.label, { color: themeColors.text }]}>New Email (optional)</Text>
             <TextInput
-              style={[
-                styles.input,
-                { borderColor: isNewEmailFocused ? '#7CC242' : '#555' },
-              ]}
+              style={[styles.input, { backgroundColor: themeColors.inputBg, borderColor: isNewEmailFocused ? "#7CC242" : themeColors.border, color: themeColors.text }]}
               placeholder="Enter new email"
-              placeholderTextColor="#aaa"
+              placeholderTextColor={themeColors.placeholder}
               value={newEmail}
               onChangeText={setNewEmail}
               keyboardType="email-address"
@@ -366,17 +341,12 @@ export default function EditProfile({ navigation }) {
               onBlur={() => setIsNewEmailFocused(false)}
             />
 
-            {/* Update Password Section */}
-            <Text style={styles.sectionTitle}>Change Password</Text>
-            
-            <Text style={styles.label}>Current Password (required)</Text>
+            <Text style={[styles.sectionTitle, { color: themeColors.text }]}>Change Password</Text>
+            <Text style={[styles.label, { color: themeColors.text }]}>Current Password</Text>
             <TextInput
-              style={[
-                styles.input,
-                { borderColor: isCurrentPasswordFocused ? '#7CC242' : '#555' },
-              ]}
+              style={[styles.input, { backgroundColor: themeColors.inputBg, borderColor: isCurrentPasswordFocused ? "#7CC242" : themeColors.border, color: themeColors.text }]}
               placeholder="Enter current password"
-              placeholderTextColor="#aaa"
+              placeholderTextColor={themeColors.placeholder}
               value={currentPassword}
               onChangeText={setCurrentPassword}
               secureTextEntry
@@ -386,31 +356,25 @@ export default function EditProfile({ navigation }) {
               onBlur={() => setIsCurrentPasswordFocused(false)}
             />
 
-            <Text style={styles.label}>New Password (optional)</Text>
+            <Text style={[styles.label, { color: themeColors.text }]}>New Password (optional)</Text>
             <TextInput
-              style={[
-                styles.input,
-                { borderColor: isPasswordFocused ? '#7CC242' : '#555' },
-              ]}
+              style={[styles.input, { backgroundColor: themeColors.inputBg, borderColor: isPasswordFocused ? "#7CC242" : themeColors.border, color: themeColors.text }]}
               placeholder="Enter new password"
-              placeholderTextColor="#aaa"
+              placeholderTextColor={themeColors.placeholder}
+              secureTextEntry
               value={newPassword}
               onChangeText={setNewPassword}
-              secureTextEntry
               autoCapitalize="none"
               autoCorrect={false}
               onFocus={() => setIsPasswordFocused(true)}
               onBlur={() => setIsPasswordFocused(false)}
             />
 
-            <Text style={styles.label}>Confirm New Password</Text>
+            <Text style={[styles.label, { color: themeColors.text }]}>Confirm New Password</Text>
             <TextInput
-              style={[
-                styles.input,
-                { borderColor: isConfirmFocused ? '#7CC242' : '#555' },
-              ]}
+              style={[styles.input, { backgroundColor: themeColors.inputBg, borderColor: isConfirmFocused ? "#7CC242" : themeColors.border, color: themeColors.text }]}
               placeholder="Re-enter new password"
-              placeholderTextColor="#aaa"
+              placeholderTextColor={themeColors.placeholder}
               secureTextEntry
               autoCapitalize="none"
               autoCorrect={false}
@@ -420,87 +384,14 @@ export default function EditProfile({ navigation }) {
               onBlur={() => setIsConfirmFocused(false)}
             />
 
-            <TouchableOpacity 
-              style={[styles.button, loading && styles.buttonDisabled]} 
-              onPress={handleSaveChanges}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.buttonText}>Save Changes</Text>
-              )}
+            <TouchableOpacity style={[styles.button, loading && styles.buttonDisabled]} onPress={handleSaveChanges} disabled={loading}>
+              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Save Changes</Text>}
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={styles.deleteButton}
-              onPress={handleDeleteAccount}
-              disabled={loading}
-            >
+            <TouchableOpacity style={styles.deleteButton} onPress={handleDeleteAccount} disabled={loading}>
               <Text style={styles.deleteButtonText}>Delete Account</Text>
             </TouchableOpacity>
           </View>
-
-          {/* Delete Confirmation Modal */}
-          <Modal transparent visible={showDeleteModal} animationType="fade">
-            <View style={styles.modalOverlay}>
-              <View style={styles.modalBox}>
-                <Text style={styles.modalTitle}>Delete Account</Text>
-                <Text style={styles.modalText}>
-                  Are you sure you want to delete your account? This action cannot be undone.
-                </Text>
-                <Text style={styles.modalSubText}>
-                  Please ensure you've entered your current password above to proceed.
-                </Text>
-                <View style={styles.modalButtons}>
-                  <TouchableOpacity
-                    style={[styles.modalButton, styles.cancelButton]}
-                    onPress={() => setShowDeleteModal(false)}
-                  >
-                    <Text style={styles.cancelText}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.modalButton, styles.deleteConfirmButton]}
-                    onPress={confirmDelete}
-                  >
-                    <Text style={styles.deleteConfirmText}>Delete</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-          </Modal>
-
-          {/* Success Modal */}
-          <Modal transparent visible={showSuccessModal} animationType="fade">
-            <View style={styles.modalOverlay}>
-              <View style={[styles.modalBox, styles.successBox]}>
-                <Text style={styles.successTitle}>✅ Success</Text>
-                <Text style={styles.successText}>{successMessage}</Text>
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.successButton]}
-                  onPress={() => setShowSuccessModal(false)}
-                >
-                  <Text style={styles.successButtonText}>OK</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </Modal>
-
-          {/* Error Modal */}
-          <Modal transparent visible={showErrorModal} animationType="fade">
-            <View style={styles.modalOverlay}>
-              <View style={[styles.modalBox, styles.errorBox]}>
-                <Text style={styles.errorTitle}>❌ Error</Text>
-                <Text style={styles.errorText}>{errorMessage}</Text>
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.errorButton]}
-                  onPress={() => setShowErrorModal(false)}
-                >
-                  <Text style={styles.errorButtonText}>OK</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </Modal>
         </ScrollView>
       </TouchableWithoutFeedback>
     </KeyboardAvoidingView>
@@ -508,205 +399,19 @@ export default function EditProfile({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#121212',
-    padding: 20,
-  },
-  backButton: {
-    padding: 15,
-    position: 'absolute',
-    top: 20,
-    left: 15,
-    zIndex: 1,
-  },
-  backButtonText: {
-    color: '#7CC242',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  formContainer: {
-    width: '100%',
-    maxWidth: 350,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 25,
-    color: '#fff',
-  },
-  emailContainer: {
-    borderWidth: 1,
-    borderColor: '#555',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 25,
-    backgroundColor: '#2a2a2a',
-  },
-  emailText: {
-    fontSize: 16,
-    color: '#aaa',
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginBottom: 15,
-    color: '#7CC242',
-    marginTop: 5,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 6,
-    color: '#fff',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#555',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 18,
-    fontSize: 16,
-    color: '#fff',
-    backgroundColor: '#1e1e1e',
-  },
-  button: {
-    backgroundColor: '#7CC242',
-    padding: 15,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginTop: 10,
-  },
-  buttonDisabled: {
-    backgroundColor: '#5a8f31',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  deleteButton: {
-    marginTop: 20,
-    borderColor: '#e53935',
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 15,
-    alignItems: 'center',
-  },
-  deleteButtonText: {
-    color: '#e53935',
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.8)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalBox: {
-    backgroundColor: '#1e1e1e',
-    width: 320,
-    borderRadius: 15,
-    padding: 20,
-    alignItems: 'center',
-    elevation: 8,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 10,
-    color: '#e53935',
-  },
-  modalText: {
-    fontSize: 15,
-    color: '#fff',
-    textAlign: 'center',
-    marginBottom: 10,
-  },
-  modalSubText: {
-    fontSize: 13,
-    color: '#aaa',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-  },
-  modalButton: {
-    flex: 1,
-    padding: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  cancelButton: {
-    backgroundColor: '#555',
-    marginRight: 10,
-  },
-  deleteConfirmButton: {
-    backgroundColor: '#e53935',
-  },
-  cancelText: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-  deleteConfirmText: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-  successBox: {
-    borderColor: '#4CAF50',
-    borderWidth: 2,
-  },
-  successTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#4CAF50',
-    marginBottom: 10,
-  },
-  successText: {
-    fontSize: 16,
-    color: '#fff',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  successButton: {
-    backgroundColor: '#4CAF50',
-    paddingHorizontal: 25,
-  },
-  successButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  errorBox: {
-    borderColor: '#e53935',
-    borderWidth: 2,
-  },
-  errorTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#e53935',
-    marginBottom: 10,
-  },
-  errorText: {
-    fontSize: 16,
-    color: '#fff',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  errorButton: {
-    backgroundColor: '#e53935',
-    paddingHorizontal: 25,
-  },
-  errorButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 16,
-  },
+  container: { flexGrow: 1, justifyContent: "center", alignItems: "center", padding: 20 },
+  backButton: { padding: 15, position: "absolute", top: 20, left: 15, zIndex: 1 },
+  backButtonText: { fontSize: 16, fontWeight: "600" },
+  formContainer: { width: "100%", maxWidth: 350 },
+  title: { fontSize: 24, fontWeight: "bold", textAlign: "center", marginBottom: 25 },
+  emailContainer: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 25 },
+  emailText: { fontSize: 16 },
+  sectionTitle: {fontSize: 18, fontWeight: "700", marginBottom: 15 },
+  label: { fontSize: 16, fontWeight: "600", marginBottom: 6 },
+  input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 18, fontSize: 16 },
+  button: { backgroundColor: "#7CC242", padding: 15, borderRadius: 8, alignItems: "center", marginTop: 10 },
+  buttonDisabled: { backgroundColor: "#5a8f31" },
+  buttonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  deleteButton: { marginTop: 20, borderColor: "#e53935", borderWidth: 1, borderRadius: 8, padding: 15, alignItems: "center" },
+  deleteButtonText: { color: "#e53935", fontWeight: "600", fontSize: 16 },
 });

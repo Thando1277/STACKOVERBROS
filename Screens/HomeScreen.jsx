@@ -18,10 +18,10 @@ import { useNavigation } from "@react-navigation/native";
 import { collection, onSnapshot, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { db, auth } from "../Firebase/firebaseConfig";
 import { useTheme } from "../context/ThemeContext"; // ✅ ThemeContext
+import ChatIcon from '../components/ChatIcon'
 
 const { width, height } = Dimensions.get("window");
 
-// Generic Select Component
 function Select({ label, value, onSelect, options, themeColors }) {
   const [open, setOpen] = useState(false);
   const currentLabel = String(options.find((o) => o.value === value)?.label || label);
@@ -83,7 +83,6 @@ function Select({ label, value, onSelect, options, themeColors }) {
   );
 }
 
-// Status Select Component (Missing / Found / Delete)
 function StatusSelect({ value, onChange, isOwner, themeColors }) {
   if (!isOwner) {
     return (
@@ -241,7 +240,7 @@ function FilterModal({ visible, onClose, themeColors, gender, setGender, ageGrou
 // ---------- HomeScreen Component ----------
 export default function HomeScreen() {
   const navigation = useNavigation();
-  const { isDark } = useTheme(); // ✅ ThemeContext
+  const { isDark } = useTheme();
   const [reports, setReports] = useState([]);
   const [activeTab, setActiveTab] = useState("search");
   const [selectedCategory, setSelectedCategory] = useState("Person");
@@ -250,7 +249,6 @@ export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilterModal, setShowFilterModal] = useState(false);
 
-  // ---------- Theme Colors ----------
   const themeColors = {
     bg: isDark ? "#1E1E1E" : "#fff",
     text: isDark ? "#E0E0E0" : "#222",
@@ -262,7 +260,6 @@ export default function HomeScreen() {
     cardBg: isDark ? "#2A2A2A" : "#fff",
   };
 
-  // Firestore fetch
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, "reports"), (snapshot) => {
       const allReports = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
@@ -298,7 +295,6 @@ export default function HomeScreen() {
       if (activeTab === "found" && r.status !== "found") return false;
       if (gender && r.gender !== gender) return false;
 
-      // --------- FIXED AGE FILTER ----------
       if (ageGroup) {
         const age = Number(r.age);
         if (ageGroup === "child" && !(age >= 0 && age <= 12)) return false;
@@ -313,8 +309,7 @@ export default function HomeScreen() {
           String(r.fullName).toLowerCase().includes(searchQuery.toLowerCase()) ||
           String(r.lastSeenLocation).toLowerCase().includes(searchQuery.toLowerCase())
         )
-      )
-        return false;
+      ) return false;
       return true;
     });
   }, [reports, selectedCategory, activeTab, gender, ageGroup, searchQuery]);
@@ -345,10 +340,11 @@ export default function HomeScreen() {
               backgroundColor: themeColors.selectBg,
             }}
           />
-          <Ionicons name="search-outline" size={26} color={themeColors.text} style={{ marginRight: 8 }} />
+          <ChatIcon/>
+          {/* <Ionicons name="search-outline" size={26} color={themeColors.text} style={{ marginRight: 8 }} />
           <Ionicons name="chatbubble-ellipses-outline" size={26} color={themeColors.primary} style={{ marginLeft: 10 }}
           onPress={() => navigation.navigate('InboxScreen')}
-          />
+          /> */}
         </View>
       </View>
 
@@ -503,6 +499,15 @@ export default function HomeScreen() {
                 <Text style={[styles.details, { color: themeColors.text }]}>{String(r.age)} • {String(r.gender)}</Text>
                 <Text style={[styles.details, { color: themeColors.text }]}>{String(r.lastSeenLocation)}</Text>
 
+                {/* If this is a Wanted report, show extra details */}
+                {r.type === "Wanted" && (
+                  <>
+                    <Text style={[styles.details, { color: themeColors.text }]}>Crime: {String(r.crimeWantedFor)}</Text>
+                    <Text style={[styles.details, { color: themeColors.text }]}>Armed With: {String(r.armedWith)}</Text>
+                    <Text style={[styles.details, { color: themeColors.text }]}>Reward: {String(r.rewardOffered)}</Text>
+                  </>
+                )}
+
                 <TouchableOpacity style={styles.viewBtn} onPress={() => navigation.navigate("Details", { report: r })}>
                   <Text style={styles.viewText}>View Details</Text>
                 </TouchableOpacity>
@@ -562,7 +567,6 @@ export default function HomeScreen() {
   );
 }
 
-// ---------- STYLES ----------
 const styles = StyleSheet.create({
   container: { 
     flex: 1, 
@@ -814,16 +818,16 @@ const styles = StyleSheet.create({
   viewBtn: { backgroundColor: "#7CC242", borderRadius: 10, marginTop: 10, paddingVertical: 8, alignItems: "center", width: "80%" },
   viewText: { color: "white", fontWeight: "bold", fontSize: 14 },
   time: { fontSize: 12, color: "gray", marginTop: 8, marginLeft: 0 },
-  
   bottomNav: {
     flexDirection: "row",
-    justifyContent: "space-around",
-    paddingVertical: height * 0.015,
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 11,
     borderTopWidth: 1,
     borderColor: "#ddd",
     backgroundColor: "#fff",
   },
-
   navItem: { alignItems: "center" },
   navText: { fontSize: width * 0.03, color: "black" },
 
@@ -845,8 +849,6 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     zIndex: 1000,
   },
-
-  // ---------- StatusSelect Styles ----------
   statusButton: { paddingHorizontal: 6, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: "#000", backgroundColor: "#f9f9f9", alignItems: "center" },
   statusModalCover: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 200 },
   statusBackdrop: { flex: 1, backgroundColor: "transparent" },

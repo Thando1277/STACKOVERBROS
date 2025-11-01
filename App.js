@@ -28,12 +28,14 @@ import ChatScreen from "./Screens/ChatScreen.jsx";
 import DraggableIcon from "./Screens/DragChat.jsx";
 import FeedbackHints from "./Screens/FeedbackHints.jsx";
 
-
-// 🗺️ Import your new Map Screen
+// Map & Safety Screens
 import MapScreen from "./Screens/MapScreen.jsx";
 import Panic from "./Screens/Panic.jsx";
 import Alerts from "./Screens/Alerts.jsx";
 import NotificationDetails from "./Screens/NotificationDetails.jsx";
+
+// 📱 NEW: Offline Reports Screen
+import OfflineReportsScreen from "./Screens/OfflineReportsScreen.jsx";
 
 const Stack = createNativeStackNavigator();
 
@@ -42,7 +44,6 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [chatVisible, setChatVisible] = useState(false);
   const { width, height } = Dimensions.get("window");
-
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
@@ -71,58 +72,56 @@ export default function App() {
                 <Stack.Screen name="LogIn" component={LogIn} />
                 <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
 
-              {/* Main Screens */}
-              <Stack.Screen name="Home" component={HomeScreen} />
-              <Stack.Screen name="Report" component={ReportScreen} />
-              <Stack.Screen name="Details" component={DetailsScreen} />
-              <Stack.Screen name="ProfilePage" component={ProfilePage} />
-              <Stack.Screen name="Comments" component={CommentsScreen} />
-              <Stack.Screen
-                name="SettingsScreen"
-                component={SettingsScreen}
-              />
-              <Stack.Screen name='InboxScreen' component={InboxScreen}/>
-              <Stack.Screen name='ChatScreen' component={ChatScreen}/>
+                {/* Main Screens */}
+                <Stack.Screen name="Home" component={HomeScreen} />
+                <Stack.Screen name="Report" component={ReportScreen} />
+                <Stack.Screen name="Details" component={DetailsScreen} />
+                <Stack.Screen name="ProfilePage" component={ProfilePage} />
+                <Stack.Screen name="Comments" component={CommentsScreen} />
+                <Stack.Screen name="SettingsScreen" component={SettingsScreen} />
+                <Stack.Screen name="InboxScreen" component={InboxScreen} />
+                <Stack.Screen name="ChatScreen" component={ChatScreen} />
 
                 {/* Settings Sub-Screens */}
                 <Stack.Screen name="FAQScreen" component={FAQScreen} />
                 <Stack.Screen name="ContactUs" component={ContactUs} />
                 <Stack.Screen name="TermsPrivacyScreen" component={TermsPrivacyScreen} />
                 <Stack.Screen name="EditProfile" component={EditProfile} />
-                <Stack.Screen name='FeedbackHints' component={FeedbackHints} />
+                <Stack.Screen name="FeedbackHints" component={FeedbackHints} />
 
                 {/* Map, Panic & Alerts */}
                 <Stack.Screen name="MapScreen" component={MapScreen} />
                 <Stack.Screen name="Panic" component={Panic} />
                 <Stack.Screen name="Alerts" component={Alerts} />
                 <Stack.Screen name="NotificationDetails" component={NotificationDetails} />
+
+                {/* 📱 NEW: Offline Reports */}
+                <Stack.Screen name="OfflineReports" component={OfflineReportsScreen} />
               </Stack.Navigator>
 
               {/* 💬 Floating Chat Button */}
               <DraggableIcon
-                  startX={width - 70} 
-                  startY={height - 150} 
-                  onPress={() => setChatVisible(true)}
-                >
-                  <View style={{
-                      backgroundColor: "#65a730ff",
-                      padding: 16,
-                      borderRadius: 50,
-                      justifyContent: "center",
-                      alignItems: "center",
-                      shadowColor: "#000",
-                      shadowOffset: { width: 0, height: 2 },
-                      shadowOpacity: 0.3,
-                      shadowRadius: 3,
-                      elevation: 5,
-                      borderWidth: 1,
-                      borderColor: "#fff",
-                  }}>
-                    <Ionicons name="chatbubble-ellipses" size={28} color="#fff" />
-                  </View>
+                startX={width - 70} 
+                startY={height - 150} 
+                onPress={() => setChatVisible(true)}
+              >
+                <View style={{
+                  backgroundColor: "#65a730ff",
+                  padding: 16,
+                  borderRadius: 50,
+                  justifyContent: "center",
+                  alignItems: "center",
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 3,
+                  elevation: 5,
+                  borderWidth: 1,
+                  borderColor: "#fff",
+                }}>
+                  <Ionicons name="chatbubble-ellipses" size={28} color="#fff" />
+                </View>
               </DraggableIcon>
-
-
 
               {/* 🤖 Chatbot Modal */}
               <Modal visible={chatVisible} animationType="slide">

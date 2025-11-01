@@ -1,5 +1,5 @@
-// ReportScreen.js
-import React, { useState, useRef } from "react";
+// ReportScreen.js - Enhanced with better offline support
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   Text,
@@ -20,8 +20,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { auth, db } from "../Firebase/firebaseConfig";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { useNavigation } from "@react-navigation/native";
+import NetInfo from "@react-native-community/netinfo";
 import SuccessCheck from "../components/SuccessCheck";
-
+import { OfflineReportManager } from "../utils/OfflineReportManager";
 
 function Select({ label, value, onSelect, options }) {
   const [open, setOpen] = useState(false);
@@ -90,11 +91,70 @@ export default function ReportScreen() {
   const [contactName, setContactName] = useState("");
   const [contactNumber, setContactNumber] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [isConnected, setIsConnected] = useState(true);
+  const [pendingCount, setPendingCount] = useState(0);
+
+  // Check for pending offline reports and network status
+  useEffect(() => {
+    checkPendingReports();
+    
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      const connected = state.isConnected && state.isInternetReachable !== false;
+      setIsConnected(connected);
+      
+      if (connected) {
+        // Auto-sync when connection is restored
+        syncOfflineReports();
+      }
+    });
+    
+    return () => unsubscribe();
+  }, []);
+
+  const checkPendingReports = async () => {
+    const count = await OfflineReportManager.getPendingCount();
+    setPendingCount(count);
+  };
+
+  const syncOfflineReports = async () => {
+    const count = await OfflineReportManager.getPendingCount();
+    if (count === 0) return;
+
+    Alert.alert(
+      "Sync Offline Reports",
+      `You have ${count} pending report(s). Would you like to sync them now?`,
+      [
+        { text: "Later", style: "cancel" },
+        {
+          text: "Sync Now",
+          onPress: async () => {
+            const result = await OfflineReportManager.syncOfflineReports(
+              (current, total, report) => {
+                console.log(`Syncing ${current}/${total}: ${report.fullName}`);
+              }
+            );
+
+            if (result.success) {
+              await checkPendingReports();
+              Alert.alert(
+                "Sync Complete",
+                `Successfully synced ${result.synced} report(s).${
+                  result.failed > 0 ? ` ${result.failed} failed.` : ""
+                }`
+              );
+            } else {
+              Alert.alert("Sync Failed", result.error || "Please try again later.");
+            }
+          },
+        },
+      ]
+    );
+  };
 
   const pickImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      alert("Permission required to access photos.");
+      Alert.alert("Permission Required", "Permission required to access photos.");
       return;
     }
 
@@ -119,7 +179,7 @@ export default function ReportScreen() {
     if (!lastSeenLocation.trim()) missing.push("Last Seen Location");
 
     if (missing.length) {
-      alert("Please fill all required fields: " + missing.join(", "));
+      Alert.alert("Missing Fields", "Please fill all required fields:\n" + missing.join(", "));
       return false;
     }
     return true;
@@ -130,99 +190,119 @@ export default function ReportScreen() {
 
     const user = auth.currentUser;
     if (!user) {
-      alert("You must be logged in to submit a report.");
+      Alert.alert("Authentication Required", "You must be logged in to submit a report.");
       return;
     }
 
     setSubmitting(true);
 
+    const reportPayload = {
+      fullName: fullName.trim(),
+      age: Number(age),
+      gender,
+      type,
+      photo: photo,
+      lastSeenDate: lastSeenDate.toISOString(),
+      lastSeenLocation: lastSeenLocation.trim(),
+      description: description.trim(),
+      contactName: contactName.trim(),
+      contactNumber: contactNumber.trim(),
+      userId: user.uid,
+    };
+
+    // If offline, save for later sync
+    if (!isConnected) {
+      const result = await OfflineReportManager.saveOfflineReport(reportPayload);
+      
+      if (result.success) {
+        Alert.alert(
+          "Saved Offline ✓",
+          "Your report has been saved and will be submitted automatically when you're back online.",
+          [{ text: "OK", onPress: () => navigation.goBack() }]
+        );
+      } else {
+        Alert.alert("Error", "Failed to save report offline. Please try again.");
+      }
+      
+      setSubmitting(false);
+      return;
+    }
+
+    // Online submission
     try {
       let photoUrl = null;
-
+      
       if (photo) {
-        const data = new FormData();
-        data.append("file", {
-          uri: Platform.OS === "ios" ? photo.replace("file://", "") : photo,
-          type: "image/jpeg",
-          name: `report-${Date.now()}.jpg`,
-        });
-        data.append("upload_preset", "UserPosts");
-
-        const res = await fetch(
-          "https://api.cloudinary.com/v1_1/dpo2fiwoz/image/upload",
-          { method: "POST", body: data }
-        );
-
-        const json = await res.json();
-        if (!json.secure_url) throw new Error("Cloudinary upload failed");
-
-        photoUrl = json.secure_url;
+        const uploadResult = await OfflineReportManager.uploadPhoto(photo);
+        if (!uploadResult.success) {
+          throw new Error("Failed to upload photo");
+        }
+        photoUrl = uploadResult.url;
       }
 
-      const payload = {
-        fullName: fullName.trim(),
-        age: Number(age),
-        gender,
-        type,
-        photo: photoUrl || null,
-        lastSeenDate: lastSeenDate.toISOString(),
-        lastSeenLocation,
-        description,
-        contactName,
-        contactNumber,
+      await addDoc(collection(db, "reports"), {
+        ...reportPayload,
+        photo: photoUrl,
         status: "search",
-        userId: user.uid,
         createdAt: serverTimestamp(),
-      };
-
-      await addDoc(collection(db, "reports"), payload);
+      });
 
       if (successRef.current) successRef.current.play();
 
       setTimeout(() => {
         setSubmitting(false);
-        navigation.goBack();
+        Alert.alert("Success!", "Report submitted successfully.", [
+          { text: "OK", onPress: () => navigation.goBack() }
+        ]);
       }, 900);
     } catch (error) {
-      console.error("Firestore error:", error);
-      alert("Error saving report. Check your internet or Firebase setup.");
+      console.error("Submission error:", error);
+      
+      // Offer to save offline if online submission fails
+      Alert.alert(
+        "Submission Failed",
+        "Could not submit report online. Would you like to save it for later?",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Save Offline",
+            onPress: async () => {
+              const result = await OfflineReportManager.saveOfflineReport(reportPayload);
+              if (result.success) {
+                Alert.alert("Saved Offline", "Report will be submitted when online.");
+                navigation.goBack();
+              }
+            },
+          },
+        ]
+      );
+      
       setSubmitting(false);
     }
   };
 
-  // ✅ Android: Show date picker first, then time picker
   const handleDateChange = (event, selectedDate) => {
     if (Platform.OS === "android") {
       setShowDatePicker(false);
-      
-      if (event.type === "set" && selectedDate) {
-        if (selectedDate <= new Date()) {
-          setTempDate(selectedDate);
-          // After date is selected, show time picker
-          setShowTimePicker(true);
-        } else {
-          Alert.alert("Invalid Date", "Please select today or a past date.");
-        }
-      }
-    } else {
-      // iOS: Update immediately
-      if (selectedDate && selectedDate <= new Date()) {
-        setLastSeenDate(selectedDate);
+      if (event.type === "set" && selectedDate && selectedDate <= new Date()) {
+        setTempDate(selectedDate);
+        setShowTimePicker(true);
       } else if (selectedDate) {
         Alert.alert("Invalid Date", "Please select today or a past date.");
       }
+    } else if (selectedDate && selectedDate <= new Date()) {
+      setLastSeenDate(selectedDate);
+    } else if (selectedDate) {
+      Alert.alert("Invalid Date", "Please select today or a past date.");
     }
   };
 
   const handleTimeChange = (event, selectedTime) => {
     setShowTimePicker(false);
-    
     if (event.type === "set" && selectedTime) {
-      // Combine the date from tempDate with the time from selectedTime
       const combined = new Date(tempDate);
       combined.setHours(selectedTime.getHours());
       combined.setMinutes(selectedTime.getMinutes());
-      
       if (combined <= new Date()) {
         setLastSeenDate(combined);
       } else {
@@ -250,7 +330,6 @@ export default function ReportScreen() {
         contentContainerStyle={{ paddingBottom: 60 }}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Ionicons name="chevron-back" size={28} color="#7CC242" />
@@ -259,10 +338,26 @@ export default function ReportScreen() {
           <View style={{ width: 28 }} />
         </View>
 
+        {/* Offline/Pending Reports Banner */}
+        {!isConnected && (
+          <View style={styles.offlineBanner}>
+            <Ionicons name="cloud-offline" size={20} color="#fff" />
+            <Text style={styles.offlineText}>Offline Mode - Reports will sync when online</Text>
+          </View>
+        )}
+
+        {pendingCount > 0 && (
+          <TouchableOpacity style={styles.pendingBanner} onPress={syncOfflineReports}>
+            <Ionicons name="sync" size={20} color="#fff" />
+            <Text style={styles.pendingText}>
+              {pendingCount} pending report{pendingCount > 1 ? "s" : ""} - Tap to sync
+            </Text>
+          </TouchableOpacity>
+        )}
+
         {/* Personal Info */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Personal Information</Text>
-
           <Text style={styles.label}>Full Names*</Text>
           <TextInput
             style={styles.input}
@@ -270,7 +365,6 @@ export default function ReportScreen() {
             value={fullName}
             onChangeText={setFullName}
           />
-
           <Text style={styles.label}>Age*</Text>
           <TextInput
             style={styles.input}
@@ -279,7 +373,6 @@ export default function ReportScreen() {
             value={age}
             onChangeText={setAge}
           />
-
           <Text style={styles.label}>Gender*</Text>
           <Select
             label="Gender"
@@ -290,7 +383,6 @@ export default function ReportScreen() {
               { label: "Female", value: "female" },
             ]}
           />
-
           <Text style={[styles.label, { marginTop: 12 }]}>Person / Pet*</Text>
           <Select
             label="Type"
@@ -301,7 +393,6 @@ export default function ReportScreen() {
               { label: "Pet", value: "Pet" },
             ]}
           />
-
           <Text style={[styles.label, { marginTop: 12 }]}>Recent Photo*</Text>
           <TouchableOpacity style={styles.uploadBtn} onPress={pickImage}>
             <Text style={styles.uploadText}>
@@ -314,17 +405,10 @@ export default function ReportScreen() {
         {/* Last Seen Info */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Last Seen Information</Text>
-
           <Text style={styles.label}>Last Seen Date & Time*</Text>
-          <TouchableOpacity
-            style={styles.inputBox}
-            onPress={openDateTimePicker}
-          >
-            <Text style={styles.placeholder}>
-              {lastSeenDate.toLocaleString()}
-            </Text>
+          <TouchableOpacity style={styles.inputBox} onPress={openDateTimePicker}>
+            <Text style={styles.placeholder}>{lastSeenDate.toLocaleString()}</Text>
           </TouchableOpacity>
-
           {showDatePicker && (
             <DateTimePicker
               value={Platform.OS === "android" ? tempDate : lastSeenDate}
@@ -334,7 +418,6 @@ export default function ReportScreen() {
               onChange={handleDateChange}
             />
           )}
-
           {showTimePicker && Platform.OS === "android" && (
             <DateTimePicker
               value={tempDate}
@@ -343,7 +426,6 @@ export default function ReportScreen() {
               onChange={handleTimeChange}
             />
           )}
-
           <Text style={styles.label}>Last Seen Location*</Text>
           <TextInput
             style={styles.input}
@@ -351,7 +433,6 @@ export default function ReportScreen() {
             value={lastSeenLocation}
             onChangeText={setLastSeenLocation}
           />
-
           <Text style={styles.label}>Description</Text>
           <TextInput
             style={[styles.input, { height: 90 }]}
@@ -365,7 +446,6 @@ export default function ReportScreen() {
         {/* Reporter Contact */}
         <View style={styles.card}>
           <Text style={styles.cardTitle}>Reporter Contact</Text>
-
           <Text style={styles.label}>Contact Name</Text>
           <TextInput
             style={styles.input}
@@ -373,7 +453,6 @@ export default function ReportScreen() {
             value={contactName}
             onChangeText={setContactName}
           />
-
           <Text style={styles.label}>Contact Number</Text>
           <TextInput
             style={styles.input}
@@ -386,7 +465,7 @@ export default function ReportScreen() {
         </View>
 
         <TouchableOpacity
-          style={styles.submitBtn}
+          style={[styles.submitBtn, submitting && styles.submitBtnDisabled]}
           onPress={submit}
           disabled={submitting}
         >
@@ -401,7 +480,6 @@ export default function ReportScreen() {
   );
 }
 
-// ---------- STYLES ----------
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff", padding: 16 },
   header: {
@@ -411,6 +489,26 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   headerTitle: { fontSize: 18, fontWeight: "800", color: "#7CC242" },
+  offlineBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#ff9800",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+    gap: 8,
+  },
+  offlineText: { color: "#fff", fontWeight: "600", flex: 1 },
+  pendingBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#2196F3",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+    gap: 8,
+  },
+  pendingText: { color: "#fff", fontWeight: "600", flex: 1 },
   card: {
     backgroundColor: "#fff",
     borderRadius: 12,
@@ -459,6 +557,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 8,
   },
+  submitBtnDisabled: { opacity: 0.6 },
   submitText: { color: "#fff", fontWeight: "800", fontSize: 16 },
   modalBackdrop: {
     flex: 1,

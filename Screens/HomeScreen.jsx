@@ -17,7 +17,8 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { collection, onSnapshot, doc, updateDoc, deleteDoc } from "firebase/firestore";
 import { db, auth } from "../Firebase/firebaseConfig";
-import { useTheme } from "../context/ThemeContext";
+import { useTheme } from "../context/ThemeContext"; // ✅ ThemeContext
+import ChatIcon from '../components/ChatIcon'
 
 const { width, height } = Dimensions.get("window");
 
@@ -339,10 +340,11 @@ export default function HomeScreen() {
               backgroundColor: themeColors.selectBg,
             }}
           />
-          <Ionicons name="search-outline" size={26} color={themeColors.text} style={{ marginRight: 8 }} />
+          <ChatIcon/>
+          {/* <Ionicons name="search-outline" size={26} color={themeColors.text} style={{ marginRight: 8 }} />
           <Ionicons name="chatbubble-ellipses-outline" size={26} color={themeColors.primary} style={{ marginLeft: 10 }}
           onPress={() => navigation.navigate('InboxScreen')}
-          />
+          /> */}
         </View>
       </View>
 

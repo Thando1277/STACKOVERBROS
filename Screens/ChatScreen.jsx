@@ -22,12 +22,12 @@ import {
   orderBy,
   onSnapshot,
   serverTimestamp,
+  updateDoc, // ✅ ADDED
 } from 'firebase/firestore';
 import { db } from '../Firebase/firebaseConfig';
 import { Ionicons } from "@expo/vector-icons";
 
-
-const HEADER_HEIGHT = 60; // adjust if needed
+const HEADER_HEIGHT = 60;
 
 const ChatScreen = ({ navigation }) => {
   const route = useRoute();
@@ -56,12 +56,13 @@ const ChatScreen = ({ navigation }) => {
     );
   }
 
-  useEffect(() => {
-    const chatId =
-      currentUser.uid > chatUser.id
-        ? `${currentUser.uid}_${chatUser.id}`
-        : `${chatUser.id}_${currentUser.uid}`;
+  const chatId =
+    currentUser.uid > chatUser.id
+      ? `${currentUser.uid}_${chatUser.id}`
+      : `${chatUser.id}_${currentUser.uid}`;
 
+  // ✅ Listen for new messages
+  useEffect(() => {
     const q = query(
       collection(db, 'chats', chatId, 'messages'),
       orderBy('createdAt', 'asc')
@@ -74,13 +75,22 @@ const ChatScreen = ({ navigation }) => {
     return unsubscribe;
   }, [chatUser.id]);
 
+  // ✅ Mark messages as read when opening chat
+  useEffect(() => {
+    const markChatAsRead = async () => {
+      try {
+        const ref = doc(db, 'inbox', currentUser.uid, 'chats', chatUser.id);
+        await updateDoc(ref, { isRead: true });
+      } catch (error) {
+        console.log("Error marking chat as read:", error);
+      }
+    };
+    markChatAsRead();
+  }, [chatUser.id]);
+
+  // ✅ Send message and update inboxes
   const sendMessage = async () => {
     if (!text.trim()) return;
-
-    const chatId =
-      currentUser.uid > chatUser.id
-        ? `${currentUser.uid}_${chatUser.id}`
-        : `${chatUser.id}_${currentUser.uid}`;
 
     await addDoc(collection(db, 'chats', chatId, 'messages'), {
       text,
@@ -90,6 +100,7 @@ const ChatScreen = ({ navigation }) => {
       reportId: reportId || null
     });
 
+    // Sender inbox (they have read)
     await setDoc(
       doc(db, 'inbox', currentUser.uid, 'chats', chatUser.id),
       {
@@ -97,10 +108,12 @@ const ChatScreen = ({ navigation }) => {
         avatar: chatUser.avatar,
         lastMessage: text,
         lastMessageAt: serverTimestamp(),
+        isRead: true, // ✅ ADDED
       },
       { merge: true }
     );
 
+    // Receiver inbox (unread)
     await setDoc(
       doc(db, 'inbox', chatUser.id, 'chats', currentUser.uid),
       {
@@ -108,6 +121,7 @@ const ChatScreen = ({ navigation }) => {
         avatar: currentUser.photoURL || null,
         lastMessage: text,
         lastMessageAt: serverTimestamp(),
+        isRead: false, // ✅ ADDED
       },
       { merge: true }
     );
@@ -138,7 +152,7 @@ const ChatScreen = ({ navigation }) => {
             <Text style={styles.header}>{chatUser.fullname}</Text>
           </View>
 
-          {/* Messages list */}
+          {/* Messages */}
           <FlatList
             ref={flatListRef}
             data={messages}
@@ -155,9 +169,9 @@ const ChatScreen = ({ navigation }) => {
                 <Text>{item.text}</Text>
               </View>
             )}
-            contentContainerStyle={{ 
-              paddingBottom: 10, 
-              paddingTop: HEADER_HEIGHT + 10, // <- ensure first message is visible
+            contentContainerStyle={{
+              paddingBottom: 10,
+              paddingTop: HEADER_HEIGHT + 10,
             }}
             onContentSizeChange={() =>
               flatListRef.current?.scrollToEnd({ animated: true })
@@ -167,7 +181,6 @@ const ChatScreen = ({ navigation }) => {
             }
           />
 
-          {/* Typing indicator */}
           {typing && <Text style={styles.typing}>You’re typing...</Text>}
 
           {/* Input */}
@@ -191,6 +204,7 @@ const ChatScreen = ({ navigation }) => {
 };
 
 export default ChatScreen;
+
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#F8F9FB' },

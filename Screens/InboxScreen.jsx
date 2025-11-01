@@ -44,7 +44,7 @@ const InboxScreen = () => {
           const chatData = docSnap.data();
           const userId = docSnap.id;
 
-          // Get the latest user info from the 'users' collection
+          // Get the user info from 'users' collection
           const userDoc = await getDoc(doc(db, 'users', userId));
           const userData = userDoc.exists() ? userDoc.data() : {};
 
@@ -54,6 +54,7 @@ const InboxScreen = () => {
             avatar: userData.avatar || '',
             lastMessage: chatData.lastMessage || '',
             lastMessageAt: chatData.lastMessageAt || null,
+            isRead: chatData.isRead ?? true, // 👈 default true if not present
           };
         })
       );
@@ -66,7 +67,7 @@ const InboxScreen = () => {
     return unsubscribe;
   }, []);
 
-  // Filter users based on search input
+  // Filter users by search input
   useEffect(() => {
     if (!searchText) {
       setFilteredUsers(users);
@@ -101,7 +102,7 @@ const InboxScreen = () => {
         />
       </View>
 
-      {/* Messages List */}
+      {/* Chat list */}
       <View style={styles.listContainer}>
         {filteredUsers.length === 0 ? (
           <View style={styles.emptyContainer}>
@@ -116,6 +117,7 @@ const InboxScreen = () => {
                 name={item.fullName}
                 profilePic={item.avatar}
                 lastMessage={item.lastMessage}
+                hasUnreadMessages={!item.isRead} // 👈 Show red dot if not read
                 onPress={() =>
                   navigation.navigate('ChatScreen', {
                     user: {
@@ -132,9 +134,9 @@ const InboxScreen = () => {
         )}
       </View>
 
-      {/* FindSOS Trademark */}
+      {/* Trademark */}
       <View style={styles.trademarkContainer}>
-        <Text style={styles.trademarkText}>FindSOS™</Text>
+        <Text style={styles.trademarkText}>FindSOS</Text>
       </View>
     </SafeAreaView>
   );

@@ -1,7 +1,7 @@
 import { StyleSheet, Text, View, Image, TouchableOpacity } from 'react-native';
 import React from 'react';
 
-const UserItem = ({ name, lastMessage, profilePic, onPress }) => {
+const UserItem = ({ name, lastMessage, profilePic, onPress, hasUnreadMessages }) => {
   return (
     <TouchableOpacity style={styles.container} onPress={onPress}>
       {/* Avatar */}
@@ -9,7 +9,7 @@ const UserItem = ({ name, lastMessage, profilePic, onPress }) => {
         source={
           profilePic
             ? { uri: profilePic }
-            : require('../assets/FINDSOS-LOGO2.png') // make sure to add this asset
+            : require('../assets/FINDSOS-LOGO2.png')
         }
         style={styles.avatar}
       />
@@ -21,6 +21,9 @@ const UserItem = ({ name, lastMessage, profilePic, onPress }) => {
           {lastMessage || 'Tap to start chatting'}
         </Text>
       </View>
+
+      {/* Red dot indicator (only when unread) */}
+      {hasUnreadMessages && <View style={styles.redDot} />}
     </TouchableOpacity>
   );
 };
@@ -57,5 +60,12 @@ const styles = StyleSheet.create({
   message: {
     fontSize: 14,
     color: '#777',
+  },
+  redDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 5,
+    backgroundColor: '#02c048ff',
+    marginLeft: 8,
   },
 });

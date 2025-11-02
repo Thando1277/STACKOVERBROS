@@ -18,8 +18,10 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { collection, onSnapshot, doc, updateDoc, deleteDoc, arrayUnion, arrayRemove, getDoc } from "firebase/firestore";
 import { db, auth } from "../Firebase/firebaseConfig";
-import { useTheme } from "../context/ThemeContext";
+import { getAuth } from "firebase/auth";
+import { useTheme } from "../context/ThemeContext"; // ✅ ThemeContext
 import ChatIcon from '../components/ChatIcon'
+
 
 const { width, height } = Dimensions.get("window");
 
@@ -253,6 +255,7 @@ export default function HomeScreen() {
   const scrollY = useRef(0);
   const lastScrollY = useRef(0);
   const isFilterVisible = useRef(true);
+  const [avatarUrl, setAvatarUrl] = useState(null);
 
   const themeColors = {
     bg: isDark ? "#1E1E1E" : "#fff",
@@ -319,6 +322,19 @@ export default function HomeScreen() {
       console.error("Error saving/unsaving report:", error);
     }
   };
+
+  //Fetch user avatar
+  useEffect(() => {
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
+    if(!currentUser) return;
+
+    const unsubscribe = onSnapshot(doc(db, 'users', currentUser.uid), (docSnap) => {
+      if(docSnap.exists()){
+        setAvatarUrl(docSnap.data().avatar)
+      }
+    });
+  }, []);
 
   const handleStatusChange = async (report, newStatus) => {
     if (!report?.id) return;
@@ -417,7 +433,9 @@ export default function HomeScreen() {
       
       {/* Header - Fixed */}
       <View style={styles.header}>
-        <Image source={require("../assets/log.png")} style={styles.logo} />
+        <TouchableOpacity onPress={() => navigation.navigate("ProfilePage")}>
+          <Image source={ avatarUrl ? {uri: avatarUrl} : require('../assets/log.png')} style={styles.logo} />
+        </TouchableOpacity>
         <View style={styles.headerIcons}>
           <TextInput
             placeholder=" Search..."
@@ -429,10 +447,12 @@ export default function HomeScreen() {
               borderRadius: 10,
               borderColor: themeColors.border,
               width: 245,
+              height: 35,
               fontSize: 14,
               paddingVertical: 6,
               color: themeColors.text,
               backgroundColor: themeColors.selectBg,
+              padding: 5,
             }}
           />
           <ChatIcon/>
@@ -699,16 +719,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
-  header: { 
-    flexDirection: "row", 
-    justifyContent: "space-between", 
-    paddingHorizontal: 15, 
-    paddingTop: 10, 
-    alignItems: "center",
-    backgroundColor: 'transparent',
-    zIndex: 10,
-  },
-  logo: { width: 50, height: 40, resizeMode: "contain" },
+  header: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 15, paddingTop: 10, alignItems: "center" },
+  logo: { width: 45, height: 45, resizeMode: "contain", borderRadius: 100, marginLeft: 10 },
   headerIcons: { flexDirection: "row", alignItems: "center" },
   tabs: { 
     flexDirection: "row", 

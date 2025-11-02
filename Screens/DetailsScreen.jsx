@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, ActivityIndicator } from "react-native";
+import { 
+  View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, ActivityIndicator, Alert, SafeAreaView, Modal
+} from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
-import { Alert } from "react-native";
 import { doc, getDoc, deleteDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { db, auth } from "../Firebase/firebaseConfig";
 
@@ -13,11 +14,10 @@ export default function DetailsScreen({ route }) {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [previewImage, setPreviewImage] = useState(null);
 
-  // Handle both cases: report object or reportId
   const { report: reportProp, reportId } = route.params;
 
-  // Theme Colors
   const themeColors = {
     bg: isDark ? "#1E1E1E" : "#fff",
     text: isDark ? "#E0E0E0" : "#222",
@@ -30,14 +30,11 @@ export default function DetailsScreen({ route }) {
 
   const user = auth.currentUser;
 
-  // Fetch report if only reportId is provided
   useEffect(() => {
     const fetchReport = async () => {
       if (reportProp) {
-        // If report object is passed directly
         setReport(reportProp);
       } else if (reportId) {
-        // If only reportId is passed, fetch from Firestore
         setLoading(true);
         try {
           const reportDoc = await getDoc(doc(db, "reports", reportId));
@@ -86,14 +83,12 @@ export default function DetailsScreen({ route }) {
 
     try {
       if (isSaved) {
-        // Unsave the report
         await updateDoc(userRef, {
           savedReports: arrayRemove(report.id)
         });
         setIsSaved(false);
         Alert.alert("Removed", "Report removed from saved items.");
       } else {
-        // Save the report
         await updateDoc(userRef, {
           savedReports: arrayUnion(report.id)
         });
@@ -130,129 +125,152 @@ export default function DetailsScreen({ route }) {
     );
   };
 
-  // Show loading indicator while fetching
   if (loading || !report) {
     return (
-      <View style={[styles.container, { backgroundColor: themeColors.bg, justifyContent: 'center', alignItems: 'center' }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: themeColors.bg, justifyContent: 'center', alignItems: 'center' }]}>
         <ActivityIndicator size="large" color="#7CC242" />
         <Text style={{ color: themeColors.text, marginTop: 10 }}>Loading report...</Text>
-      </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: themeColors.bg }]}>
-      <View style={[styles.headerRow, { backgroundColor: themeColors.cardBg }]}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={24} color={themeColors.text} />
-        </TouchableOpacity>
-        
-        {/* Bookmark Icon in Header */}
-        <TouchableOpacity 
-          onPress={handleSaveReport}
-          style={styles.bookmarkButton}
-        >
-          <Ionicons 
-            name={isSaved ? "bookmark" : "bookmark-outline"} 
-            size={22} 
-            color="#7CC242" 
-          />
-        </TouchableOpacity>
-      </View>
-
-      {/* Image */}
-      {report.photo ? (
-        <Image source={{ uri: report.photo }} style={styles.image} />
-      ) : (
-        <View style={styles.noImage}>
-          <Ionicons name="image-outline" size={60} color="#aaa" />
-          <Text style={styles.noImageText}>No Photo Available</Text>
-        </View>
-      )}
-
-      {/* Info Card */}
-      <View style={[styles.card, { backgroundColor: themeColors.cardBg }]}>
-        <View style={styles.nameRow}>
-          <Text style={[styles.name, { color: themeColors.text }]}>{report.fullName}</Text>
-          {isSaved && (
-            <View style={styles.savedBadge}>
-              <Ionicons name="bookmark" size={14} color="#7CC242" />
-              <Text style={styles.savedBadgeText}>Saved</Text>
-            </View>
-          )}
-        </View>
-        <Text style={[styles.subText, { color: themeColors.subText }]}>
-          {report.age} • {report.gender} • {report.type}
-        </Text>
-
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Last Seen</Text>
-          <Text style={[styles.sectionText, { color: themeColors.textLight }]}>{report.lastSeenDate}</Text>
-          <Text style={[styles.sectionText, { color: themeColors.textLight }]}>{report.lastSeenLocation}</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: themeColors.bg }]}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+        <View style={[styles.headerRow, { backgroundColor: themeColors.cardBg }]}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={themeColors.text} />
+          </TouchableOpacity>
+          
+          {/* Bookmark Icon in Header */}
+          <TouchableOpacity 
+            onPress={handleSaveReport}
+            style={styles.bookmarkButton}
+          >
+            <Ionicons 
+              name={isSaved ? "bookmark" : "bookmark-outline"} 
+              size={22} 
+              color="#7CC242" 
+            />
+          </TouchableOpacity>
         </View>
 
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Description</Text>
-          <Text style={[styles.sectionText, { color: themeColors.textLight }]}>
-            {report.description || "No description provided."}
+        {/* Clickable Image */}
+        {report.photo ? (
+          <TouchableOpacity onPress={() => setPreviewImage(report.photo)}>
+            <Image source={{ uri: report.photo }} style={styles.image} />
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.noImage}>
+            <Ionicons name="image-outline" size={60} color="#aaa" />
+            <Text style={styles.noImageText}>No Photo Available</Text>
+          </View>
+        )}
+
+        {/* Info Card */}
+        <View style={[styles.card, { backgroundColor: themeColors.cardBg }]}>
+          <View style={styles.nameRow}>
+            <Text style={[styles.name, { color: themeColors.text }]}>{report.fullName}</Text>
+            {isSaved && (
+              <View style={styles.savedBadge}>
+                <Ionicons name="bookmark" size={14} color="#7CC242" />
+                <Text style={styles.savedBadgeText}>Saved</Text>
+              </View>
+            )}
+          </View>
+          <Text style={[styles.subText, { color: themeColors.subText }]}>
+            {report.age} • {report.gender} • {report.type}
+          </Text>
+
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Last Seen</Text>
+            <Text style={[styles.sectionText, { color: themeColors.textLight }]}>{report.lastSeenDate}</Text>
+            <Text style={[styles.sectionText, { color: themeColors.textLight }]}>{report.lastSeenLocation}</Text>
+          </View>
+
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Description</Text>
+            <Text style={[styles.sectionText, { color: themeColors.textLight }]}>
+              {report.description || "No description provided."}
+            </Text>
+          </View>
+
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionTitle}>Contact Information</Text>
+            <Text style={[styles.sectionText, { color: themeColors.textLight }]}>Name: {report.contactName || "N/A"}</Text>
+            <Text style={[styles.sectionText, { color: themeColors.textLight }]}>Phone: {report.contactNumber || "N/A"}</Text>
+            <TouchableOpacity
+              style={styles.replyPrivatelyBtn}
+              onPress={async () => {
+                try {
+                  const userDoc = await getDoc(doc(db, 'users', report.userId));
+                  if (userDoc.exists()) {
+                    const userData = userDoc.data();
+                    navigation.navigate('ChatScreen', {
+                      user: {
+                        id: report.userId,
+                        fullname: userData.fullname,
+                        avatar: userData.avatar || null
+                      }
+                    });
+                    console.log('Fetched user data: ', userData);
+                  } else {
+                    console.warn('User not found for ID:', report.userId);
+                  }
+                } catch (error) {
+                  console.error('Error fetching user data:', error);
+                }
+              }}
+            >
+              <Ionicons name="chatbubble-ellipses-outline" size={18} color="white" />
+              <Text style={styles.replyPrivatelyText}>Reply Privately</Text>
+            </TouchableOpacity>
+          </View>
+
+          <Text style={[styles.footerText, { color: themeColors.small }]}>
+            Reported: {report.createdAt?.seconds ? new Date(report.createdAt.seconds * 1000).toLocaleString() : "N/A"}
           </Text>
         </View>
 
-        <View style={styles.sectionContainer}>
-          <Text style={styles.sectionTitle}>Contact Information</Text>
-          <Text style={[styles.sectionText, { color: themeColors.textLight }]}>Name: {report.contactName || "N/A"}</Text>
-          <Text style={[styles.sectionText, { color: themeColors.textLight }]}>Phone: {report.contactNumber || "N/A"}</Text>
+        {user && report.userId === user.uid && (
+          <View style={styles.deleteContainer}>
+            <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
+              <Ionicons name="trash-outline" size={20} color="#fff" />
+              <Text style={styles.deleteText}>Delete Report</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </ScrollView>
+
+      {/* Fullscreen Image Modal */}
+      {previewImage && (
+        <Modal
+          visible={!!previewImage}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setPreviewImage(null)}
+        >
           <TouchableOpacity
-            style={styles.replyPrivatelyBtn}
-            onPress={async () => {
-              try {
-                const userDoc = await getDoc(doc(db, 'users', report.userId));
-
-                if (userDoc.exists()) {
-                  const userData = userDoc.data();
-
-                  navigation.navigate('ChatScreen', {
-                    user: {
-                      id: report.userId,
-                      fullname: userData.fullname,
-                      avatar: userData.avatar || null
-                    }
-                  });
-                  console.log('Fetched user data: ', userData);
-                } else {
-                  console.warn('User not found for ID:', report.userId);
-                }
-              } catch (error) {
-                console.error('Error fetching user data:', error);
-              }
-            }}
+            style={styles.imageModalCover}
+            onPress={() => setPreviewImage(null)}
+            activeOpacity={1}
           >
-            <Ionicons name="chatbubble-ellipses-outline" size={18} color="white" />
-            <Text style={styles.replyPrivatelyText}>Reply Privately</Text>
+            <Image
+              source={{ uri: previewImage }}
+              style={styles.imageModal}
+              resizeMode="contain"
+            />
           </TouchableOpacity>
-        </View>
-
-        <Text style={[styles.footerText, { color: themeColors.small }]}>
-          Reported: {report.createdAt?.seconds ? new Date(report.createdAt.seconds * 1000).toLocaleString() : "N/A"}
-        </Text>
-      </View>
-
-      {user && report.userId === user.uid && (
-        <View style={styles.deleteContainer}>
-          <TouchableOpacity style={styles.deleteButton} onPress={handleDelete}>
-            <Ionicons name="trash-outline" size={20} color="#fff" />
-            <Text style={styles.deleteText}>Delete Report</Text>
-          </TouchableOpacity>
-        </View>
+        </Modal>
       )}
-    </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F8F9FB",
+  container: { 
+    flex: 1, 
+    backgroundColor: "#F8F9FB" 
   },
   headerRow: {
     flexDirection: "row",
@@ -264,6 +282,9 @@ const styles = StyleSheet.create({
     elevation: 2,
     borderBottomColor: "#eee",
     borderBottomWidth: 1,
+  },
+  backButton: {
+    padding: 4,
   },
   bookmarkButton: {
     padding: 8,
@@ -285,9 +306,9 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 16,
     borderBottomRightRadius: 16,
   },
-  noImageText: {
-    marginTop: 6,
-    color: "#999",
+  noImageText: { 
+    marginTop: 6, 
+    color: "#999" 
   },
   card: {
     backgroundColor: "#fff",
@@ -385,10 +406,21 @@ const styles = StyleSheet.create({
     width: "90%",
     elevation: 3,
   },
-  deleteText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-    marginLeft: 8,
+  deleteText: { 
+    color: "#fff", 
+    fontSize: 16, 
+    fontWeight: "600", 
+    marginLeft: 8 
+  },
+  imageModalCover: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.9)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  imageModal: { 
+    width: "90%", 
+    height: "90%", 
+    borderRadius: 12 
   },
 });

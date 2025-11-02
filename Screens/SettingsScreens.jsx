@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Switch } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../context/ThemeContext';
 import { collection, query, where, onSnapshot } from "firebase/firestore";
@@ -105,22 +105,27 @@ export default function SettingsScreen({ navigation }) {
         {/* Appearance Section */}
         <SectionTitle text="Appearance" color={colors.textSecondary} />
         <View style={[styles.section, { backgroundColor: colors.card, shadowColor: colors.shadow }]}>
-          <TouchableOpacity 
-            style={styles.itemContainer} 
-            onPress={toggleTheme}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.iconWrapper, { backgroundColor: isDark ? '#2A3F1F' : '#F0F7E8' }]}>
-              <Icon name={isDark ? "weather-night" : "weather-sunny"} size={20} color={colors.accent} />
+          <View style={styles.itemContainer}>
+            <View style={styles.leftContent}>
+              <View style={[styles.iconWrapper, { backgroundColor: isDark ? '#2A3F1F' : '#F0F7E8' }]}>
+                <Icon name={isDark ? "weather-night" : "weather-sunny"} size={20} color={colors.accent} />
+              </View>
             </View>
             <View style={styles.itemContent}>
-              <Text style={[styles.itemLabel, { color: colors.text }]}>Theme</Text>
+              <Text style={[styles.itemLabel, { color: colors.text }]}>Dark Mode</Text>
               <Text style={[styles.itemSubtext, { color: colors.textSecondary }]}>
-                {isDark ? "Dark mode" : "Light mode"}
+                {isDark ? "Enabled" : "Disabled"}
               </Text>
             </View>
-            <Icon name="chevron-right" size={20} color={colors.textSecondary} />
-          </TouchableOpacity>
+            <Switch
+              value={isDark}
+              onValueChange={toggleTheme}
+              trackColor={{ false: isDark ? '#374151' : '#D1D5DB', true: colors.accent }}
+              thumbColor={isDark ? '#FFFFFF' : '#FFFFFF'}
+              ios_backgroundColor={isDark ? '#374151' : '#D1D5DB'}
+              style={styles.switch}
+            />
+          </View>
         </View>
 
         {/* 📱 Offline Reports & Follow Up Section */}
@@ -364,6 +369,9 @@ const styles = StyleSheet.create({
   itemSubtext: {
     fontSize: 13,
     lineHeight: 18,
+  },
+  switch: {
+    transform: [{ scaleX: 0.9 }, { scaleY: 0.9 }],
   },
   badge: {
     position: 'absolute',

@@ -4,7 +4,7 @@ import { useNavigation } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
 import { Alert } from "react-native";
-import { doc, getDoc, deleteDoc } from "firebase/firestore";
+import { doc, getDoc, deleteDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { db, auth } from "../Firebase/firebaseConfig";
 
 export default function DetailsScreen({ route }) {
@@ -12,6 +12,7 @@ export default function DetailsScreen({ route }) {
   const { isDark } = useTheme();
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
 
   // Handle both cases: report object or reportId
   const { report: reportProp, reportId } = route.params;
@@ -24,6 +25,7 @@ export default function DetailsScreen({ route }) {
     section: "#7CC242",
     textLight: isDark ? "#ccc" : "#333",
     small: isDark ? "#777" : "#999",
+    cardBg: isDark ? "#2A2A2A" : "#fff",
   };
 
   const user = auth.currentUser;
@@ -57,6 +59,52 @@ export default function DetailsScreen({ route }) {
 
     fetchReport();
   }, [reportProp, reportId]);
+
+  // Check if report is saved
+  useEffect(() => {
+    const checkIfSaved = async () => {
+      if (!report || !user) return;
+      
+      try {
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        if (userDoc.exists()) {
+          const savedReports = userDoc.data().savedReports || [];
+          setIsSaved(savedReports.includes(report.id));
+        }
+      } catch (error) {
+        console.error("Error checking saved status:", error);
+      }
+    };
+
+    checkIfSaved();
+  }, [report, user]);
+
+  const handleSaveReport = async () => {
+    if (!user || !report) return;
+
+    const userRef = doc(db, "users", user.uid);
+
+    try {
+      if (isSaved) {
+        // Unsave the report
+        await updateDoc(userRef, {
+          savedReports: arrayRemove(report.id)
+        });
+        setIsSaved(false);
+        Alert.alert("Removed", "Report removed from saved items.");
+      } else {
+        // Save the report
+        await updateDoc(userRef, {
+          savedReports: arrayUnion(report.id)
+        });
+        setIsSaved(true);
+        Alert.alert("Saved", "Report saved successfully!");
+      }
+    } catch (error) {
+      console.error("Error saving/unsaving report:", error);
+      Alert.alert("Error", "Failed to update saved status.");
+    }
+  };
 
   const handleDelete = async () => {
     Alert.alert(
@@ -94,9 +142,21 @@ export default function DetailsScreen({ route }) {
 
   return (
     <ScrollView style={[styles.container, { backgroundColor: themeColors.bg }]}>
-      <View style={styles.headerRow}>
+      <View style={[styles.headerRow, { backgroundColor: themeColors.cardBg }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color={themeColors.text} />
+        </TouchableOpacity>
+        
+        {/* Bookmark Icon in Header */}
+        <TouchableOpacity 
+          onPress={handleSaveReport}
+          style={styles.bookmarkButton}
+        >
+          <Ionicons 
+            name={isSaved ? "bookmark" : "bookmark-outline"} 
+            size={22} 
+            color="#7CC242" 
+          />
         </TouchableOpacity>
       </View>
 
@@ -111,31 +171,39 @@ export default function DetailsScreen({ route }) {
       )}
 
       {/* Info Card */}
-      <View style={styles.card}>
-        <Text style={styles.name}>{report.fullName}</Text>
-        <Text style={styles.subText}>
+      <View style={[styles.card, { backgroundColor: themeColors.cardBg }]}>
+        <View style={styles.nameRow}>
+          <Text style={[styles.name, { color: themeColors.text }]}>{report.fullName}</Text>
+          {isSaved && (
+            <View style={styles.savedBadge}>
+              <Ionicons name="bookmark" size={14} color="#7CC242" />
+              <Text style={styles.savedBadgeText}>Saved</Text>
+            </View>
+          )}
+        </View>
+        <Text style={[styles.subText, { color: themeColors.subText }]}>
           {report.age} • {report.gender} • {report.type}
         </Text>
 
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionTitle}>Last Seen</Text>
-          <Text style={styles.sectionText}>{report.lastSeenDate}</Text>
-          <Text style={styles.sectionText}>{report.lastSeenLocation}</Text>
+          <Text style={[styles.sectionText, { color: themeColors.textLight }]}>{report.lastSeenDate}</Text>
+          <Text style={[styles.sectionText, { color: themeColors.textLight }]}>{report.lastSeenLocation}</Text>
         </View>
 
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionTitle}>Description</Text>
-          <Text style={styles.sectionText}>
+          <Text style={[styles.sectionText, { color: themeColors.textLight }]}>
             {report.description || "No description provided."}
           </Text>
         </View>
 
         <View style={styles.sectionContainer}>
           <Text style={styles.sectionTitle}>Contact Information</Text>
-          <Text style={styles.sectionText}>Name: {report.contactName || "N/A"}</Text>
-          <Text style={styles.sectionText}>Phone: {report.contactNumber || "N/A"}</Text>
+          <Text style={[styles.sectionText, { color: themeColors.textLight }]}>Name: {report.contactName || "N/A"}</Text>
+          <Text style={[styles.sectionText, { color: themeColors.textLight }]}>Phone: {report.contactNumber || "N/A"}</Text>
           <TouchableOpacity
-            style={styles.gotToInboxBtn}
+            style={styles.replyPrivatelyBtn}
             onPress={async () => {
               try {
                 const userDoc = await getDoc(doc(db, 'users', report.userId));
@@ -159,11 +227,12 @@ export default function DetailsScreen({ route }) {
               }
             }}
           >
-            <Text>Reply Privately</Text>
+            <Ionicons name="chatbubble-ellipses-outline" size={18} color="white" />
+            <Text style={styles.replyPrivatelyText}>Reply Privately</Text>
           </TouchableOpacity>
         </View>
 
-        <Text style={styles.footerText}>
+        <Text style={[styles.footerText, { color: themeColors.small }]}>
           Reported: {report.createdAt?.seconds ? new Date(report.createdAt.seconds * 1000).toLocaleString() : "N/A"}
         </Text>
       </View>
@@ -196,14 +265,8 @@ const styles = StyleSheet.create({
     borderBottomColor: "#eee",
     borderBottomWidth: 1,
   },
-  backButton: {
-    padding: 4,
-    marginTop: 50
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#333",
+  bookmarkButton: {
+    padding: 8,
   },
   image: {
     width: "90%",
@@ -238,11 +301,32 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
   },
+  nameRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 4,
+  },
   name: {
     fontSize: 22,
     fontWeight: "800",
     color: "#222",
-    marginBottom: 4,
+    flex: 1,
+  },
+  savedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#7CC242",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginLeft: 8,
+  },
+  savedBadgeText: {
+    color: "white",
+    fontSize: 12,
+    fontWeight: "600",
+    marginLeft: 4,
   },
   subText: {
     fontSize: 15,
@@ -255,7 +339,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 16,
     fontWeight: "700",
-    color: "#4EAF50",
+    color: "#7CC242",
     marginBottom: 6,
   },
   sectionText: {
@@ -269,9 +353,21 @@ const styles = StyleSheet.create({
     marginTop: 12,
     textAlign: "right",
   },
-  gotToInboxBtn: {
-    width: 100,
-    height: 50
+  replyPrivatelyBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#7CC242",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginTop: 10,
+  },
+  replyPrivatelyText: {
+    color: "white",
+    fontSize: 14,
+    fontWeight: "600",
+    marginLeft: 6,
   },
   deleteContainer: {
     marginTop: 20,

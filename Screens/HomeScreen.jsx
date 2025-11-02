@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -12,12 +12,13 @@ import {
   TextInput,
   Platform,
   StatusBar,
+  Animated,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
-import { collection, onSnapshot, doc, updateDoc, deleteDoc } from "firebase/firestore";
+import { collection, onSnapshot, doc, updateDoc, deleteDoc, arrayUnion, arrayRemove, getDoc } from "firebase/firestore";
 import { db, auth } from "../Firebase/firebaseConfig";
-import { useTheme } from "../context/ThemeContext"; // ✅ ThemeContext
+import { useTheme } from "../context/ThemeContext";
 import ChatIcon from '../components/ChatIcon'
 
 const { width, height } = Dimensions.get("window");
@@ -163,7 +164,6 @@ function FilterModal({ visible, onClose, themeColors, gender, setGender, ageGrou
       <View style={[styles.filterModalSheet, { backgroundColor: themeColors.modalBg }]}>
         <Text style={[styles.filterModalTitle, { color: themeColors.text }]}>Filters</Text>
         
-        {/* Gender Filter */}
         <View style={styles.filterSection}>
           <Text style={[styles.filterSectionTitle, { color: themeColors.text }]}>Gender</Text>
           <View style={styles.filterOptions}>
@@ -190,7 +190,6 @@ function FilterModal({ visible, onClose, themeColors, gender, setGender, ageGrou
           </View>
         </View>
 
-        {/* Age Group Filter */}
         <View style={styles.filterSection}>
           <Text style={[styles.filterSectionTitle, { color: themeColors.text }]}>Age Group</Text>
           <View style={styles.filterOptions}>
@@ -217,7 +216,6 @@ function FilterModal({ visible, onClose, themeColors, gender, setGender, ageGrou
           </View>
         </View>
 
-        {/* Action Buttons */}
         <View style={styles.filterActions}>
           <TouchableOpacity
             style={[styles.filterActionBtn, styles.clearAllBtn, { backgroundColor: themeColors.filterBg }]}
@@ -248,6 +246,13 @@ export default function HomeScreen() {
   const [ageGroup, setAgeGroup] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilterModal, setShowFilterModal] = useState(false);
+  const [savedReports, setSavedReports] = useState([]);
+
+  // Animation values
+  const filterSectionHeight = useRef(new Animated.Value(1)).current;
+  const scrollY = useRef(0);
+  const lastScrollY = useRef(0);
+  const isFilterVisible = useRef(true);
 
   const themeColors = {
     bg: isDark ? "#1E1E1E" : "#fff",
@@ -268,6 +273,53 @@ export default function HomeScreen() {
     return () => unsubscribe();
   }, []);
 
+  // Fetch user's saved reports
+  useEffect(() => {
+    const fetchSavedReports = async () => {
+      const userId = auth.currentUser?.uid;
+      if (!userId) return;
+
+      const userDoc = await getDoc(doc(db, "users", userId));
+      if (userDoc.exists()) {
+        setSavedReports(userDoc.data().savedReports || []);
+      }
+    };
+
+    fetchSavedReports();
+
+    const userId = auth.currentUser?.uid;
+    if (userId) {
+      const unsubscribe = onSnapshot(doc(db, "users", userId), (doc) => {
+        if (doc.exists()) {
+          setSavedReports(doc.data().savedReports || []);
+        }
+      });
+      return () => unsubscribe();
+    }
+  }, []);
+
+  const handleSaveReport = async (reportId) => {
+    const userId = auth.currentUser?.uid;
+    if (!userId) return;
+
+    const userRef = doc(db, "users", userId);
+    const isSaved = savedReports.includes(reportId);
+
+    try {
+      if (isSaved) {
+        await updateDoc(userRef, {
+          savedReports: arrayRemove(reportId)
+        });
+      } else {
+        await updateDoc(userRef, {
+          savedReports: arrayUnion(reportId)
+        });
+      }
+    } catch (error) {
+      console.error("Error saving/unsaving report:", error);
+    }
+  };
+
   const handleStatusChange = async (report, newStatus) => {
     if (!report?.id) return;
     if (report.userId !== auth.currentUser?.uid) {
@@ -285,6 +337,38 @@ export default function HomeScreen() {
     } catch (err) {
       console.error("Error updating report:", err);
     }
+  };
+
+  const handleScroll = (event) => {
+    const currentScrollY = event.nativeEvent.contentOffset.y;
+    const scrollDiff = currentScrollY - lastScrollY.current;
+
+    // Only trigger animation if scroll difference is significant (> 10px for smoother Android performance)
+    if (Math.abs(scrollDiff) > 10) {
+      if (scrollDiff > 0 && currentScrollY > 50) {
+        // Scrolling down - hide filter section
+        if (isFilterVisible.current) {
+          isFilterVisible.current = false;
+          Animated.timing(filterSectionHeight, {
+            toValue: 0,
+            duration: 250,
+            useNativeDriver: false,
+          }).start();
+        }
+      } else if (scrollDiff < 0) {
+        // Scrolling up - show filter section
+        if (!isFilterVisible.current) {
+          isFilterVisible.current = true;
+          Animated.timing(filterSectionHeight, {
+            toValue: 1,
+            duration: 250,
+            useNativeDriver: false,
+          }).start();
+        }
+      }
+      lastScrollY.current = currentScrollY;
+    }
+    scrollY.current = currentScrollY;
   };
 
   const filtered = useMemo(() => {
@@ -316,11 +400,22 @@ export default function HomeScreen() {
 
   const imgFor = (r) => (r?.photo ? { uri: r.photo } : require("../assets/dude.webp"));
 
+  // Interpolate height for smooth animation
+  const animatedHeight = filterSectionHeight.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 160], // Increased for full visibility
+  });
+
+  const animatedOpacity = filterSectionHeight.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 1],
+  });
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: themeColors.bg }]}>
       {Platform.OS === 'android' && <StatusBar backgroundColor={themeColors.bg} barStyle={isDark ? "light-content" : "dark-content"} />}
       
-      {/* Header */}
+      {/* Header - Fixed */}
       <View style={styles.header}>
         <Image source={require("../assets/log.png")} style={styles.logo} />
         <View style={styles.headerIcons}>
@@ -341,14 +436,10 @@ export default function HomeScreen() {
             }}
           />
           <ChatIcon/>
-          {/* <Ionicons name="search-outline" size={26} color={themeColors.text} style={{ marginRight: 8 }} />
-          <Ionicons name="chatbubble-ellipses-outline" size={26} color={themeColors.primary} style={{ marginLeft: 10 }}
-          onPress={() => navigation.navigate('InboxScreen')}
-          /> */}
         </View>
       </View>
 
-      {/* Tabs */}
+      {/* Tabs - Fixed */}
       <View style={styles.tabs}>
         <TouchableOpacity
           style={[styles.tabBtn, activeTab === "search" ? styles.activeTab : styles.inactiveTab]}
@@ -366,160 +457,195 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Categories - All borders are grey */}
-      <View style={styles.categories}>
-        <TouchableOpacity 
-          onPress={() => setSelectedCategory("Person")} 
-          style={[
-            styles.category, 
-            { 
-              backgroundColor: selectedCategory === "Person" ? "#7C4DFF" : "transparent",
-              borderColor: themeColors.border
-            }
-          ]}
-        >
-          <Ionicons 
-            name="person-outline" 
-            size={28} 
-            color={selectedCategory === "Person" ? "white" : "#7C4DFF"} 
-          />
-          <Text style={[
-            styles.catText, 
-            { color: selectedCategory === "Person" ? "white" : "#7C4DFF" }
-          ]}>
-            Person
-          </Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          onPress={() => setSelectedCategory("Pet")} 
-          style={[
-            styles.category, 
-            { 
-              backgroundColor: selectedCategory === "Pet" ? "#2196F3" : "transparent",
-              borderColor: themeColors.border
-            }
-          ]}
-        >
-          <MaterialCommunityIcons 
-            name="paw" 
-            size={28} 
-            color={selectedCategory === "Pet" ? "white" : "#2196F3"} 
-          />
-          <Text style={[
-            styles.catText, 
-            { color: selectedCategory === "Pet" ? "white" : "#2196F3" }
-          ]}>
-            Pet
-          </Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          onPress={() => setSelectedCategory("Wanted")} 
-          style={[
-            styles.category, 
-            { 
-              backgroundColor: selectedCategory === "Wanted" ? "#E53935" : "transparent",
-              borderColor: themeColors.border
-            }
-          ]}
-        >
-          <Ionicons 
-            name="alert-circle-outline" 
-            size={28} 
-            color={selectedCategory === "Wanted" ? "white" : "#E53935"} 
-          />
-          <Text style={[
-            styles.catText, 
-            { color: selectedCategory === "Wanted" ? "white" : "#E53935" }
-          ]}>
-            Wanted
-          </Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity
-          onPress={() => {
-            setSelectedCategory("Panic");
-            navigation.navigate("Panic");
-          }}
-          style={[
-            styles.category, 
-            { 
-              backgroundColor: selectedCategory === "Panic" ? "#FFB300" : "transparent",
-              borderColor: themeColors.border
-            }
-          ]}
-        >
-          <Ionicons 
-            name="warning-outline" 
-            size={28} 
-            color={selectedCategory === "Panic" ? "white" : "#FFB300"} 
-          />
-          <Text style={[
-            styles.catText, 
-            { color: selectedCategory === "Panic" ? "white" : "#FFB300" }
-          ]}>
-            Panic
-          </Text>
-        </TouchableOpacity>
-      </View>
+      {/* Collapsible Filter Section */}
+      <Animated.View 
+        style={[
+          styles.collapsibleSection,
+          { 
+            height: animatedHeight,
+            opacity: animatedOpacity,
+            overflow: 'hidden',
+          }
+        ]}
+      >
+        {/* Categories */}
+        <View style={styles.categories}>
+          <TouchableOpacity 
+            onPress={() => setSelectedCategory("Person")} 
+            style={[
+              styles.category, 
+              { 
+                backgroundColor: selectedCategory === "Person" ? "#7C4DFF" : "transparent",
+                borderColor: themeColors.border
+              }
+            ]}
+          >
+            <Ionicons 
+              name="person-outline" 
+              size={28} 
+              color={selectedCategory === "Person" ? "white" : "#7C4DFF"} 
+            />
+            <Text style={[
+              styles.catText, 
+              { color: selectedCategory === "Person" ? "white" : "#7C4DFF" }
+            ]}>
+              Person
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            onPress={() => setSelectedCategory("Pet")} 
+            style={[
+              styles.category, 
+              { 
+                backgroundColor: selectedCategory === "Pet" ? "#2196F3" : "transparent",
+                borderColor: themeColors.border
+              }
+            ]}
+          >
+            <MaterialCommunityIcons 
+              name="paw" 
+              size={28} 
+              color={selectedCategory === "Pet" ? "white" : "#2196F3"} 
+            />
+            <Text style={[
+              styles.catText, 
+              { color: selectedCategory === "Pet" ? "white" : "#2196F3" }
+            ]}>
+              Pet
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            onPress={() => setSelectedCategory("Wanted")} 
+            style={[
+              styles.category, 
+              { 
+                backgroundColor: selectedCategory === "Wanted" ? "#E53935" : "transparent",
+                borderColor: themeColors.border
+              }
+            ]}
+          >
+            <Ionicons 
+              name="alert-circle-outline" 
+              size={28} 
+              color={selectedCategory === "Wanted" ? "white" : "#E53935"} 
+            />
+            <Text style={[
+              styles.catText, 
+              { color: selectedCategory === "Wanted" ? "white" : "#E53935" }
+            ]}>
+              Wanted
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            onPress={() => {
+              setSelectedCategory("Panic");
+              navigation.navigate("Panic");
+            }}
+            style={[
+              styles.category, 
+              { 
+                backgroundColor: selectedCategory === "Panic" ? "#FFB300" : "transparent",
+                borderColor: themeColors.border
+              }
+            ]}
+          >
+            <Ionicons 
+              name="warning-outline" 
+              size={28} 
+              color={selectedCategory === "Panic" ? "white" : "#FFB300"} 
+            />
+            <Text style={[
+              styles.catText, 
+              { color: selectedCategory === "Panic" ? "white" : "#FFB300" }
+            ]}>
+              Panic
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-      {/* Filters Button - Size reduced by 30% */}
-      <View style={styles.filtersContainer}>
-        <TouchableOpacity 
-          style={[styles.filtersButton, { backgroundColor: themeColors.primary }]}
-          onPress={() => setShowFilterModal(true)}
-        >
-          <Ionicons name="filter" size={14} color="white" />
-          <Text style={styles.filtersButtonText}>Filters</Text>
-          {(gender || ageGroup) && (
-            <View style={styles.filterBadge}>
-              <Text style={styles.filterBadgeText}>{(gender ? 1 : 0) + (ageGroup ? 1 : 0)}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
-      </View>
+        {/* Filters Button */}
+        <View style={styles.filtersContainer}>
+          <TouchableOpacity 
+            style={[styles.filtersButton, { backgroundColor: themeColors.primary }]}
+            onPress={() => setShowFilterModal(true)}
+          >
+            <Ionicons name="filter" size={14} color="white" />
+            <Text style={styles.filtersButtonText}>Filters</Text>
+            {(gender || ageGroup) && (
+              <View style={styles.filterBadge}>
+                <Text style={styles.filterBadgeText}>{(gender ? 1 : 0) + (ageGroup ? 1 : 0)}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
 
       {/* Report List */}
       <ScrollView 
         style={styles.list}
         contentContainerStyle={Platform.OS === 'android' ? { paddingBottom: 90 } : {}}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false}
       >
         {filtered.length === 0 ? (
           <Text style={{ textAlign: "center", color: "#666", marginTop: 16 }}>No reports found</Text>
         ) : (
-          filtered.filter(r => r).map((r) => (
-            <View key={r.id} style={[styles.card, { backgroundColor: themeColors.cardBg }]}>
-              <Image source={imgFor(r)} style={styles.avatar} />
-              <View style={{ flex: 1 }}>
-                <View style={styles.cardHeader}>
-                  <Text style={[styles.name, { color: themeColors.text }]}>{String(r.fullName)}</Text>
-                  <StatusSelect value={r.status} onChange={(status) => handleStatusChange(r, status)} isOwner={r.userId === auth.currentUser?.uid} themeColors={themeColors} />
+          filtered.filter(r => r).map((r) => {
+            const isSaved = savedReports.includes(r.id);
+            
+            return (
+              <View key={r.id} style={[styles.card, { backgroundColor: themeColors.cardBg }]}>
+                <Image source={imgFor(r)} style={styles.avatar} />
+                <View style={{ flex: 1 }}>
+                  <View style={styles.cardHeader}>
+                    <Text style={[styles.name, { color: themeColors.text }]}>{String(r.fullName)}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                      <TouchableOpacity 
+                        onPress={() => handleSaveReport(r.id)}
+                        style={{ marginRight: 10, padding: 4 }}
+                      >
+                        <Ionicons 
+                          name={isSaved ? "bookmark" : "bookmark-outline"} 
+                          size={22} 
+                          color={isSaved ? "#7CC242" : themeColors.text} 
+                        />
+                      </TouchableOpacity>
+                      <StatusSelect 
+                        value={r.status} 
+                        onChange={(status) => handleStatusChange(r, status)} 
+                        isOwner={r.userId === auth.currentUser?.uid} 
+                        themeColors={themeColors} 
+                      />
+                    </View>
+                  </View>
+                  <Text style={[styles.details, { color: themeColors.text }]}>{String(r.age)} • {String(r.gender)}</Text>
+                  <Text style={[styles.details, { color: themeColors.text }]}>{String(r.lastSeenLocation)}</Text>
+
+                  {r.type === "Wanted" && (
+                    <>
+                      <Text style={[styles.details, { color: themeColors.text }]}>Crime: {String(r.crimeWantedFor)}</Text>
+                      <Text style={[styles.details, { color: themeColors.text }]}>Armed With: {String(r.armedWith)}</Text>
+                      <Text style={[styles.details, { color: themeColors.text }]}>Reward: {String(r.rewardOffered)}</Text>
+                    </>
+                  )}
+
+                  <TouchableOpacity style={styles.viewBtn} onPress={() => navigation.navigate("Details", { report: r })}>
+                    <Text style={styles.viewText}>View Details</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity style={styles.viewBtn} onPress={() => navigation.navigate("Comments", { reportId: r.id })}>
+                    <Text style={styles.viewText}>Add/View Comments</Text>
+                  </TouchableOpacity>
+
+                  <Text style={[styles.time, { color: themeColors.text }]}>{new Date(r.createdAt?.seconds ? r.createdAt.toDate() : r.createdAt).toLocaleString()}</Text>
                 </View>
-                <Text style={[styles.details, { color: themeColors.text }]}>{String(r.age)} • {String(r.gender)}</Text>
-                <Text style={[styles.details, { color: themeColors.text }]}>{String(r.lastSeenLocation)}</Text>
-
-                {/* If this is a Wanted report, show extra details */}
-                {r.type === "Wanted" && (
-                  <>
-                    <Text style={[styles.details, { color: themeColors.text }]}>Crime: {String(r.crimeWantedFor)}</Text>
-                    <Text style={[styles.details, { color: themeColors.text }]}>Armed With: {String(r.armedWith)}</Text>
-                    <Text style={[styles.details, { color: themeColors.text }]}>Reward: {String(r.rewardOffered)}</Text>
-                  </>
-                )}
-
-                <TouchableOpacity style={styles.viewBtn} onPress={() => navigation.navigate("Details", { report: r })}>
-                  <Text style={styles.viewText}>View Details</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity style={styles.viewBtn} onPress={() => navigation.navigate("Comments", { reportId: r.id })}>
-                  <Text style={styles.viewText}>Add/View Comments</Text>
-                </TouchableOpacity>
-
-                <Text style={[styles.time, { color: themeColors.text }]}>{new Date(r.createdAt?.seconds ? r.createdAt.toDate() : r.createdAt).toLocaleString()}</Text>
               </View>
-            </View>
-          ))
+            );
+          })
         )}
       </ScrollView>
 
@@ -534,7 +660,7 @@ export default function HomeScreen() {
         setAgeGroup={setAgeGroup}
       />
 
-      {/* Bottom Navigation */}
+      {/* Bottom Navigation - Fixed */}
       <View style={[styles.bottomNav, { backgroundColor: themeColors.bg }]}>
         <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate("Home")}>
           <Ionicons name="home-outline" size={24} color={themeColors.primary} />
@@ -555,7 +681,7 @@ export default function HomeScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Report Button - Outside bottom nav */}
+      {/* Report Button - Fixed */}
       <TouchableOpacity 
         style={styles.reportBtn} 
         onPress={() => navigation.navigate("Report")}
@@ -573,10 +699,24 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
-  header: { flexDirection: "row", justifyContent: "space-between", paddingHorizontal: 15, paddingTop: 10, alignItems: "center" },
+  header: { 
+    flexDirection: "row", 
+    justifyContent: "space-between", 
+    paddingHorizontal: 15, 
+    paddingTop: 10, 
+    alignItems: "center",
+    backgroundColor: 'transparent',
+    zIndex: 10,
+  },
   logo: { width: 50, height: 40, resizeMode: "contain" },
   headerIcons: { flexDirection: "row", alignItems: "center" },
-  tabs: { flexDirection: "row", marginHorizontal: 20, marginTop: 12, marginBottom: 5 },
+  tabs: { 
+    flexDirection: "row", 
+    marginHorizontal: 20, 
+    marginTop: 12, 
+    marginBottom: 5,
+    zIndex: 10,
+  },
   tabBtn: { flex: 1, alignItems: "center", paddingVertical: 8, borderRadius: 8, marginHorizontal: 5 },
   activeTab: { backgroundColor: "#7CC242" },
   inactiveTab: { backgroundColor: "#e0e0e0" },
@@ -584,7 +724,10 @@ const styles = StyleSheet.create({
   inactiveTabText: { color: "black", fontWeight: "600", fontSize: 14 },
   activeLine: { marginTop: 5, height: 3, width: "60%", backgroundColor: "white", borderRadius: 2 },
   
-  // Categories - All borders are grey
+  collapsibleSection: {
+    overflow: 'hidden',
+  },
+  
   categories: { 
     flexDirection: "row", 
     justifyContent: "space-between", 
@@ -606,20 +749,19 @@ const styles = StyleSheet.create({
     fontWeight: "800" 
   },
   
-  // Filters Container - Size reduced by 30%
   filtersContainer: { 
     flexDirection: "row", 
     justifyContent: "center", 
     marginHorizontal: 20, 
-    marginVertical: 7 // Reduced from 9
+    marginVertical: 7
   },
   filtersButton: { 
     flexDirection: "row", 
     alignItems: "center", 
     backgroundColor: "#7CC242", 
-    paddingHorizontal: 12.6, // Reduced from 18
-    paddingVertical: 7.56, // Reduced from 10.8
-    borderRadius: 15.75, // Reduced from 22.5
+    paddingHorizontal: 12.6,
+    paddingVertical: 7.56,
+    borderRadius: 15.75,
     elevation: 3,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 2 },
@@ -629,27 +771,26 @@ const styles = StyleSheet.create({
   filtersButtonText: { 
     color: "white", 
     fontWeight: "bold", 
-    fontSize: 10.08, // Reduced from 14.4
-    marginLeft: 5.04 // Reduced from 7.2
+    fontSize: 10.08,
+    marginLeft: 5.04
   },
   filterBadge: {
     position: "absolute",
-    top: -3.15, // Reduced from -4.5
-    right: -3.15, // Reduced from -4.5
+    top: -3.15,
+    right: -3.15,
     backgroundColor: "red",
-    borderRadius: 6.3, // Reduced from 9
-    width: 12.6, // Reduced from 18
-    height: 12.6, // Reduced from 18
+    borderRadius: 6.3,
+    width: 12.6,
+    height: 12.6,
     justifyContent: "center",
     alignItems: "center",
   },
   filterBadgeText: {
     color: "white",
-    fontSize: 7.56, // Reduced from 10.8
+    fontSize: 7.56,
     fontWeight: "bold",
   },
 
-  // Filter Modal Styles
   filterModalCover: {
     position: "absolute",
     top: 0,
@@ -736,7 +877,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
-  // Existing styles
   filters: { flexDirection: "row", justifyContent: "space-evenly", marginHorizontal: 20, marginVertical: 10 },
   filterBtn: { flex: 1, borderWidth: 1, borderColor: "#ccc", marginHorizontal: 5, borderRadius: 8, backgroundColor: "#e0e0e0", alignItems: "center", paddingVertical: 8 },
   filterText: { color: "#444", fontWeight: "500" },
@@ -809,11 +949,29 @@ const styles = StyleSheet.create({
     color: "#333", 
     fontWeight: "500", 
   },
-  list: { flex: 1, paddingHorizontal: 20, marginTop: 5, zIndex: 1 },
-  card: { flexDirection: "row", backgroundColor: "#fff", borderRadius: 12, padding: 14, marginBottom: 20, elevation: 3, shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 4, height: height * 0.25, borderWidth: 0.3, borderColor: "#02c048ff" },
+  list: { 
+    flex: 1, 
+    paddingHorizontal: 20, 
+    marginTop: 5, 
+    zIndex: 1 
+  },
+  card: { 
+    flexDirection: "row", 
+    backgroundColor: "#fff", 
+    borderRadius: 12, 
+    padding: 14, 
+    marginBottom: 20, 
+    elevation: 3, 
+    shadowColor: "#000", 
+    shadowOpacity: 0.1, 
+    shadowRadius: 4, 
+    height: height * 0.25, 
+    borderWidth: 0.3, 
+    borderColor: "#02c048ff" 
+  },
   avatar: { width: 100, height: "100%", borderRadius: 12, marginRight: 12 },
-  cardHeader: { flexDirection: "row", justifyContent: "space-between" },
-  name: { fontSize: 18, fontWeight: "bold", color: "#222" },
+  cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  name: { fontSize: 18, fontWeight: "bold", color: "#222", flex: 1 },
   details: { fontSize: 14, color: "gray", marginTop: 3 },
   viewBtn: { backgroundColor: "#7CC242", borderRadius: 10, marginTop: 10, paddingVertical: 8, alignItems: "center", width: "80%" },
   viewText: { color: "white", fontWeight: "bold", fontSize: 14 },
@@ -831,7 +989,6 @@ const styles = StyleSheet.create({
   navItem: { alignItems: "center" },
   navText: { fontSize: width * 0.03, color: "black" },
 
-  // ---------- Report Button ----------
   reportBtn: {
     position: "absolute",
     bottom: height * 0.04,
@@ -849,8 +1006,40 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     zIndex: 1000,
   },
-  statusButton: { paddingHorizontal: 6, paddingVertical: 4, borderRadius: 6, borderWidth: 1, borderColor: "#000", backgroundColor: "#f9f9f9", alignItems: "center" },
-  statusModalCover: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 200 },
-  statusBackdrop: { flex: 1, backgroundColor: "transparent" },
-  statusModalSheet: { position: "absolute", top: 35, width: 100, backgroundColor: "#fff", borderRadius: 6, borderWidth: 1, borderColor: "#000", paddingVertical: 4, zIndex: 201, elevation: 5, shadowColor: "#000", shadowOpacity: 0.1, shadowRadius: 3 },
+  statusButton: { 
+    paddingHorizontal: 6, 
+    paddingVertical: 4, 
+    borderRadius: 6, 
+    borderWidth: 1, 
+    borderColor: "#000", 
+    backgroundColor: "#f9f9f9", 
+    alignItems: "center" 
+  },
+  statusModalCover: { 
+    position: "absolute", 
+    top: 0, 
+    left: 0, 
+    right: 0, 
+    bottom: 0, 
+    zIndex: 200 
+  },
+  statusBackdrop: { 
+    flex: 1, 
+    backgroundColor: "transparent" 
+  },
+  statusModalSheet: { 
+    position: "absolute", 
+    top: 35, 
+    width: 100, 
+    backgroundColor: "#fff", 
+    borderRadius: 6, 
+    borderWidth: 1, 
+    borderColor: "#000", 
+    paddingVertical: 4, 
+    zIndex: 201, 
+    elevation: 5, 
+    shadowColor: "#000", 
+    shadowOpacity: 0.1, 
+    shadowRadius: 3 
+  },
 });

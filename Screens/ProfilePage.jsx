@@ -41,11 +41,13 @@ export default function ProfileScreen() {
   });
   const [reports, setReports] = useState([]);
   const [allReports, setAllReports] = useState([]);
+  const [savedReports, setSavedReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [showPopup, setShowPopup] = useState(false);
   const [totalReports, setTotalReports] = useState(0);
+  const [activeTab, setActiveTab] = useState("myReports"); // 'myReports' or 'saved'
 
   const totalFound = allReports.filter((r) => r.status === "found").length;
 
@@ -74,6 +76,24 @@ export default function ProfileScreen() {
             bio: data.bio || "",
             id: userId,
           });
+          
+          // Get saved report IDs
+          const savedReportIds = data.savedReports || [];
+          
+          // Fetch all reports
+          const allReportsSnapshot = await getDocs(collection(db, "reports"));
+          const fetchedReports = allReportsSnapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }));
+
+          const userReports = fetchedReports.filter((r) => r.userId === userId);
+          const userSavedReports = fetchedReports.filter((r) => savedReportIds.includes(r.id));
+
+          setReports(userReports);
+          setSavedReports(userSavedReports);
+          setAllReports(fetchedReports);
+          setTotalReports(fetchedReports.length);
         } else {
           setCurrentUser({
             fullName: auth.currentUser?.displayName || "No Name",
@@ -82,19 +102,19 @@ export default function ProfileScreen() {
             bio: "",
             id: userId,
           });
+
+          const allReportsSnapshot = await getDocs(collection(db, "reports"));
+          const fetchedReports = allReportsSnapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }));
+
+          const userReports = fetchedReports.filter((r) => r.userId === userId);
+
+          setReports(userReports);
+          setAllReports(fetchedReports);
+          setTotalReports(fetchedReports.length);
         }
-
-        const allReportsSnapshot = await getDocs(collection(db, "reports"));
-        const fetchedReports = allReportsSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-
-        const userReports = fetchedReports.filter((r) => r.userId === userId);
-
-        setReports(userReports);
-        setAllReports(fetchedReports);
-        setTotalReports(fetchedReports.length);
       } catch (error) {
         console.log("Error fetching data:", error);
       } finally {
@@ -202,6 +222,8 @@ export default function ProfileScreen() {
     ? { uri: currentUser.avatar }
     : null;
 
+  const displayReports = activeTab === "myReports" ? reports : savedReports;
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: themeColors.bg }]}>
       <ScrollView contentContainerStyle={styles.scroll}>
@@ -262,8 +284,8 @@ export default function ProfileScreen() {
             <Text style={[styles.statLabel, { color: themeColors.sub }]}>My Reports</Text>
           </View>
           <View style={[styles.statBox, { backgroundColor: themeColors.card }]}>
-            <Text style={[styles.statNum, { color: themeColors.text }]}>{totalReports}</Text>
-            <Text style={[styles.statLabel, { color: themeColors.sub }]}>Total Reports</Text>
+            <Text style={[styles.statNum, { color: themeColors.text }]}>{savedReports.length}</Text>
+            <Text style={[styles.statLabel, { color: themeColors.sub }]}>Saved</Text>
           </View>
           <View style={[styles.statBox, { backgroundColor: themeColors.card }]}>
             <Text style={[styles.statNum, { color: themeColors.text }]}>{totalFound}</Text>
@@ -271,29 +293,96 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Recent Activity */}
-        <View style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: "#7CC242" }]}>Recent Activity</Text>
-          {reports.length === 0 ? (
-            <Text style={[styles.emptyText, { color: themeColors.sub }]}>
-              You haven't reported anything yet.
+        {/* Tabs for My Reports / Saved Reports */}
+        <View style={styles.tabsContainer}>
+          <TouchableOpacity
+            style={[
+              styles.tab,
+              activeTab === "myReports" && styles.activeTab,
+              { borderBottomColor: activeTab === "myReports" ? "#7CC242" : "transparent" }
+            ]}
+            onPress={() => setActiveTab("myReports")}
+          >
+            <Text style={[
+              styles.tabText,
+              { color: activeTab === "myReports" ? "#7CC242" : themeColors.sub }
+            ]}>
+              My Reports ({reports.length})
             </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[
+              styles.tab,
+              activeTab === "saved" && styles.activeTab,
+              { borderBottomColor: activeTab === "saved" ? "#7CC242" : "transparent" }
+            ]}
+            onPress={() => setActiveTab("saved")}
+          >
+            <Text style={[
+              styles.tabText,
+              { color: activeTab === "saved" ? "#7CC242" : themeColors.sub }
+            ]}>
+              Saved ({savedReports.length})
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Reports List */}
+        <View style={styles.section}>
+          {displayReports.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Ionicons 
+                name={activeTab === "myReports" ? "document-outline" : "bookmark-outline"} 
+                size={60} 
+                color={themeColors.sub} 
+              />
+              <Text style={[styles.emptyText, { color: themeColors.sub }]}>
+                {activeTab === "myReports" 
+                  ? "You haven't reported anything yet."
+                  : "You haven't saved any reports yet."}
+              </Text>
+            </View>
           ) : (
-            reports.slice(0, 5).map((r) => (
-              <View key={r.id} style={[styles.reportCard, { backgroundColor: themeColors.card }]}>
-                {r.photo ? (
-                  <Image source={{ uri: r.photo }} style={styles.reportImage} />
-                ) : (
-                  <Ionicons name="person-circle-outline" size={100} color="#7CC242" style={{ marginRight: 12 }} />
-                )}
-                <View style={styles.reportInfo}>
-                  <Text style={[styles.reportName, { color: themeColors.text }]}>{r.fullName || r.gender || "Unnamed Report"}</Text>
-                  <Text style={[styles.reportLocation, { color: themeColors.sub }]}>{r.lastSeenLocation || "Unknown Location"}</Text>
-                  <Text style={[styles.reportTime, { color: themeColors.sub }]}>
-                    {r.createdAt ? new Date(r.createdAt.seconds * 1000).toLocaleString() : ""}
-                  </Text>
+            displayReports.map((r) => (
+              <TouchableOpacity
+                key={r.id}
+                onPress={() => navigation.navigate("Details", { report: r })}
+              >
+                <View style={[styles.reportCard, { backgroundColor: themeColors.card }]}>
+                  {r.photo ? (
+                    <Image source={{ uri: r.photo }} style={styles.reportImage} />
+                  ) : (
+                    <Ionicons name="person-circle-outline" size={100} color="#7CC242" style={{ marginRight: 12 }} />
+                  )}
+                  <View style={styles.reportInfo}>
+                    <View style={styles.reportHeader}>
+                      <Text style={[styles.reportName, { color: themeColors.text }]}>
+                        {r.fullName || r.gender || "Unnamed Report"}
+                      </Text>
+                      {activeTab === "saved" && (
+                        <Ionicons name="bookmark" size={20} color="#7CC242" />
+                      )}
+                    </View>
+                    <Text style={[styles.reportLocation, { color: themeColors.sub }]}>
+                      {r.lastSeenLocation || "Unknown Location"}
+                    </Text>
+                    <Text style={[styles.reportDetails, { color: themeColors.sub }]}>
+                      {r.age} • {r.gender}
+                    </Text>
+                    <View style={styles.statusBadge}>
+                      <Text style={[
+                        styles.statusText,
+                        { color: r.status === "found" ? "#7CC242" : "#E74C3C" }
+                      ]}>
+                        {r.status === "found" ? "Found" : "Still Searching"}
+                      </Text>
+                    </View>
+                    <Text style={[styles.reportTime, { color: themeColors.sub }]}>
+                      {r.createdAt ? new Date(r.createdAt.seconds * 1000).toLocaleDateString() : ""}
+                    </Text>
+                  </View>
                 </View>
-              </View>
+              </TouchableOpacity>
             ))
           )}
         </View>
@@ -371,19 +460,72 @@ const styles = StyleSheet.create({
   statBox: { flex: 1, marginHorizontal: 4, paddingVertical: 14, borderRadius: 10, alignItems: "center" },
   statNum: { fontSize: 18, fontWeight: "800" },
   statLabel: { fontSize: 12, marginTop: 4 },
+  
+  // Tabs
+  tabsContainer: {
+    flexDirection: "row",
+    marginTop: 20,
+    marginHorizontal: 18,
+    borderBottomWidth: 1,
+    borderBottomColor: "#e0e0e0",
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: "center",
+    borderBottomWidth: 3,
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  
   section: { marginTop: 18, paddingHorizontal: 18 },
-  sectionTitle: { fontSize: 16, fontWeight: "700", marginBottom: 8 },
-  emptyText: { textAlign: "center", color: "#999", fontSize: 14, marginTop: 20 },
+  emptyState: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 40,
+  },
+  emptyText: { textAlign: "center", fontSize: 14, marginTop: 12 },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center" },
   popupContainer: { borderRadius: 10, borderWidth: 2, borderColor: "#7CC242", width: 250, paddingVertical: 10 },
   popupOption: { alignItems: "center", paddingVertical: 12 },
   popupText: { fontSize: 16, fontWeight: "700" },
   divider: { height: 1, marginHorizontal: 20 },
   loadingOverlay: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, justifyContent: "center", alignItems: "center", backgroundColor: "#00000080", zIndex: 10 },
-  reportCard: { flexDirection: "row", borderRadius: 8, padding: 12, marginVertical: 6, height: 125, alignItems: "center" },
+  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  
+  reportCard: { 
+    flexDirection: "row", 
+    borderRadius: 12, 
+    padding: 12, 
+    marginVertical: 6, 
+    minHeight: 125, 
+    alignItems: "center",
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+  },
   reportImage: { width: 100, height: 100, borderRadius: 8, marginRight: 12, backgroundColor: "#f0f0f0" },
   reportInfo: { flex: 1, justifyContent: "center" },
-  reportName: { fontSize: 16, fontWeight: "600" },
+  reportHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  reportName: { fontSize: 16, fontWeight: "600", flex: 1 },
   reportLocation: { fontSize: 14, marginTop: 2 },
+  reportDetails: { fontSize: 13, marginTop: 2 },
+  statusBadge: {
+    marginTop: 6,
+    alignSelf: "flex-start",
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
   reportTime: { fontSize: 12, marginTop: 4 },
 });

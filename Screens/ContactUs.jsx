@@ -11,11 +11,17 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   Modal,
+  Dimensions,
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
+import { Ionicons } from "@expo/vector-icons";
+
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const scale = (size) => (SCREEN_WIDTH / 375) * size;
 
 export default function ContactSupportScreen({ navigation }) {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -39,12 +45,16 @@ export default function ContactSupportScreen({ navigation }) {
       style={{ flex: 1, backgroundColor: colors.background }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      <View style={styles.headerRow}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="chevron-back" size={scale(28)} color="#7CC242" />
+        </TouchableOpacity>
+        <View style={{ width: scale(28) }} />
+      </View>
+
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={{ flex: 1, backgroundColor: colors.background }}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Text style={[styles.backButtonText, { color: '#7CC242' }]}>← Back</Text>
-          </TouchableOpacity>
-
+          
           <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
             <View style={styles.formContainer}>
               <Text style={[styles.title, { color: '#7CC242' }]}>Contact Us</Text>
@@ -123,7 +133,7 @@ export default function ContactSupportScreen({ navigation }) {
 const styles = StyleSheet.create({
   backButton: { padding: 15, position: 'absolute', top: 10, left: 10, zIndex: 1 },
   backButtonText: { fontSize: 16, fontWeight: '600' },
-  scroll: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 40 },
+  scroll: { flexGrow: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 20, paddingTop: 0 },
   formContainer: { width: '100%', maxWidth: 400 },
   title: { fontSize: 28, fontWeight: 'bold', marginBottom: 10, textAlign: 'center' },
   subtitle: { fontSize: 16, marginBottom: 20, textAlign: 'center' },
@@ -137,4 +147,12 @@ const styles = StyleSheet.create({
   modalText: { fontSize: 16, textAlign: 'center', marginBottom: 20 },
   modalButton: { paddingVertical: 12, paddingHorizontal: 30, borderRadius: 8, alignItems: 'center' },
   modalButtonText: { fontSize: 16, fontWeight: '600' },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: scale(20),
+    paddingVertical: scale(10),
+    borderBottomWidth: 0.3,
+  },
 });

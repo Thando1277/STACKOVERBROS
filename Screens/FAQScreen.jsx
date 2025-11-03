@@ -28,11 +28,11 @@ export default function FAQScreen({ navigation }) {
     <View style={[styles.container, { backgroundColor: colors.background }]}>
 
       <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={scale(28)} color="#7CC242" />
         </TouchableOpacity>
         <Text style={[styles.title, { color: isDark ? "#E0E0E0" : "#1A1A1A" }]}>FAQ / Help Center</Text>
-        <View style={{ width: scale(28) }} /> {/* Placeholder to center title */}
+        <View style={{ width: scale(28) }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
@@ -64,7 +64,7 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   backButton: { padding: 15, position: "absolute", top: 50, left: 15, zIndex: 10 },
   backButtonText: { fontSize: 16, fontWeight: "600" },
-  scroll: { padding: 20, paddingTop: 100 },
+  scroll: { padding: 20, paddingTop: 80 },
   item: { marginBottom: 15, padding: 12, borderRadius: 8 },
   question: { fontSize: 16, fontWeight: "600" },
   answer: { fontSize: 15, marginTop: 4 },
@@ -79,10 +79,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: scale(20),
-    paddingVertical: scale(25),
-    borderBottomWidth: 1,
-    borderBottomColor: "#E0E0E0",
+    paddingVertical: scale(10),
+    borderBottomWidth: 0.3,
   },
-  backBtn: { padding: scale(6) },
   title: { fontWeight: "700", fontSize: scale(22), textAlign: "center" },
 });

@@ -552,7 +552,7 @@ export default function ProfileScreen() {
             <Text style={[
               styles.tabText,
               { 
-                color: activeTab === "myReports" ? "#7CC242" : themeColors.sub,
+                color: activeTab === "myReports" ? "#060805ff" : themeColors.sub,
                 fontSize: moderateScale(14)
               }
             ]}>
@@ -569,7 +569,7 @@ export default function ProfileScreen() {
             <Text style={[
               styles.tabText,
               { 
-                color: activeTab === "saved" ? "#7CC242" : themeColors.sub,
+                color: activeTab === "saved" ? "#060805ff" : themeColors.sub,
                 fontSize: moderateScale(14)
               }
             ]}>
@@ -870,7 +870,7 @@ const styles = StyleSheet.create({
   logoutBtn: { 
     backgroundColor: "transparent",
     borderWidth: 1.5, 
-    borderColor: "#7CC242", 
+    borderColor: "#000000ff", 
     paddingVertical: moderateScale(8), 
     paddingHorizontal: moderateScale(16), 
     borderRadius: moderateScale(8),

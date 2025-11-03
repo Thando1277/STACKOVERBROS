@@ -15,12 +15,13 @@ import {
   Animated,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { collection, onSnapshot, doc, updateDoc, deleteDoc, arrayUnion, arrayRemove, getDoc } from "firebase/firestore";
 import { db, auth } from "../Firebase/firebaseConfig";
 import { getAuth } from "firebase/auth";
 import { useTheme } from "../context/ThemeContext";
 import ChatIcon from '../components/ChatIcon'
+import { useCallback } from 'react';
 
 const { width, height } = Dimensions.get("window");
 
@@ -266,6 +267,17 @@ export default function HomeScreen() {
     primary: "#7CC242",
     cardBg: isDark ? "#2A2A2A" : "#fff",
   };
+
+  // Reset to Person category when returning from other screens
+  useFocusEffect(
+    useCallback(() => {
+      // Reset to "Person" category and "search" tab when returning from Panic or other screens
+      if (selectedCategory !== "Person" && selectedCategory !== "Pet" && selectedCategory !== "Wanted") {
+        setSelectedCategory("Person");
+        setActiveTab("search");
+      }
+    }, [selectedCategory])
+  );
 
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, "reports"), (snapshot) => {
@@ -561,13 +573,13 @@ export default function HomeScreen() {
           
           <TouchableOpacity
             onPress={() => {
-              setSelectedCategory("Panic");
+              // Don't change selectedCategory - just navigate to Panic
               navigation.navigate("Panic");
             }}
             style={[
               styles.category, 
               { 
-                backgroundColor: selectedCategory === "Panic" ? "#FFB300" : "transparent",
+                backgroundColor: "transparent", // Always keep it unselected
                 borderColor: themeColors.border
               }
             ]}
@@ -575,11 +587,11 @@ export default function HomeScreen() {
             <Ionicons 
               name="warning-outline" 
               size={28} 
-              color={selectedCategory === "Panic" ? "white" : "#FFB300"} 
+              color="#FFB300"
             />
             <Text style={[
               styles.catText, 
-              { color: selectedCategory === "Panic" ? "white" : "#FFB300" }
+              { color: "#FFB300" }
             ]}>
               Panic
             </Text>

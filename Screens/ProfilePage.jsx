@@ -48,6 +48,8 @@ export default function ProfileScreen() {
   const [showPopup, setShowPopup] = useState(false);
   const [totalReports, setTotalReports] = useState(0);
   const [activeTab, setActiveTab] = useState("myReports"); // 'myReports' or 'saved'
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+
 
   const totalFound = allReports.filter((r) => r.status === "found").length;
 
@@ -128,10 +130,7 @@ export default function ProfileScreen() {
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert(
-        "Permission denied",
-        "We need access to your gallery to upload an image."
-      );
+      Alert.alert("Permission denied", "We need access to your gallery to upload an image.");
       return;
     }
 
@@ -144,8 +143,10 @@ export default function ProfileScreen() {
 
     if (!result.canceled && result.assets[0].uri) {
       setSelectedImage(result.assets[0].uri);
+      setShowSaveConfirm(true); // 👈 show save popup
     }
   };
+
 
   const saveImage = async () => {
     if (!selectedImage) return;
@@ -269,12 +270,6 @@ export default function ProfileScreen() {
               <Text style={styles.logoutTxt}>Log Out</Text>
             </TouchableOpacity>
           </View>
-
-          {selectedImage && (
-            <TouchableOpacity style={styles.saveBtn} onPress={saveImage}>
-              <Text style={styles.saveTxt}>Save Image</Text>
-            </TouchableOpacity>
-          )}
         </View>
 
         {/* Stats */}
@@ -413,6 +408,42 @@ export default function ProfileScreen() {
         </TouchableWithoutFeedback>
       </Modal>
 
+      {/* Save Confirmation Popup */}
+      <Modal visible={showSaveConfirm} transparent animationType="fade">
+        <TouchableWithoutFeedback onPress={() => setShowSaveConfirm(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.popupContainer, { backgroundColor: themeColors.popupBg }]}>
+              <Text style={[styles.popupTitle, { color: themeColors.text, marginBottom: 10 }]}>
+                Save this image as your profile picture?
+              </Text>
+
+              <View style={{ flexDirection: "row", justifyContent: "space-around" }}>
+                <TouchableOpacity
+                  style={[styles.confirmBtn, { backgroundColor: "#7CC242" }]}
+                  onPress={() => {
+                    setShowSaveConfirm(false);
+                    saveImage();
+                  }}
+                >
+                  <Text style={{ color: "#fff", fontWeight: "600" }}>Save</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.confirmBtn, { backgroundColor: "#ccc" }]}
+                  onPress={() => {
+                    setShowSaveConfirm(false);
+                    setSelectedImage(null);
+                  }}
+                >
+                  <Text style={{ color: "#000", fontWeight: "600" }}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+
       {uploading && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color="#7CC242" />
@@ -488,7 +519,7 @@ const styles = StyleSheet.create({
   },
   emptyText: { textAlign: "center", fontSize: 14, marginTop: 12 },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center" },
-  popupContainer: { borderRadius: 10, borderWidth: 2, borderColor: "#7CC242", width: 250, paddingVertical: 10 },
+  popupContainer: {justifyContent: "center", alignItems: "center" , padding: 20,borderRadius: 10, borderWidth: 2, borderColor: "#7CC242", width: 300, },
   popupOption: { alignItems: "center", paddingVertical: 12 },
   popupText: { fontSize: 16, fontWeight: "700" },
   divider: { height: 1, marginHorizontal: 20 },
@@ -528,4 +559,17 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   reportTime: { fontSize: 12, marginTop: 4 },
+  popupTitle: {
+  fontSize: 16,
+  fontWeight: "600",
+  textAlign: "center",
+  marginBottom: 12,
+},
+confirmBtn: {
+  paddingVertical: 10,
+  paddingHorizontal: 25,
+  borderRadius: 8,
+  marginHorizontal: 15,
+},
+
 });

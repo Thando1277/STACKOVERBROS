@@ -27,7 +27,8 @@
       "infoPlist": {
         "NSCameraUsageDescription": "FindSOS needs access to your camera to take photos and compare them with missing person/pet reports using AI.",
         "NSPhotoLibraryUsageDescription": "FindSOS needs access to your photo library to select photos for comparison with missing person/pet reports.",
-        "NSPhotoLibraryAddUsageDescription": "FindSOS needs permission to save comparison photos to your library."
+        "NSPhotoLibraryAddUsageDescription": "FindSOS needs permission to save comparison photos to your library.",
+        "NSMicrophoneUsageDescription": "FindSOS needs access to your microphone to record voice descriptions in emergency panic reports."
       }
     },
     "android": {
@@ -58,7 +59,9 @@
         "expo-image-picker",
         {
           "photosPermission": "FindSOS needs access to your photos to compare images with missing person/pet reports using AI technology.",
-          "cameraPermission": "FindSOS needs access to your camera to take photos for AI-powered comparison with missing person/pet reports."
+          "cameraPermission": "FindSOS needs access to your camera to take photos for AI-powered comparison with missing person/pet reports.",
+          "microphonePermission": "Allow FindSOS to access your microphone for emergency voice reports.",
+          "speechRecognitionPermission": "Allow FindSOS to securely recognize user speech."
         }
       ]
     ]

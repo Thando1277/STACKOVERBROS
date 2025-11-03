@@ -1,6 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
+import { Ionicons } from "@expo/vector-icons";
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const scale = (size) => (SCREEN_WIDTH / 375) * size;
 
 export default function TermsPrivacyScreen({ navigation }) {
   const { colors } = useTheme();
@@ -13,10 +16,16 @@ export default function TermsPrivacyScreen({ navigation }) {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={styles.scroll}>
-        <TouchableOpacity style={styles.backButtonInline} onPress={() => navigation.goBack()}>
-          <Text style={[styles.backButtonText, { color: '#7CC242' }]}>← Back</Text>
+
+      <View style={styles.headerRow}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="chevron-back" size={scale(28)} color="#7CC242" />
         </TouchableOpacity>
+        <View style={{ width: scale(28) }} />
+      </View>
+      
+      <ScrollView contentContainerStyle={styles.scroll}>
+
 
         <Text style={[styles.title, { color: '#7CC242' }]}>Terms of Service</Text>
         <ShadowBox>
@@ -105,5 +114,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 4,
     elevation: 4,
+  },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: scale(20),
+    paddingVertical: scale(10),
+    borderBottomWidth: 0.3,
   },
 });

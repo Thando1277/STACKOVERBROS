@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Switch } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Switch, Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../context/ThemeContext';
 import { collection, query, where, onSnapshot } from "firebase/firestore";
@@ -207,6 +207,7 @@ export default function SettingsScreen({ navigation }) {
             colors={colors} 
             showDivider
           />
+
           <SettingsItemPro 
             icon="logout" 
             iconBg={isDark ? '#3F1F1F' : '#F7E8E8'}
@@ -214,6 +215,21 @@ export default function SettingsScreen({ navigation }) {
             subtext="Logout from your account"
             colors={colors} 
             isDestructive
+            onPress={() => {
+              Alert.alert("Confirm Logout", "Are you sure you want to sign out?", [
+                { text: "Cancel", style: "cancel" },
+                {
+                  text: "Sign Out",
+                  style: "destructive",
+                  onPress: () => {
+                    auth
+                      .signOut()
+                      .then(() => navigation.navigate("LogIn"))
+                      .catch((error) => console.error("Logout failed:", error));
+                  },
+                },
+              ]);
+            }}
           />
         </View>
 

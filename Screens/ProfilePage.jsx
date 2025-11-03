@@ -37,6 +37,7 @@ import Animated, {
   withTiming,
   withDelay,
 } from "react-native-reanimated";
+import BottomNavigation from "../components/BottomNavigation";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -79,6 +80,8 @@ export default function ProfileScreen() {
   const stat1Scale = useSharedValue(0);
   const stat2Scale = useSharedValue(0);
   const stat3Scale = useSharedValue(0);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+
 
   const totalFound = allReports.filter((r) => r.status === "found").length;
 
@@ -90,6 +93,7 @@ export default function ProfileScreen() {
     border: isDark ? "#333" : "#E5E5E5",
     popupBg: isDark ? "#2B2B2B" : "#fff",
     chartBg: isDark ? "#2A2A2A" : "#FFFFFF",
+    primary: "#7CC242",
   };
 
   // Handle dimension changes (orientation, etc)
@@ -192,10 +196,7 @@ export default function ProfileScreen() {
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert(
-        "Permission denied",
-        "We need access to your gallery to upload an image."
-      );
+      Alert.alert("Permission denied", "We need access to your gallery to upload an image.");
       return;
     }
 
@@ -208,8 +209,10 @@ export default function ProfileScreen() {
 
     if (!result.canceled && result.assets[0].uri) {
       setSelectedImage(result.assets[0].uri);
+      setShowSaveConfirm(true); // 👈 show save popup
     }
   };
+
 
   const saveImage = async () => {
     if (!selectedImage) return;
@@ -396,11 +399,6 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             </View>
 
-            {selectedImage && (
-              <TouchableOpacity style={styles.saveBtn} onPress={saveImage}>
-                <Text style={[styles.saveTxt, { fontSize: moderateScale(12) }]}>Save Image</Text>
-              </TouchableOpacity>
-            )}
           </View>
         </View>
 
@@ -556,7 +554,7 @@ export default function ProfileScreen() {
             <Text style={[
               styles.tabText,
               { 
-                color: activeTab === "myReports" ? "#7CC242" : themeColors.sub,
+                color: activeTab === "myReports" ? "#060805ff" : themeColors.sub,
                 fontSize: moderateScale(14)
               }
             ]}>
@@ -573,7 +571,7 @@ export default function ProfileScreen() {
             <Text style={[
               styles.tabText,
               { 
-                color: activeTab === "saved" ? "#7CC242" : themeColors.sub,
+                color: activeTab === "saved" ? "#060805ff" : themeColors.sub,
                 fontSize: moderateScale(14)
               }
             ]}>
@@ -707,6 +705,42 @@ export default function ProfileScreen() {
         </TouchableWithoutFeedback>
       </Modal>
 
+      {/* Save Confirmation Popup */}
+      <Modal visible={showSaveConfirm} transparent animationType="fade">
+        <TouchableWithoutFeedback onPress={() => setShowSaveConfirm(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.popupContainer_2, { backgroundColor: themeColors.popupBg }]}>
+              <Text style={[styles.popupTitle, { color: themeColors.text, marginBottom: 10 }]}>
+                Save this image as your profile picture?
+              </Text>
+
+              <View style={{ flexDirection: "row", justifyContent: "space-around" }}>
+                <TouchableOpacity
+                  style={[styles.confirmBtn, { backgroundColor: "#7CC242" }]}
+                  onPress={() => {
+                    setShowSaveConfirm(false);
+                    saveImage();
+                  }}
+                >
+                  <Text style={{ color: "#fff", fontWeight: "600" }}>Save</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.confirmBtn, { backgroundColor: "#ccc" }]}
+                  onPress={() => {
+                    setShowSaveConfirm(false);
+                    setSelectedImage(null);
+                  }}
+                >
+                  <Text style={{ color: "#000", fontWeight: "600" }}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+
       {uploading && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color="#7CC242" />
@@ -715,59 +749,7 @@ export default function ProfileScreen() {
       )}
 
       {/* Bottom Navigation */}
-      <View style={[styles.bottomNav, { backgroundColor: themeColors.bg, borderTopColor: themeColors.border }]}>
-        <TouchableOpacity 
-          style={styles.navItem} 
-          onPress={() => navigation.navigate("Home")}
-        >
-          <Ionicons name="home-outline" size={moderateScale(24)} color={themeColors.text} />
-          <Text style={[styles.navText, { color: themeColors.text }]}>Home</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.navItem} 
-          onPress={() => navigation.navigate("Alerts")}
-        >
-          <Ionicons name="notifications-outline" size={moderateScale(24)} color={themeColors.text} />
-          <Text style={[styles.navText, { color: themeColors.text }]}>Alerts</Text>
-        </TouchableOpacity>
-        
-        <View style={styles.navItem} />
-        
-        <TouchableOpacity 
-          style={styles.navItem} 
-          onPress={() => navigation.navigate("MapScreen")}
-        >
-          <Ionicons name="map-outline" size={moderateScale(24)} color={themeColors.text} />
-          <Text style={[styles.navText, { color: themeColors.text }]}>Map</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.navItem} 
-          onPress={() => navigation.navigate("ProfilePage")}
-        >
-          <Ionicons name="person" size={moderateScale(24)} color="#7CC242" />
-          <Text style={[styles.navText, { color: "#7CC242" }]}>Profile</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Report Button */}
-      <TouchableOpacity 
-        style={[
-          styles.reportBtn,
-          { 
-            bottom: SCREEN_HEIGHT * 0.04,
-            left: (SCREEN_WIDTH / 2) - (SCREEN_WIDTH * 0.075),
-            width: SCREEN_WIDTH * 0.15,
-            height: SCREEN_WIDTH * 0.15,
-            borderRadius: SCREEN_WIDTH * 0.075,
-          }
-        ]} 
-        onPress={() => navigation.navigate("Report")}
-        activeOpacity={0.8}
-      >
-        <Ionicons name="add" size={moderateScale(30)} color="white" />
-      </TouchableOpacity>
+      <BottomNavigation navigation={navigation} currentRoute="ProfilePage"/>
     </SafeAreaView>
   );
 }
@@ -838,7 +820,7 @@ const styles = StyleSheet.create({
   logoutBtn: { 
     backgroundColor: "transparent",
     borderWidth: 1.5, 
-    borderColor: "#7CC242", 
+    borderColor: "#000000ff", 
     paddingVertical: moderateScale(8), 
     paddingHorizontal: moderateScale(16), 
     borderRadius: moderateScale(8),
@@ -1052,21 +1034,15 @@ const styles = StyleSheet.create({
   
   // Bottom Navigation
   bottomNav: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: scale(20),
-    paddingVertical: verticalScale(11),
+    paddingHorizontal: 20,
+    paddingVertical: 11,
     borderTopWidth: 1,
-    elevation: 8,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: -2 },
+    borderColor: "#ddd",
+    backgroundColor: "#fff",
+    height: 70
   },
   navItem: { 
     alignItems: "center",
@@ -1090,6 +1066,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     zIndex: 1000,
+    marginBottom: 7
   },
   
   // Loading
@@ -1114,4 +1091,22 @@ const styles = StyleSheet.create({
     justifyContent: "center", 
     alignItems: "center" 
   },
+  popupContainer_2: { 
+    borderRadius: moderateScale(16), 
+    width: scale(280),
+    padding: scale(20),
+  },
+  popupTitle: {
+  fontSize: 16,
+  fontWeight: "600",
+  textAlign: "center",
+  marginBottom: 12,
+},
+confirmBtn: {
+  paddingVertical: 10,
+  paddingHorizontal: 25,
+  borderRadius: 8,
+  marginHorizontal: 15,
+},
+
 });

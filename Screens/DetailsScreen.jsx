@@ -702,11 +702,23 @@ export default function DetailsScreen({ route }) {
 
           <View style={styles.sectionContainer}>
             <Text style={styles.sectionTitle}>Contact Information</Text>
-            <Text style={[styles.sectionText, { color: themeColors.text }]}>Name: {report.contactName || "N/A"}</Text>
-            <Text style={[styles.sectionText, { color: themeColors.text }]}>Phone: {report.contactNumber || "N/A"}</Text>
+            <Text style={[styles.sectionText, { color: themeColors.textLight }]}>Name: {report.contactName || "N/A"}</Text>
+            <Text style={[styles.sectionText, { color: themeColors.textLight }]}>Phone: {report.contactNumber || "N/A"}</Text>
+            
+            {/* ✅ UPDATED Reply Privately Button with self-message prevention */}
             <TouchableOpacity
               style={styles.replyPrivatelyBtn}
               onPress={async () => {
+                // ✅ Check if user is trying to message themselves
+                if (report.userId === auth.currentUser?.uid) {
+                  Alert.alert(
+                    "Cannot Message Yourself",
+                    "You cannot send messages to yourself on your own post.",
+                    [{ text: "OK" }]
+                  );
+                  return;
+                }
+
                 try {
                   const userDoc = await getDoc(doc(db, 'users', report.userId));
                   if (userDoc.exists()) {
@@ -714,13 +726,18 @@ export default function DetailsScreen({ route }) {
                     navigation.navigate('ChatScreen', {
                       user: {
                         id: report.userId,
-                        fullname: userData.fullname,
+                        fullname: userData.fullname || userData.fullName || 'User',
                         avatar: userData.avatar || null
-                      }
+                      },
+                      reportId: report.id,
+                      reportOwnerId: report.userId
                     });
+                  } else {
+                    Alert.alert("Error", "Could not find user information.");
                   }
                 } catch (error) {
                   console.error('Error fetching user data:', error);
+                  Alert.alert("Error", "Failed to load user information.");
                 }
               }}
             >
@@ -860,12 +877,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#7CC242",
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: 8,
-    marginTop: 10,
+    borderRadius: 10,
+    marginTop: 12,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
-  replyPrivatelyText: { color: "white", fontSize: 14, fontWeight: "600", marginLeft: 6 },
+  replyPrivatelyText: { color: "white", fontSize: 15, fontWeight: "600", marginLeft: 8 },
   aiComparisonCta: {
     flexDirection: "row",
     alignItems: "center",
@@ -1203,5 +1225,128 @@ const comparisonStyles = StyleSheet.create({
     fontStyle: 'italic',
     textAlign: 'center',
     flex: 1,
+  },
+});
+
+const uploadStyles = StyleSheet.create({
+  modalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: 'white',
+    borderRadius: 20,
+    padding: 20,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  modalTitle: { fontSize: 20, fontWeight: 'bold' },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  imagePreviewContainer: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  imagePreview: {
+    width: 200,
+    height: 200,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  changeImageBtn: {
+    padding: 8,
+  },
+  changeImageText: {
+    color: '#7CC242',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  imageSelection: {
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  sourceButtons: {
+    gap: 12,
+  },
+  sourceBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    borderRadius: 12,
+    gap: 12,
+  },
+  sourceBtnText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  descriptionContainer: {
+    marginBottom: 20,
+  },
+  textInput: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 12,
+    textAlignVertical: 'top',
+    minHeight: 80,
+  },
+  progressContainer: {
+    marginBottom: 20,
+  },
+  progressText: {
+    fontSize: 14,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  progressBar: {
+    height: 6,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  cancelBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 10,
+    borderWidth: 2,
+    alignItems: 'center',
+  },
+  cancelBtnText: {
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  uploadBtn: {
+    flex: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 10,
+    gap: 8,
+  },
+  uploadBtnText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

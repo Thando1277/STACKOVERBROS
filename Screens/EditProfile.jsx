@@ -12,13 +12,14 @@ import {
   Keyboard,
   ScrollView,
   ActivityIndicator,
+  Alert,
+  Dimensions
 } from "react-native";
 
 import {
   getAuth,
   updatePassword,
   updateEmail,
-  verifyBeforeUpdateEmail,
   reauthenticateWithCredential,
   EmailAuthProvider,
   deleteUser,
@@ -27,8 +28,10 @@ import {
 import { doc, updateDoc, setDoc, getDoc } from "firebase/firestore";
 import { db } from "../Firebase/firebaseConfig";
 import { useTheme } from "../context/ThemeContext"; // ✅ Theme context
+import { Ionicons } from "@expo/vector-icons";
 
-
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const scale = (size) => (SCREEN_WIDTH / 375) * size;
 
 export default function EditProfile({ navigation }) {
   const { isDark } = useTheme(); // ✅ theme toggle
@@ -38,7 +41,6 @@ export default function EditProfile({ navigation }) {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
@@ -105,74 +107,33 @@ export default function EditProfile({ navigation }) {
       // Update email first if provided
       if (newEmail && newEmail !== currentEmail) {
         try {
-          // Try direct email update first
           await updateEmail(user, newEmail);
-          
-          // If successful, update Firestore
+
           const userId = user.uid;
           const userDocRef = doc(db, "users", userId);
-          
+
           try {
-            await updateDoc(userDocRef, { 
+            await updateDoc(userDocRef, {
               email: newEmail,
-              updatedAt: new Date().toISOString()
+              updatedAt: new Date().toISOString(),
             });
           } catch (firestoreError) {
-            console.log('Firestore update error, trying setDoc:', firestoreError);
             const userSnapshot = await getDoc(userDocRef);
             if (!userSnapshot.exists()) {
               await setDoc(userDocRef, {
                 email: newEmail,
                 fullname: user.displayName || "No Name",
                 createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
+                updatedAt: new Date().toISOString(),
               });
             }
           }
-          
+
           setCurrentEmail(newEmail);
-          updatedItems.push('email');
+          updatedItems.push("email");
         } catch (emailError) {
-          console.log('Email update error:', emailError.code, emailError.message);
-          
-          // Handle the specific "operation-not-allowed" error
-          if (emailError.code === 'auth/operation-not-allowed') {
-            // This means Firebase requires email verification
-            // Update only in Firestore as a workaround
-            const userId = user.uid;
-            const userDocRef = doc(db, "users", userId);
-            
-            try {
-              await updateDoc(userDocRef, { 
-                pendingEmail: newEmail,
-                updatedAt: new Date().toISOString()
-              });
-              
-              setErrorMessage(
-                '⚠️ Email verification is required by your Firebase settings.\n\n' +
-                'To enable direct email updates:\n' +
-                '1. Go to Firebase Console\n' +
-                '2. Authentication → Settings → User account management\n' +
-                '3. Disable "Email enumeration protection"\n\n' +
-                (newPassword ? 'Your password has been updated successfully.' : 'Please try again after updating settings.')
-              );
-              setShowErrorModal(true);
-              
-              // Clear fields
-              setNewEmail('');
-              setCurrentPassword('');
-              setNewPassword('');
-              setConfirmPassword('');
-              
-              return; // Exit early
-            } catch (firestoreError) {
-              console.error('Firestore error:', firestoreError);
-              throw emailError; // Throw original error if Firestore also fails
-            }
-          } else {
-            // For other errors, throw them normally
-            throw emailError;
-          }
+          console.log("Email update error:", emailError);
+          throw emailError;
         }
       }
 
@@ -182,13 +143,13 @@ export default function EditProfile({ navigation }) {
         updatedItems.push("password");
       }
 
-      // Show appropriate success message
-      if (updatedItems.includes('email') && updatedItems.includes('password')) {
-        setSuccessMessage('✅ Email and password updated successfully!');
-      } else if (updatedItems.includes('email')) {
-        setSuccessMessage('✅ Email updated successfully!');
-      } else if (updatedItems.includes('password')) {
-        setSuccessMessage('✅ Password updated successfully!');
+      // Show success message
+      if (updatedItems.includes("email") && updatedItems.includes("password")) {
+        setSuccessMessage("✅ Email and password updated successfully!");
+      } else if (updatedItems.includes("email")) {
+        setSuccessMessage("✅ Email updated successfully!");
+      } else if (updatedItems.includes("password")) {
+        setSuccessMessage("✅ Password updated successfully!");
       } else {
         setSuccessMessage("✅ Profile updated successfully!");
       }
@@ -218,12 +179,6 @@ export default function EditProfile({ navigation }) {
         case "auth/requires-recent-login":
           message += "Please log out and log in again first.";
           break;
-        case 'auth/too-many-requests':
-          message += 'Too many attempts. Please try again later.';
-          break;
-        case 'auth/operation-not-allowed':
-          message += 'This operation is not allowed. Please check your Firebase settings.';
-          break;
         default:
           message += error.message || "An unexpected error occurred.";
       }
@@ -235,10 +190,8 @@ export default function EditProfile({ navigation }) {
     }
   };
 
-  const handleDeleteAccount = () => setShowDeleteModal(true);
-
-  const confirmDelete = async () => {
-    setShowDeleteModal(false);
+  // 🔹 DELETE ACCOUNT
+  const handleDeleteAccount = async () => {
     if (!currentPassword) {
       setErrorMessage("⚠️ Please enter your current password to delete your account.");
       setShowErrorModal(true);
@@ -246,53 +199,55 @@ export default function EditProfile({ navigation }) {
     }
 
     setLoading(true);
+    const credential = EmailAuthProvider.credential(user.email, currentPassword);
 
     try {
-      const credential = EmailAuthProvider.credential(user.email, currentPassword);
       await reauthenticateWithCredential(user, credential);
 
-      // Delete user document from Firestore (optional but recommended)
-      try {
-        const userId = user.uid;
-        await updateDoc(doc(db, "users", userId), { 
-          deleted: true,
-          deletedAt: new Date().toISOString()
-        });
-      } catch (firestoreError) {
-        console.log('Firestore cleanup error:', firestoreError);
-        // Continue with auth deletion even if Firestore fails
-      }
+      // Password is correct, ask for confirmation
+      Alert.alert(
+        "Confirm Delete",
+        "Are you sure you want to permanently delete your account?",
+        [
+          { text: "Cancel", style: "cancel", onPress: () => setLoading(false) },
+          {
+            text: "Yes, Delete",
+            style: "destructive",
+            onPress: async () => {
+              try {
+                const userId = user.uid;
+                await updateDoc(doc(db, "users", userId), {
+                  deleted: true,
+                  deletedAt: new Date().toISOString(),
+                });
 
-      // Delete user account from Firebase Authentication
-      await deleteUser(user);
+                await deleteUser(user);
 
-      setSuccessMessage("✅ Account deleted successfully! Redirecting...");
-      setShowSuccessModal(true);
+                setSuccessMessage("✅ Account deleted successfully! Redirecting...");
+                setShowSuccessModal(true);
 
-      setTimeout(() => {
-        navigation.reset({
-          index: 0,
-          routes: [{ name: "SignUp" }],
-        });
-      }, 2000);
+                setTimeout(() => {
+                  navigation.replace("LogIn");
+                }, 1500);
+              } catch (error) {
+                console.error("Delete error:", error);
+                setErrorMessage("❌ Failed to delete account: " + (error.message || ""));
+                setShowErrorModal(true);
+                setLoading(false);
+              }
+            },
+          },
+        ],
+        { cancelable: false }
+      );
     } catch (error) {
-      console.error('Delete error:', error);
-      let message = '❌ Failed to delete account. ';
-      
-      switch (error.code) {
-        case "auth/wrong-password":
-          message += "Current password is incorrect.";
-          break;
-        case "auth/requires-recent-login":
-          message += "Please log out and log in again.";
-          break;
-        default:
-          message += error.message;
-      }
-      setErrorMessage(message);
-      setShowErrorModal(true);
-    } finally {
       setLoading(false);
+      if (error.code === "auth/wrong-password") {
+        setErrorMessage("❌ Current password is incorrect.");
+      } else {
+        setErrorMessage("❌ Unable to verify password: " + (error.message || ""));
+      }
+      setShowErrorModal(true);
     }
   };
 
@@ -311,12 +266,18 @@ export default function EditProfile({ navigation }) {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       keyboardVerticalOffset={Platform.OS === "ios" ? 60 : 0}
     >
+
+      {/* Back Button */}
+      <View style={styles.headerRow}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="chevron-back" size={scale(28)} color="#7CC242" />
+        </TouchableOpacity>
+      </View>
+
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-        <ScrollView contentContainerStyle={[styles.container, { backgroundColor: themeColors.background }]}>
-          {/* Back Button */}
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <Text style={[styles.backButtonText, { color: "#7CC242" }]}>← Back</Text>
-          </TouchableOpacity>
+        <ScrollView
+          contentContainerStyle={[styles.container, { backgroundColor: themeColors.background }]}
+        >
 
           <View style={styles.formContainer}>
             <Text style={[styles.title, { color: themeColors.text }]}>Edit Profile</Text>
@@ -394,6 +355,27 @@ export default function EditProfile({ navigation }) {
           </View>
         </ScrollView>
       </TouchableWithoutFeedback>
+
+      {/* Success Modal */}
+      <Modal visible={showSuccessModal} transparent animationType="fade">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={{ color: "#4BB543", fontSize: 16, fontWeight: "600", textAlign: "center" }}>{successMessage}</Text>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Error Modal */}
+      <Modal visible={showErrorModal} transparent animationType="fade">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={{ color: "#e53935", fontSize: 16, fontWeight: "600", textAlign: "center" }}>{errorMessage}</Text>
+            <TouchableOpacity style={styles.modalButton} onPress={() => setShowErrorModal(false)}>
+              <Text style={{ color: "#fff", fontWeight: "600" }}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -406,7 +388,7 @@ const styles = StyleSheet.create({
   title: { fontSize: 24, fontWeight: "bold", textAlign: "center", marginBottom: 25 },
   emailContainer: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 25 },
   emailText: { fontSize: 16 },
-  sectionTitle: {fontSize: 18, fontWeight: "700", marginBottom: 15 },
+  sectionTitle: { fontSize: 18, fontWeight: "700", marginBottom: 15 },
   label: { fontSize: 16, fontWeight: "600", marginBottom: 6 },
   input: { borderWidth: 1, borderRadius: 8, padding: 12, marginBottom: 18, fontSize: 16 },
   button: { backgroundColor: "#7CC242", padding: 15, borderRadius: 8, alignItems: "center", marginTop: 10 },
@@ -414,4 +396,15 @@ const styles = StyleSheet.create({
   buttonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
   deleteButton: { marginTop: 20, borderColor: "#e53935", borderWidth: 1, borderRadius: 8, padding: 15, alignItems: "center" },
   deleteButtonText: { color: "#e53935", fontWeight: "600", fontSize: 16 },
+  modalContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0,0,0,0.4)" },
+  modalContent: { backgroundColor: "#fff", padding: 20, borderRadius: 8, width: "80%", alignItems: "center" },
+  modalButton: { marginTop: 15, backgroundColor: "#7CC242", padding: 10, borderRadius: 6, alignItems: "center", width: "100%" },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: scale(16),
+    paddingVertical: scale(10),
+    borderBottomWidth: 0.3,
+  },
 });

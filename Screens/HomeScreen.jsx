@@ -15,12 +15,13 @@ import {
   Animated,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { collection, onSnapshot, doc, updateDoc, deleteDoc, arrayUnion, arrayRemove, getDoc } from "firebase/firestore";
 import { db, auth } from "../Firebase/firebaseConfig";
 import { getAuth } from "firebase/auth";
 import { useTheme } from "../context/ThemeContext";
 import ChatIcon from '../components/ChatIcon'
+import { useCallback } from 'react';
 
 const { width, height } = Dimensions.get("window");
 
@@ -136,8 +137,8 @@ function StatusSelect({ value, onChange, isOwner, themeColors }) {
   );
 }
 
-// Filter Modal Component
-function FilterModal({ visible, onClose, themeColors, gender, setGender, ageGroup, setAgeGroup }) {
+// Filter Modal Component - Updated with Sort Options
+function FilterModal({ visible, onClose, themeColors, gender, setGender, ageGroup, setAgeGroup, sortBy, setSortBy }) {
   if (!visible) return null;
 
   const genderOptions = [
@@ -154,16 +155,55 @@ function FilterModal({ visible, onClose, themeColors, gender, setGender, ageGrou
     { label: "40+ (Senior)", value: "senior" }
   ];
 
+  const sortOptions = [
+    { label: "Alphabetical (A-Z)", value: "alphabetical" },
+    { label: "Latest Reports", value: "latest" }
+  ];
+
   const clearAllFilters = () => {
     setGender("");
     setAgeGroup("");
+    setSortBy("alphabetical"); // Reset to default alphabetical sorting
   };
 
   return (
     <View style={styles.filterModalCover}>
       <Pressable style={styles.filterBackdrop} onPress={onClose} />
       <View style={[styles.filterModalSheet, { backgroundColor: themeColors.modalBg }]}>
-        <Text style={[styles.filterModalTitle, { color: themeColors.text }]}>Filters</Text>
+        <Text style={[styles.filterModalTitle, { color: themeColors.text }]}>Filters & Sort</Text>
+        
+        {/* Sort Section */}
+        <View style={styles.filterSection}>
+          <Text style={[styles.filterSectionTitle, { color: themeColors.text }]}>Sort By</Text>
+          <View style={styles.filterOptions}>
+            {sortOptions.map((opt) => (
+              <TouchableOpacity
+                key={opt.value}
+                style={[
+                  styles.filterOptionBtn,
+                  { 
+                    backgroundColor: sortBy === opt.value ? themeColors.primary : themeColors.filterBg,
+                    borderColor: themeColors.border
+                  }
+                ]}
+                onPress={() => setSortBy(opt.value)}
+              >
+                <Ionicons 
+                  name={opt.value === "alphabetical" ? "text" : "time"} 
+                  size={16} 
+                  color={sortBy === opt.value ? "#fff" : themeColors.text}
+                  style={{ marginRight: 6 }}
+                />
+                <Text style={[
+                  styles.filterOptionText, 
+                  { color: sortBy === opt.value ? "#fff" : themeColors.text }
+                ]}>
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
         
         <View style={styles.filterSection}>
           <Text style={[styles.filterSectionTitle, { color: themeColors.text }]}>Gender</Text>
@@ -248,6 +288,7 @@ export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [savedReports, setSavedReports] = useState([]);
+  const [sortBy, setSortBy] = useState("alphabetical"); // New state for sorting
 
   // Animation values
   const filterSectionHeight = useRef(new Animated.Value(1)).current;
@@ -266,6 +307,17 @@ export default function HomeScreen() {
     primary: "#7CC242",
     cardBg: isDark ? "#2A2A2A" : "#fff",
   };
+
+  // Reset to Person category when returning from other screens
+  useFocusEffect(
+    useCallback(() => {
+      // Reset to "Person" category and "search" tab when returning from Panic or other screens
+      if (selectedCategory !== "Person" && selectedCategory !== "Pet" && selectedCategory !== "Wanted") {
+        setSelectedCategory("Person");
+        setActiveTab("search");
+      }
+    }, [selectedCategory])
+  );
 
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, "reports"), (snapshot) => {
@@ -387,8 +439,9 @@ export default function HomeScreen() {
     scrollY.current = currentScrollY;
   };
 
+  // Updated filtered function with sorting
   const filtered = useMemo(() => {
-    return reports.filter((r) => {
+    let filteredReports = reports.filter((r) => {
       if (!r) return false;
       if (selectedCategory !== r.type) return false;
       if (activeTab === "search" && r.status !== "search") return false;
@@ -412,7 +465,24 @@ export default function HomeScreen() {
       ) return false;
       return true;
     });
-  }, [reports, selectedCategory, activeTab, gender, ageGroup, searchQuery]);
+
+    // Apply sorting
+    if (sortBy === "alphabetical") {
+      filteredReports.sort((a, b) => {
+        const nameA = String(a.fullName).toLowerCase();
+        const nameB = String(b.fullName).toLowerCase();
+        return nameA.localeCompare(nameB);
+      });
+    } else if (sortBy === "latest") {
+      filteredReports.sort((a, b) => {
+        const dateA = a.createdAt?.seconds ? a.createdAt.toDate() : new Date(a.createdAt);
+        const dateB = b.createdAt?.seconds ? b.createdAt.toDate() : new Date(b.createdAt);
+        return dateB.getTime() - dateA.getTime(); // Most recent first
+      });
+    }
+
+    return filteredReports;
+  }, [reports, selectedCategory, activeTab, gender, ageGroup, searchQuery, sortBy]);
 
   const imgFor = (r) => (r?.photo ? { uri: r.photo } : require("../assets/dude.webp"));
 
@@ -561,13 +631,13 @@ export default function HomeScreen() {
           
           <TouchableOpacity
             onPress={() => {
-              setSelectedCategory("Panic");
+              // Don't change selectedCategory - just navigate to Panic
               navigation.navigate("Panic");
             }}
             style={[
               styles.category, 
               { 
-                backgroundColor: selectedCategory === "Panic" ? "#FFB300" : "transparent",
+                backgroundColor: "transparent", // Always keep it unselected
                 borderColor: themeColors.border
               }
             ]}
@@ -575,28 +645,32 @@ export default function HomeScreen() {
             <Ionicons 
               name="warning-outline" 
               size={28} 
-              color={selectedCategory === "Panic" ? "white" : "#FFB300"} 
+              color="#FFB300"
             />
             <Text style={[
               styles.catText, 
-              { color: selectedCategory === "Panic" ? "white" : "#FFB300" }
+              { color: "#FFB300" }
             ]}>
               Panic
             </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Filters Button */}
+        {/* Filters Button - Updated to show sort indicator */}
         <View style={styles.filtersContainer}>
           <TouchableOpacity 
             style={[styles.filtersButton, { backgroundColor: themeColors.primary }]}
             onPress={() => setShowFilterModal(true)}
           >
             <Ionicons name="filter" size={14} color="white" />
-            <Text style={styles.filtersButtonText}>Filters</Text>
-            {(gender || ageGroup) && (
+            <Text style={styles.filtersButtonText}>
+              Filters {sortBy === "latest" ? "• Latest" : "• A-Z"}
+            </Text>
+            {(gender || ageGroup || sortBy !== "alphabetical") && (
               <View style={styles.filterBadge}>
-                <Text style={styles.filterBadgeText}>{(gender ? 1 : 0) + (ageGroup ? 1 : 0)}</Text>
+                <Text style={styles.filterBadgeText}>
+                  {(gender ? 1 : 0) + (ageGroup ? 1 : 0) + (sortBy !== "alphabetical" ? 1 : 0)}
+                </Text>
               </View>
             )}
           </TouchableOpacity>
@@ -669,7 +743,7 @@ export default function HomeScreen() {
         )}
       </ScrollView>
 
-      {/* Filter Modal */}
+      {/* Filter Modal - Updated with sort options */}
       <FilterModal 
         visible={showFilterModal}
         onClose={() => setShowFilterModal(false)}
@@ -678,25 +752,27 @@ export default function HomeScreen() {
         setGender={setGender}
         ageGroup={ageGroup}
         setAgeGroup={setAgeGroup}
+        sortBy={sortBy}
+        setSortBy={setSortBy}
       />
 
       {/* Bottom Navigation - Fixed */}
       <View style={[styles.bottomNav, { backgroundColor: themeColors.bg }]}>
         <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate("Home")}>
-          <Ionicons name="home-outline" size={24} color={themeColors.primary} />
+          <Ionicons name="home-outline" size={26} color={themeColors.primary} />
           <Text style={[styles.navText, { color: themeColors.primary }]}>Home</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate("Alerts")}>
-          <Ionicons name="notifications-outline" size={24} color={themeColors.text} />
+          <Ionicons name="notifications-outline" size={26} color={themeColors.text} />
           <Text style={[styles.navText, { color: themeColors.text }]}>Alerts</Text>
         </TouchableOpacity>
         <View style={styles.navItem} />
         <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate("MapScreen")}>
-          <Ionicons name="map-outline" size={24} color={themeColors.text} />
+          <Ionicons name="map-outline" size={26} color={themeColors.text} />
           <Text style={[styles.navText, { color: themeColors.text }]}>Map</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate("ProfilePage")}>
-          <Ionicons name="person-outline" size={24} color={themeColors.text} />
+          <Ionicons name="person-outline" size={26} color={themeColors.text} />
           <Text style={[styles.navText, { color: themeColors.text }]}>Profile</Text>
         </TouchableOpacity>
       </View>
@@ -855,12 +931,14 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   filterOptionBtn: {
+    flexDirection: "row",
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
     borderWidth: 1,
     minWidth: 80,
     alignItems: "center",
+    justifyContent: "center",
   },
   filterOptionText: {
     fontSize: 14,

@@ -6,6 +6,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   Image,
+  Dimensions,
+  TextInput,
+  StatusBar,
+  SafeAreaView,
 } from "react-native";
 import { useData } from "../context/DataContext";
 import { useNavigation } from "@react-navigation/native";
@@ -13,13 +17,18 @@ import { Ionicons } from "@expo/vector-icons";
 import { useTheme } from "../context/ThemeContext";
 import { auth, db } from "../Firebase/firebaseConfig";
 import { doc, getDoc } from "firebase/firestore";
+import BottomNavigation from "../components/BottomNavigation";
 
-export default function Alerts() {
+const { width, height } = Dimensions.get("window");
+const isSmallDevice = width < 375;
+
+export default function Alerts({ navigation }) {
   const { reports } = useData();
   const nav = useNavigation();
   const { isDark } = useTheme();
   const [filter, setFilter] = useState("All");
   const [userInfo, setUserInfo] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Fetch logged-in user's data
   useEffect(() => {
@@ -43,9 +52,10 @@ export default function Alerts() {
     text: isDark ? "#fff" : "#222",
     textSecondary: isDark ? "#aaa" : "#777",
     accent: "#7CC242",
+    searchBg: isDark ? "#2A2A2A" : "#f0f0f0",
   };
 
-  // Filter + sort alerts
+  // Filter + sort + search alerts
   const alerts = useMemo(() => {
     const filtered = reports.filter(
       (r) => r.type === "Panic" || r.type === "Wanted"
@@ -53,15 +63,41 @@ export default function Alerts() {
     const sorted = filtered.sort(
       (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
     );
-    if (filter === "All") return sorted;
-    return sorted.filter((r) => r.type === filter);
-  }, [reports, filter]);
+    
+    let result = filter === "All" ? sorted : sorted.filter((r) => r.type === filter);
+    
+    // Apply comprehensive search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(r => {
+        const isAnonymous = r.type === "Panic" && r.reporter && r.reporter.toLowerCase() === "anonymous";
+        const displayName = isAnonymous ? "Anonymous" : (r.fullName || r.reporter || "").toLowerCase();
+        const location = (r.location || "").toLowerCase();
+        const description = (r.description || "").toLowerCase();
+        const crime = (r.crimeWantedFor || "").toLowerCase();
+        const armedWith = (r.armedWith || "").toLowerCase();
+        const reward = (r.rewardOffered || "").toLowerCase();
+        const type = (r.type || "").toLowerCase();
+        
+        return displayName.includes(query) || 
+               location.includes(query) || 
+               description.includes(query) || 
+               crime.includes(query) ||
+               armedWith.includes(query) ||
+               reward.includes(query) ||
+               type.includes(query);
+      });
+    }
+    
+    return result;
+  }, [reports, filter, searchQuery]);
 
   const typeColor = (t) => {
     if (t === "Wanted") return "#3498db";
     if (t === "Panic") return "#e74c3c";
     return "#7f8c8d";
   };
+  
   const typeIcon = (t) => {
     if (t === "Wanted") return "alert-circle-outline";
     if (t === "Panic") return "warning-outline";
@@ -97,15 +133,15 @@ export default function Alerts() {
         <View style={styles.cardBody}>
           {/* Top row */}
           <View style={styles.topRow}>
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <View style={styles.userInfo}>
               <Image source={{ uri: avatarUri }} style={styles.avatar} />
-              <View style={{ marginLeft: 10 }}>
-                <View style={{ flexDirection: "row", alignItems: "center" }}>
+              <View style={styles.userDetails}>
+                <View style={styles.nameRow}>
                   <Ionicons
                     name={typeIcon(item.type)}
-                    size={16}
+                    size={isSmallDevice ? 14 : 16}
                     color={color}
-                    style={{ marginRight: 4 }}
+                    style={styles.typeIcon}
                   />
                   <Text
                     style={[styles.reporter, { color: colors.text }]}
@@ -115,27 +151,36 @@ export default function Alerts() {
                   </Text>
                 </View>
                 <Text style={[styles.meta, { color: colors.textSecondary }]}>
-                  {item.location || "Unknown location"}
+                  <Ionicons name="location-outline" size={12} color={colors.textSecondary} />
+                  {" "}{item.location || "Unknown location"}
                 </Text>
               </View>
             </View>
             <Text style={[styles.timeText, { color: colors.textSecondary }]}>
-              {new Date(item.createdAt).toLocaleString()}
+              {new Date(item.createdAt).toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
             </Text>
           </View>
 
           {/* Details */}
-          <View style={{ marginTop: 8 }}>
+          <View style={styles.detailsContainer}>
             {isWanted ? (
               <>
                 <Text style={[styles.detail, { color: colors.text }]}>
-                  Crime: {item.crimeWantedFor || "Unknown"}
+                  <Text style={styles.detailLabel}>Crime: </Text>
+                  {item.crimeWantedFor || "Unknown"}
                 </Text>
                 <Text style={[styles.detail, { color: colors.text }]}>
-                  Armed With: {item.armedWith || "Unknown"}
+                  <Text style={styles.detailLabel}>Armed With: </Text>
+                  {item.armedWith || "Unknown"}
                 </Text>
                 <Text style={[styles.detail, { color: colors.text }]}>
-                  Reward: {item.rewardOffered || "None"}
+                  <Text style={styles.detailLabel}>Reward: </Text>
+                  {item.rewardOffered || "None"}
                 </Text>
               </>
             ) : (
@@ -156,15 +201,15 @@ export default function Alerts() {
               </Text>
             </View>
             <TouchableOpacity
-              style={{ flexDirection: "row", alignItems: "center" }}
+              style={styles.commentsBtn}
               onPress={() => nav.navigate("Comments", { reportId: item.id })}
             >
               <Ionicons
                 name="chatbubble-ellipses-outline"
-                size={18}
-                color="#777"
+                size={isSmallDevice ? 16 : 18}
+                color={colors.textSecondary}
               />
-              <Text style={{ marginLeft: 6, color: "#777" }}>
+              <Text style={[styles.commentsText, { color: colors.textSecondary }]}>
                 {(item.comments || []).length}
               </Text>
             </TouchableOpacity>
@@ -189,6 +234,7 @@ export default function Alerts() {
         style={{
           color: filter === label ? "#fff" : colors.text,
           fontWeight: "600",
+          fontSize: isSmallDevice ? 12 : 14,
         }}
       >
         {label}
@@ -197,9 +243,40 @@ export default function Alerts() {
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>Alerts Feed</Text>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
+      
+      {/* Header with back button */}
+      <View style={styles.headerContainer}>
+        <View style={styles.topBar}>
+          <TouchableOpacity 
+            style={styles.backBtn}
+            onPress={() => navigation.goBack()}
+          >
+            <Ionicons name="arrow-back" size={24} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={[styles.title, { color: colors.text }]}>Alerts Feed</Text>
+          <View style={styles.placeholder} />
+        </View>
+
+        {/* Search bar */}
+        <View style={[styles.searchContainer, { backgroundColor: colors.searchBg }]}>
+          <Ionicons name="search" size={20} color={colors.textSecondary} />
+          <TextInput
+            style={[styles.searchInput, { color: colors.text }]}
+            placeholder="Search by name, location, crime..."
+            placeholderTextColor={colors.textSecondary}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery("")}>
+              <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Filter buttons */}
         <View style={styles.filterRow}>
           <FilterButton label="All" />
           <FilterButton label="Panic" />
@@ -209,67 +286,207 @@ export default function Alerts() {
 
       {alerts.length === 0 ? (
         <View style={styles.empty}>
-          <Text style={{ color: colors.textSecondary }}>No alerts yet.</Text>
+          <Ionicons 
+            name={searchQuery ? "search" : "notifications-off-outline"} 
+            size={64} 
+            color={colors.textSecondary} 
+          />
+          <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+            {searchQuery ? "No alerts match your search" : "No alerts yet"}
+          </Text>
+          {searchQuery && (
+            <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
+              Try searching by name, location, or crime type
+            </Text>
+          )}
         </View>
       ) : (
         <FlatList
           data={alerts}
           keyExtractor={(i) => i.id}
           renderItem={renderItem}
-          contentContainerStyle={{ paddingBottom: 80 }}
+          contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
         />
       )}
-    </View>
+
+      {/* Use the BottomNavigation component */}
+      <BottomNavigation navigation={navigation} currentRoute="Alerts" />
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 12 },
-  header: { marginTop: 25 },
-  title: { fontSize: 20, fontWeight: "900", marginBottom: 10 },
-  filterRow: { flexDirection: "row", gap: 10, marginBottom: 12 },
+  container: { 
+    flex: 1,
+  },
+  headerContainer: {
+    paddingHorizontal: width * 0.04,
+    paddingTop: 8,
+    paddingBottom: 12,
+  },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  placeholder: {
+    width: 40,
+  },
+  title: { 
+    fontSize: isSmallDevice ? 20 : 24, 
+    fontWeight: "900",
+    flex: 1,
+    textAlign: 'center',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  searchInput: {
+    flex: 1,
+    marginLeft: 10,
+    fontSize: 16,
+  },
+  filterRow: { 
+    flexDirection: "row", 
+    gap: 10,
+  },
   filterBtn: {
-    borderWidth: 1.2,
-    paddingVertical: 5,
-    paddingHorizontal: 12,
+    borderWidth: 1.5,
+    paddingVertical: 8,
+    paddingHorizontal: isSmallDevice ? 14 : 18,
     borderRadius: 20,
   },
   card: {
     flexDirection: "row",
-    borderRadius: 12,
-    marginBottom: 12,
-    elevation: 2,
+    borderRadius: 16,
+    marginBottom: 14,
+    marginHorizontal: width * 0.04,
+    elevation: 3,
     shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 },
     overflow: "hidden",
   },
-  leftStripe: { width: 8 },
-  cardBody: { flex: 1, padding: 12 },
+  leftStripe: { width: 6 },
+  cardBody: { 
+    flex: 1, 
+    padding: isSmallDevice ? 12 : 16,
+  },
   topRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
   },
-  avatar: { width: 48, height: 48, borderRadius: 8 },
-  reporter: { fontWeight: "800", fontSize: 15 },
-  meta: { fontSize: 12, marginTop: 2 },
-  timeText: { fontSize: 11 },
-  snippet: { marginTop: 10 },
-  detail: { fontSize: 13, marginTop: 2 },
-  bottomRow: {
+  userInfo: {
+    flexDirection: 'row',
+    flex: 1,
+    marginRight: 8,
+  },
+  avatar: { 
+    width: isSmallDevice ? 44 : 52, 
+    height: isSmallDevice ? 44 : 52, 
+    borderRadius: 10,
+  },
+  userDetails: {
+    marginLeft: 12,
+    flex: 1,
+    justifyContent: 'center',
+  },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  typeIcon: {
+    marginRight: 6,
+  },
+  reporter: { 
+    fontWeight: "800", 
+    fontSize: isSmallDevice ? 14 : 16,
+    flex: 1,
+  },
+  meta: { 
+    fontSize: isSmallDevice ? 11 : 12, 
+    marginTop: 4,
+  },
+  timeText: { 
+    fontSize: isSmallDevice ? 10 : 11,
+    textAlign: 'right',
+  },
+  detailsContainer: {
     marginTop: 12,
+  },
+  snippet: { 
+    fontSize: isSmallDevice ? 13 : 14,
+    lineHeight: 20,
+  },
+  detail: { 
+    fontSize: isSmallDevice ? 12 : 13, 
+    marginTop: 4,
+    lineHeight: 18,
+  },
+  detailLabel: {
+    fontWeight: '700',
+  },
+  bottomRow: {
+    marginTop: 16,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-  badge: { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 20 },
-  badgeText: { color: "#fff", fontWeight: "800", fontSize: 11 },
+  badge: { 
+    paddingVertical: 6, 
+    paddingHorizontal: 12, 
+    borderRadius: 20,
+  },
+  badgeText: { 
+    color: "#fff", 
+    fontWeight: "800", 
+    fontSize: isSmallDevice ? 10 : 11,
+    letterSpacing: 0.5,
+  },
+  commentsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 4,
+  },
+  commentsText: {
+    marginLeft: 6,
+    fontSize: isSmallDevice ? 12 : 14,
+    fontWeight: '600',
+  },
+  listContent: {
+    paddingBottom: 100,
+    paddingTop: 8,
+  },
   empty: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 40,
+    paddingHorizontal: 40,
+  },
+  emptyText: {
+    fontSize: 16,
+    marginTop: 16,
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  emptySubtext: {
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: 'center',
   },
 });

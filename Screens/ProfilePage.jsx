@@ -397,11 +397,6 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             </View>
 
-            {selectedImage && (
-              <TouchableOpacity style={styles.saveBtn} onPress={saveImage}>
-                <Text style={[styles.saveTxt, { fontSize: moderateScale(12) }]}>Save Image</Text>
-              </TouchableOpacity>
-            )}
           </View>
         </View>
 
@@ -712,7 +707,7 @@ export default function ProfileScreen() {
       <Modal visible={showSaveConfirm} transparent animationType="fade">
         <TouchableWithoutFeedback onPress={() => setShowSaveConfirm(false)}>
           <View style={styles.modalOverlay}>
-            <View style={[styles.popupContainer, { backgroundColor: themeColors.popupBg }]}>
+            <View style={[styles.popupContainer_2, { backgroundColor: themeColors.popupBg }]}>
               <Text style={[styles.popupTitle, { color: themeColors.text, marginBottom: 10 }]}>
                 Save this image as your profile picture?
               </Text>
@@ -1150,6 +1145,11 @@ const styles = StyleSheet.create({
     flex: 1, 
     justifyContent: "center", 
     alignItems: "center" 
+  },
+  popupContainer_2: { 
+    borderRadius: moderateScale(16), 
+    width: scale(280),
+    padding: scale(20),
   },
   popupTitle: {
   fontSize: 16,

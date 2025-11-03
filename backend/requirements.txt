@@ -1,0 +1,10 @@
+flask
+flask-cors
+opencv-python
+scikit-image
+scikit-learn
+pillow
+numpy<2.0.0
+cmake
+dlib
+face-recognition

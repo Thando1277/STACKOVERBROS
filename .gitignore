@@ -35,3 +35,17 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+# Python Backend
+backend/venv/
+backend/__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/

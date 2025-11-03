@@ -1,9 +1,13 @@
 import React, { useState } from "react";
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal } from "react-native";
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal, Dimensions } from "react-native";
 import { useTheme } from "../context/ThemeContext";
+import { Ionicons } from "@expo/vector-icons";
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const scale = (size) => (SCREEN_WIDTH / 375) * size;
 
 export default function FAQScreen({ navigation }) {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
   const [selectedAnswer, setSelectedAnswer] = useState("");
   const [modalVisible, setModalVisible] = useState(false);
 
@@ -22,12 +26,16 @@ export default function FAQScreen({ navigation }) {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-        <Text style={[styles.backButtonText, { color: "#7CC242" }]}>← Back</Text>
-      </TouchableOpacity>
+
+      <View style={styles.headerRow}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <Ionicons name="chevron-back" size={scale(28)} color="#7CC242" />
+        </TouchableOpacity>
+        <Text style={[styles.title, { color: isDark ? "#E0E0E0" : "#1A1A1A" }]}>FAQ / Help Center</Text>
+        <View style={{ width: scale(28) }} /> {/* Placeholder to center title */}
+      </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={[styles.title, { color: colors.text }]}>FAQ / Help Center</Text>
 
         {faqs.map((faq, index) => (
           <TouchableOpacity key={index} style={[styles.item, { backgroundColor: colors.card }]} onPress={() => handlePress(faq.answer)}>
@@ -57,7 +65,6 @@ const styles = StyleSheet.create({
   backButton: { padding: 15, position: "absolute", top: 50, left: 15, zIndex: 10 },
   backButtonText: { fontSize: 16, fontWeight: "600" },
   scroll: { padding: 20, paddingTop: 100 },
-  title: { fontSize: 22, fontWeight: "bold", marginBottom: 20 },
   item: { marginBottom: 15, padding: 12, borderRadius: 8 },
   question: { fontSize: 16, fontWeight: "600" },
   answer: { fontSize: 15, marginTop: 4 },
@@ -67,4 +74,15 @@ const styles = StyleSheet.create({
   modalText: { fontSize: 16, textAlign: "center", marginBottom: 20 },
   modalButton: { paddingVertical: 10, paddingHorizontal: 25, borderRadius: 8 },
   modalButtonText: { fontSize: 16, fontWeight: "600" },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: scale(20),
+    paddingVertical: scale(25),
+    borderBottomWidth: 1,
+    borderBottomColor: "#E0E0E0",
+  },
+  backBtn: { padding: scale(6) },
+  title: { fontWeight: "700", fontSize: scale(22), textAlign: "center" },
 });

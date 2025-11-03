@@ -15,12 +15,13 @@ import {
   Animated,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { collection, onSnapshot, doc, updateDoc, deleteDoc, arrayUnion, arrayRemove, getDoc } from "firebase/firestore";
 import { db, auth } from "../Firebase/firebaseConfig";
 import { getAuth } from "firebase/auth";
 import { useTheme } from "../context/ThemeContext";
 import ChatIcon from '../components/ChatIcon'
+import { useCallback } from 'react';
 
 const { width, height } = Dimensions.get("window");
 
@@ -85,22 +86,39 @@ function Select({ label, value, onSelect, options, themeColors }) {
   );
 }
 
-function StatusSelect({ value, onChange, isOwner, themeColors }) {
+// Updated StatusSelect to handle Wanted reports differently
+function StatusSelect({ value, onChange, isOwner, themeColors, reportType }) {
   if (!isOwner) {
+    // Show appropriate text based on report type
+    let displayText;
+    if (reportType === "Wanted") {
+      displayText = value === "search" ? "Wanted" : value === "found" ? "Captured" : value;
+    } else {
+      displayText = value === "search" ? "Missing" : value === "found" ? "Found" : value;
+    }
+
     return (
       <Text style={{ fontWeight: "bold", color: value === "search" ? "red" : "#7CC242" }}>
-        {value === "search" ? "Missing" : value === "found" ? "Found" : value}
+        {displayText}
       </Text>
     );
   }
 
   const [open, setOpen] = useState(false);
-  const options = [
+  
+  // Different options based on report type
+  const options = reportType === "Wanted" ? [
+    { label: "Wanted", value: "search" },
+    { label: "Captured", value: "found" },
+    { label: "Delete", value: "delete" },
+  ] : [
     { label: "Missing", value: "search" },
     { label: "Found", value: "found" },
     { label: "Delete", value: "delete" },
   ];
-  const currentLabel = options.find((o) => o.value === value)?.label || "Missing";
+
+  const currentLabel = options.find((o) => o.value === value)?.label || 
+    (reportType === "Wanted" ? "Wanted" : "Missing");
 
   return (
     <View style={{ marginTop: 4, width: 100 }}>
@@ -136,8 +154,8 @@ function StatusSelect({ value, onChange, isOwner, themeColors }) {
   );
 }
 
-// Filter Modal Component
-function FilterModal({ visible, onClose, themeColors, gender, setGender, ageGroup, setAgeGroup }) {
+// Filter Modal Component - Updated with Sort Options
+function FilterModal({ visible, onClose, themeColors, gender, setGender, ageGroup, setAgeGroup, sortBy, setSortBy }) {
   if (!visible) return null;
 
   const genderOptions = [
@@ -154,16 +172,55 @@ function FilterModal({ visible, onClose, themeColors, gender, setGender, ageGrou
     { label: "40+ (Senior)", value: "senior" }
   ];
 
+  const sortOptions = [
+    { label: "Alphabetical (A-Z)", value: "alphabetical" },
+    { label: "Latest Reports", value: "latest" }
+  ];
+
   const clearAllFilters = () => {
     setGender("");
     setAgeGroup("");
+    setSortBy("alphabetical"); // Reset to default alphabetical sorting
   };
 
   return (
     <View style={styles.filterModalCover}>
       <Pressable style={styles.filterBackdrop} onPress={onClose} />
       <View style={[styles.filterModalSheet, { backgroundColor: themeColors.modalBg }]}>
-        <Text style={[styles.filterModalTitle, { color: themeColors.text }]}>Filters</Text>
+        <Text style={[styles.filterModalTitle, { color: themeColors.text }]}>Filters & Sort</Text>
+        
+        {/* Sort Section */}
+        <View style={styles.filterSection}>
+          <Text style={[styles.filterSectionTitle, { color: themeColors.text }]}>Sort By</Text>
+          <View style={styles.filterOptions}>
+            {sortOptions.map((opt) => (
+              <TouchableOpacity
+                key={opt.value}
+                style={[
+                  styles.filterOptionBtn,
+                  { 
+                    backgroundColor: sortBy === opt.value ? themeColors.primary : themeColors.filterBg,
+                    borderColor: themeColors.border
+                  }
+                ]}
+                onPress={() => setSortBy(opt.value)}
+              >
+                <Ionicons 
+                  name={opt.value === "alphabetical" ? "text" : "time"} 
+                  size={16} 
+                  color={sortBy === opt.value ? "#fff" : themeColors.text}
+                  style={{ marginRight: 6 }}
+                />
+                <Text style={[
+                  styles.filterOptionText, 
+                  { color: sortBy === opt.value ? "#fff" : themeColors.text }
+                ]}>
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
         
         <View style={styles.filterSection}>
           <Text style={[styles.filterSectionTitle, { color: themeColors.text }]}>Gender</Text>
@@ -248,6 +305,7 @@ export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [savedReports, setSavedReports] = useState([]);
+  const [sortBy, setSortBy] = useState("alphabetical"); // New state for sorting
 
   // Animation values
   const filterSectionHeight = useRef(new Animated.Value(1)).current;
@@ -266,6 +324,17 @@ export default function HomeScreen() {
     primary: "#7CC242",
     cardBg: isDark ? "#2A2A2A" : "#fff",
   };
+
+  // Reset to Person category when returning from other screens
+  useFocusEffect(
+    useCallback(() => {
+      // Reset to "Person" category and "search" tab when returning from Panic or other screens
+      if (selectedCategory !== "Person" && selectedCategory !== "Pet" && selectedCategory !== "Wanted") {
+        setSelectedCategory("Person");
+        setActiveTab("search");
+      }
+    }, [selectedCategory])
+  );
 
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, "reports"), (snapshot) => {
@@ -387,8 +456,9 @@ export default function HomeScreen() {
     scrollY.current = currentScrollY;
   };
 
+  // Updated filtered function with sorting
   const filtered = useMemo(() => {
-    return reports.filter((r) => {
+    let filteredReports = reports.filter((r) => {
       if (!r) return false;
       if (selectedCategory !== r.type) return false;
       if (activeTab === "search" && r.status !== "search") return false;
@@ -412,7 +482,24 @@ export default function HomeScreen() {
       ) return false;
       return true;
     });
-  }, [reports, selectedCategory, activeTab, gender, ageGroup, searchQuery]);
+
+    // Apply sorting
+    if (sortBy === "alphabetical") {
+      filteredReports.sort((a, b) => {
+        const nameA = String(a.fullName).toLowerCase();
+        const nameB = String(b.fullName).toLowerCase();
+        return nameA.localeCompare(nameB);
+      });
+    } else if (sortBy === "latest") {
+      filteredReports.sort((a, b) => {
+        const dateA = a.createdAt?.seconds ? a.createdAt.toDate() : new Date(a.createdAt);
+        const dateB = b.createdAt?.seconds ? b.createdAt.toDate() : new Date(b.createdAt);
+        return dateB.getTime() - dateA.getTime(); // Most recent first
+      });
+    }
+
+    return filteredReports;
+  }, [reports, selectedCategory, activeTab, gender, ageGroup, searchQuery, sortBy]);
 
   const imgFor = (r) => (r?.photo ? { uri: r.photo } : require("../assets/dude.webp"));
 
@@ -561,13 +648,13 @@ export default function HomeScreen() {
           
           <TouchableOpacity
             onPress={() => {
-              setSelectedCategory("Panic");
+              // Don't change selectedCategory - just navigate to Panic
               navigation.navigate("Panic");
             }}
             style={[
               styles.category, 
               { 
-                backgroundColor: selectedCategory === "Panic" ? "#FFB300" : "transparent",
+                backgroundColor: "transparent", // Always keep it unselected
                 borderColor: themeColors.border
               }
             ]}
@@ -575,28 +662,32 @@ export default function HomeScreen() {
             <Ionicons 
               name="warning-outline" 
               size={28} 
-              color={selectedCategory === "Panic" ? "white" : "#FFB300"} 
+              color="#FFB300"
             />
             <Text style={[
               styles.catText, 
-              { color: selectedCategory === "Panic" ? "white" : "#FFB300" }
+              { color: "#FFB300" }
             ]}>
               Panic
             </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Filters Button */}
+        {/* Filters Button - Updated to show sort indicator */}
         <View style={styles.filtersContainer}>
           <TouchableOpacity 
             style={[styles.filtersButton, { backgroundColor: themeColors.primary }]}
             onPress={() => setShowFilterModal(true)}
           >
             <Ionicons name="filter" size={14} color="white" />
-            <Text style={styles.filtersButtonText}>Filters</Text>
-            {(gender || ageGroup) && (
+            <Text style={styles.filtersButtonText}>
+              Filters {sortBy === "latest" ? "• Latest" : "• A-Z"}
+            </Text>
+            {(gender || ageGroup || sortBy !== "alphabetical") && (
               <View style={styles.filterBadge}>
-                <Text style={styles.filterBadgeText}>{(gender ? 1 : 0) + (ageGroup ? 1 : 0)}</Text>
+                <Text style={styles.filterBadgeText}>
+                  {(gender ? 1 : 0) + (ageGroup ? 1 : 0) + (sortBy !== "alphabetical" ? 1 : 0)}
+                </Text>
               </View>
             )}
           </TouchableOpacity>
@@ -616,17 +707,29 @@ export default function HomeScreen() {
         ) : (
           filtered.filter(r => r).map((r) => {
             const isSaved = savedReports.includes(r.id);
+            const isWantedReport = r.type === "Wanted";
             
             return (
-              <View key={r.id} style={[styles.card, { backgroundColor: themeColors.cardBg }]}>
-                <Image source={imgFor(r)} style={styles.avatar} />
-                <View style={{ flex: 1 }}>
+              <View 
+                key={r.id} 
+                style={[
+                  isWantedReport ? styles.wantedCard : styles.card, 
+                  { backgroundColor: themeColors.cardBg }
+                ]}
+              >
+                <Image 
+                  source={imgFor(r)} 
+                  style={isWantedReport ? styles.wantedAvatar : styles.avatar} 
+                />
+                <View style={styles.cardContent}>
                   <View style={styles.cardHeader}>
-                    <Text style={[styles.name, { color: themeColors.text }]}>{String(r.fullName)}</Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={[styles.name, { color: themeColors.text }]} numberOfLines={2}>
+                      {String(r.fullName)}
+                    </Text>
+                    <View style={styles.cardHeaderRight}>
                       <TouchableOpacity 
                         onPress={() => handleSaveReport(r.id)}
-                        style={{ marginRight: 10, padding: 4 }}
+                        style={styles.bookmarkBtn}
                       >
                         <Ionicons 
                           name={isSaved ? "bookmark" : "bookmark-outline"} 
@@ -638,30 +741,38 @@ export default function HomeScreen() {
                         value={r.status} 
                         onChange={(status) => handleStatusChange(r, status)} 
                         isOwner={r.userId === auth.currentUser?.uid} 
-                        themeColors={themeColors} 
+                        themeColors={themeColors}
+                        reportType={r.type}
                       />
                     </View>
                   </View>
-                  <Text style={[styles.details, { color: themeColors.text }]}>{String(r.age)} • {String(r.gender)}</Text>
-                  <Text style={[styles.details, { color: themeColors.text }]}>{String(r.lastSeenLocation)}</Text>
+                  
+                  <View style={styles.detailsSection}>
+                    <Text style={[styles.details, { color: themeColors.text }]}>{String(r.age)} • {String(r.gender)}</Text>
+                    <Text style={[styles.details, { color: themeColors.text }]}>{String(r.lastSeenLocation)}</Text>
 
-                  {r.type === "Wanted" && (
-                    <>
-                      <Text style={[styles.details, { color: themeColors.text }]}>Crime: {String(r.crimeWantedFor)}</Text>
-                      <Text style={[styles.details, { color: themeColors.text }]}>Armed With: {String(r.armedWith)}</Text>
-                      <Text style={[styles.details, { color: themeColors.text }]}>Reward: {String(r.rewardOffered)}</Text>
-                    </>
-                  )}
+                    {r.type === "Wanted" && (
+                      <View style={styles.wantedDetails}>
+                        <Text style={[styles.details, { color: themeColors.text }]}>Crime: {String(r.crimeWantedFor)}</Text>
+                        <Text style={[styles.details, { color: themeColors.text }]}>Armed With: {String(r.armedWith)}</Text>
+                        <Text style={[styles.details, { color: themeColors.text }]}>Reward: {String(r.rewardOffered)}</Text>
+                      </View>
+                    )}
+                  </View>
 
-                  <TouchableOpacity style={styles.viewBtn} onPress={() => navigation.navigate("Details", { report: r })}>
-                    <Text style={styles.viewText}>View Details</Text>
-                  </TouchableOpacity>
+                  <View style={styles.actionButtonsContainer}>
+                    <TouchableOpacity style={styles.viewBtn} onPress={() => navigation.navigate("Details", { report: r })}>
+                      <Text style={styles.viewText}>View Details</Text>
+                    </TouchableOpacity>
 
-                  <TouchableOpacity style={styles.viewBtn} onPress={() => navigation.navigate("Comments", { reportId: r.id })}>
-                    <Text style={styles.viewText}>Add/View Comments</Text>
-                  </TouchableOpacity>
+                    <TouchableOpacity style={[styles.viewBtn, styles.lastButton]} onPress={() => navigation.navigate("Comments", { reportId: r.id })}>
+                      <Text style={styles.viewText}>Add/View Comments</Text>
+                    </TouchableOpacity>
+                  </View>
 
-                  <Text style={[styles.time, { color: themeColors.text }]}>{new Date(r.createdAt?.seconds ? r.createdAt.toDate() : r.createdAt).toLocaleString()}</Text>
+                  <Text style={[styles.time, { color: themeColors.text }]}>
+                    {new Date(r.createdAt?.seconds ? r.createdAt.toDate() : r.createdAt).toLocaleString()}
+                  </Text>
                 </View>
               </View>
             );
@@ -669,7 +780,7 @@ export default function HomeScreen() {
         )}
       </ScrollView>
 
-      {/* Filter Modal */}
+      {/* Filter Modal - Updated with sort options */}
       <FilterModal 
         visible={showFilterModal}
         onClose={() => setShowFilterModal(false)}
@@ -678,6 +789,8 @@ export default function HomeScreen() {
         setGender={setGender}
         ageGroup={ageGroup}
         setAgeGroup={setAgeGroup}
+        sortBy={sortBy}
+        setSortBy={setSortBy}
       />
 
       {/* Bottom Navigation - Fixed */}
@@ -855,12 +968,14 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   filterOptionBtn: {
+    flexDirection: "row",
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
     borderWidth: 1,
     minWidth: 80,
     alignItems: "center",
+    justifyContent: "center",
   },
   filterOptionText: {
     fontSize: 14,
@@ -967,6 +1082,8 @@ const styles = StyleSheet.create({
     marginTop: 5, 
     zIndex: 1 
   },
+  
+  // NORMAL CARDS (Person/Pet - Original size)
   card: { 
     flexDirection: "row", 
     backgroundColor: "#fff", 
@@ -977,17 +1094,112 @@ const styles = StyleSheet.create({
     shadowColor: "#000", 
     shadowOpacity: 0.1, 
     shadowRadius: 4, 
-    height: height * 0.25, 
+    height: height * 0.25, // Original size for normal reports
     borderWidth: 0.3, 
     borderColor: "#02c048ff" 
   },
-  avatar: { width: 100, height: "100%", borderRadius: 12, marginRight: 12 },
-  cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  name: { fontSize: 18, fontWeight: "bold", color: "#222", flex: 1 },
-  details: { fontSize: 14, color: "gray", marginTop: 3 },
-  viewBtn: { backgroundColor: "#7CC242", borderRadius: 10, marginTop: 10, paddingVertical: 8, alignItems: "center", width: "80%" },
-  viewText: { color: "white", fontWeight: "bold", fontSize: 14 },
-  time: { fontSize: 12, color: "gray", marginTop: 8, marginLeft: 0 },
+  avatar: { 
+    width: 100, 
+    height: "100%", 
+    borderRadius: 12, 
+    marginRight: 12 // Original avatar size
+  },
+  
+  // WANTED CARDS (Larger with much bigger image)
+  wantedCard: { 
+    flexDirection: "row", 
+    backgroundColor: "#fff", 
+    borderRadius: 12, 
+    padding: 14, // Same padding as normal cards
+    marginBottom: 20, 
+    elevation: 3, 
+    shadowColor: "#000", 
+    shadowOpacity: 0.1, 
+    shadowRadius: 4, 
+    borderWidth: 0.3, 
+    borderColor: "#E53935" // Red border for wanted reports
+  },
+  wantedAvatar: { 
+    width: 170, // Much larger width - almost spans available space
+    height: 240, // Tall image that almost reaches card end
+    borderRadius: 12, 
+    marginRight: 12, // Same margin as normal cards
+    resizeMode: "cover",
+    alignSelf: "flex-start", // Align to top
+  },
+  
+  cardContent: {
+    flex: 1,
+    paddingVertical: 2, // Minimal vertical padding
+  },
+  cardHeader: { 
+    flexDirection: "row", 
+    justifyContent: "space-between", 
+    alignItems: "flex-start", 
+    marginBottom: 6, // Minimal margin
+  },
+  cardHeaderRight: {
+    flexDirection: 'row', 
+    alignItems: 'center',
+  },
+  bookmarkBtn: {
+    marginRight: 10, 
+    padding: 4,
+  },
+  name: { 
+    fontSize: 18, 
+    fontWeight: "bold", 
+    color: "#222", 
+    flex: 1,
+    marginRight: 10,
+    lineHeight: 20, // Tighter line height for wrapping
+  },
+  detailsSection: {
+    flex: 1, // Takes available space
+    justifyContent: "flex-start",
+  },
+  details: { 
+    fontSize: 13, // Slightly smaller for more compact layout
+    color: "gray", 
+    marginTop: 1, // Minimal spacing
+    lineHeight: 16, // Tighter line spacing
+  },
+  wantedDetails: {
+    marginTop: 2, // Minimal spacing
+  },
+  actionButtonsContainer: {
+    marginTop: 6, // Minimal top margin
+    marginBottom: 2, // Minimal bottom margin
+  },
+  viewBtn: { 
+    backgroundColor: "#7CC242", 
+    borderRadius: 8, 
+    paddingVertical: 8, // Compact buttons
+    alignItems: "center", 
+    width: "100%",
+    marginBottom: 3, // Very small spacing between buttons
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  lastButton: {
+    marginBottom: 2, // Last button minimal margin
+  },
+  viewText: { 
+    color: "white", 
+    fontWeight: "bold", 
+    fontSize: 13, // Slightly smaller
+  },
+  time: { 
+    fontSize: 10, // Small time text
+    color: "gray", 
+    textAlign: "left", 
+    fontStyle: "italic",
+    marginTop: 2, // Minimal margin
+    marginBottom: 2, // Card ends right here
+  },
   bottomNav: {
     flexDirection: "row",
     justifyContent: "space-between",

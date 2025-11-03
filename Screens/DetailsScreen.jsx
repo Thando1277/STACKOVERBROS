@@ -1041,9 +1041,21 @@ export default function DetailsScreen({ route }) {
             <Text style={styles.sectionTitle}>Contact Information</Text>
             <Text style={[styles.sectionText, { color: themeColors.textLight }]}>Name: {report.contactName || "N/A"}</Text>
             <Text style={[styles.sectionText, { color: themeColors.textLight }]}>Phone: {report.contactNumber || "N/A"}</Text>
+            
+            {/* ✅ UPDATED Reply Privately Button with self-message prevention */}
             <TouchableOpacity
               style={styles.replyPrivatelyBtn}
               onPress={async () => {
+                // ✅ Check if user is trying to message themselves
+                if (report.userId === auth.currentUser?.uid) {
+                  Alert.alert(
+                    "Cannot Message Yourself",
+                    "You cannot send messages to yourself on your own post.",
+                    [{ text: "OK" }]
+                  );
+                  return;
+                }
+
                 try {
                   const userDoc = await getDoc(doc(db, 'users', report.userId));
                   if (userDoc.exists()) {
@@ -1051,13 +1063,18 @@ export default function DetailsScreen({ route }) {
                     navigation.navigate('ChatScreen', {
                       user: {
                         id: report.userId,
-                        fullname: userData.fullname,
+                        fullname: userData.fullname || userData.fullName || 'User',
                         avatar: userData.avatar || null
-                      }
+                      },
+                      reportId: report.id,
+                      reportOwnerId: report.userId
                     });
+                  } else {
+                    Alert.alert("Error", "Could not find user information.");
                   }
                 } catch (error) {
                   console.error('Error fetching user data:', error);
+                  Alert.alert("Error", "Failed to load user information.");
                 }
               }}
             >
@@ -1236,12 +1253,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#7CC242",
-    paddingVertical: 10,
+    paddingVertical: 12,
     paddingHorizontal: 16,
-    borderRadius: 8,
-    marginTop: 10,
+    borderRadius: 10,
+    marginTop: 12,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
-  replyPrivatelyText: { color: "white", fontSize: 14, fontWeight: "600", marginLeft: 6 },
+  replyPrivatelyText: { color: "white", fontSize: 15, fontWeight: "600", marginLeft: 8 },
   aiComparisonCta: {
     flexDirection: "row",
     alignItems: "center",

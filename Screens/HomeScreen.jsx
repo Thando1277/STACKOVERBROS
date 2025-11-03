@@ -86,22 +86,39 @@ function Select({ label, value, onSelect, options, themeColors }) {
   );
 }
 
-function StatusSelect({ value, onChange, isOwner, themeColors }) {
+// Updated StatusSelect to handle Wanted reports differently
+function StatusSelect({ value, onChange, isOwner, themeColors, reportType }) {
   if (!isOwner) {
+    // Show appropriate text based on report type
+    let displayText;
+    if (reportType === "Wanted") {
+      displayText = value === "search" ? "Wanted" : value === "found" ? "Captured" : value;
+    } else {
+      displayText = value === "search" ? "Missing" : value === "found" ? "Found" : value;
+    }
+
     return (
       <Text style={{ fontWeight: "bold", color: value === "search" ? "red" : "#7CC242" }}>
-        {value === "search" ? "Missing" : value === "found" ? "Found" : value}
+        {displayText}
       </Text>
     );
   }
 
   const [open, setOpen] = useState(false);
-  const options = [
+  
+  // Different options based on report type
+  const options = reportType === "Wanted" ? [
+    { label: "Wanted", value: "search" },
+    { label: "Captured", value: "found" },
+    { label: "Delete", value: "delete" },
+  ] : [
     { label: "Missing", value: "search" },
     { label: "Found", value: "found" },
     { label: "Delete", value: "delete" },
   ];
-  const currentLabel = options.find((o) => o.value === value)?.label || "Missing";
+
+  const currentLabel = options.find((o) => o.value === value)?.label || 
+    (reportType === "Wanted" ? "Wanted" : "Missing");
 
   return (
     <View style={{ marginTop: 4, width: 100 }}>
@@ -690,17 +707,29 @@ export default function HomeScreen() {
         ) : (
           filtered.filter(r => r).map((r) => {
             const isSaved = savedReports.includes(r.id);
+            const isWantedReport = r.type === "Wanted";
             
             return (
-              <View key={r.id} style={[styles.card, { backgroundColor: themeColors.cardBg }]}>
-                <Image source={imgFor(r)} style={styles.avatar} />
-                <View style={{ flex: 1 }}>
+              <View 
+                key={r.id} 
+                style={[
+                  isWantedReport ? styles.wantedCard : styles.card, 
+                  { backgroundColor: themeColors.cardBg }
+                ]}
+              >
+                <Image 
+                  source={imgFor(r)} 
+                  style={isWantedReport ? styles.wantedAvatar : styles.avatar} 
+                />
+                <View style={styles.cardContent}>
                   <View style={styles.cardHeader}>
-                    <Text style={[styles.name, { color: themeColors.text }]}>{String(r.fullName)}</Text>
-                    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                    <Text style={[styles.name, { color: themeColors.text }]} numberOfLines={2}>
+                      {String(r.fullName)}
+                    </Text>
+                    <View style={styles.cardHeaderRight}>
                       <TouchableOpacity 
                         onPress={() => handleSaveReport(r.id)}
-                        style={{ marginRight: 10, padding: 4 }}
+                        style={styles.bookmarkBtn}
                       >
                         <Ionicons 
                           name={isSaved ? "bookmark" : "bookmark-outline"} 
@@ -712,30 +741,38 @@ export default function HomeScreen() {
                         value={r.status} 
                         onChange={(status) => handleStatusChange(r, status)} 
                         isOwner={r.userId === auth.currentUser?.uid} 
-                        themeColors={themeColors} 
+                        themeColors={themeColors}
+                        reportType={r.type}
                       />
                     </View>
                   </View>
-                  <Text style={[styles.details, { color: themeColors.text }]}>{String(r.age)} • {String(r.gender)}</Text>
-                  <Text style={[styles.details, { color: themeColors.text }]}>{String(r.lastSeenLocation)}</Text>
+                  
+                  <View style={styles.detailsSection}>
+                    <Text style={[styles.details, { color: themeColors.text }]}>{String(r.age)} • {String(r.gender)}</Text>
+                    <Text style={[styles.details, { color: themeColors.text }]}>{String(r.lastSeenLocation)}</Text>
 
-                  {r.type === "Wanted" && (
-                    <>
-                      <Text style={[styles.details, { color: themeColors.text }]}>Crime: {String(r.crimeWantedFor)}</Text>
-                      <Text style={[styles.details, { color: themeColors.text }]}>Armed With: {String(r.armedWith)}</Text>
-                      <Text style={[styles.details, { color: themeColors.text }]}>Reward: {String(r.rewardOffered)}</Text>
-                    </>
-                  )}
+                    {r.type === "Wanted" && (
+                      <View style={styles.wantedDetails}>
+                        <Text style={[styles.details, { color: themeColors.text }]}>Crime: {String(r.crimeWantedFor)}</Text>
+                        <Text style={[styles.details, { color: themeColors.text }]}>Armed With: {String(r.armedWith)}</Text>
+                        <Text style={[styles.details, { color: themeColors.text }]}>Reward: {String(r.rewardOffered)}</Text>
+                      </View>
+                    )}
+                  </View>
 
-                  <TouchableOpacity style={styles.viewBtn} onPress={() => navigation.navigate("Details", { report: r })}>
-                    <Text style={styles.viewText}>View Details</Text>
-                  </TouchableOpacity>
+                  <View style={styles.actionButtonsContainer}>
+                    <TouchableOpacity style={styles.viewBtn} onPress={() => navigation.navigate("Details", { report: r })}>
+                      <Text style={styles.viewText}>View Details</Text>
+                    </TouchableOpacity>
 
-                  <TouchableOpacity style={styles.viewBtn} onPress={() => navigation.navigate("Comments", { reportId: r.id })}>
-                    <Text style={styles.viewText}>Add/View Comments</Text>
-                  </TouchableOpacity>
+                    <TouchableOpacity style={[styles.viewBtn, styles.lastButton]} onPress={() => navigation.navigate("Comments", { reportId: r.id })}>
+                      <Text style={styles.viewText}>Add/View Comments</Text>
+                    </TouchableOpacity>
+                  </View>
 
-                  <Text style={[styles.time, { color: themeColors.text }]}>{new Date(r.createdAt?.seconds ? r.createdAt.toDate() : r.createdAt).toLocaleString()}</Text>
+                  <Text style={[styles.time, { color: themeColors.text }]}>
+                    {new Date(r.createdAt?.seconds ? r.createdAt.toDate() : r.createdAt).toLocaleString()}
+                  </Text>
                 </View>
               </View>
             );
@@ -1045,6 +1082,8 @@ const styles = StyleSheet.create({
     marginTop: 5, 
     zIndex: 1 
   },
+  
+  // NORMAL CARDS (Person/Pet - Original size)
   card: { 
     flexDirection: "row", 
     backgroundColor: "#fff", 
@@ -1055,17 +1094,112 @@ const styles = StyleSheet.create({
     shadowColor: "#000", 
     shadowOpacity: 0.1, 
     shadowRadius: 4, 
-    height: height * 0.25, 
+    height: height * 0.25, // Original size for normal reports
     borderWidth: 0.3, 
     borderColor: "#02c048ff" 
   },
-  avatar: { width: 100, height: "100%", borderRadius: 12, marginRight: 12 },
-  cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  name: { fontSize: 18, fontWeight: "bold", color: "#222", flex: 1 },
-  details: { fontSize: 14, color: "gray", marginTop: 3 },
-  viewBtn: { backgroundColor: "#7CC242", borderRadius: 10, marginTop: 10, paddingVertical: 8, alignItems: "center", width: "80%" },
-  viewText: { color: "white", fontWeight: "bold", fontSize: 14 },
-  time: { fontSize: 12, color: "gray", marginTop: 8, marginLeft: 0 },
+  avatar: { 
+    width: 100, 
+    height: "100%", 
+    borderRadius: 12, 
+    marginRight: 12 // Original avatar size
+  },
+  
+  // WANTED CARDS (Larger with much bigger image)
+  wantedCard: { 
+    flexDirection: "row", 
+    backgroundColor: "#fff", 
+    borderRadius: 12, 
+    padding: 14, // Same padding as normal cards
+    marginBottom: 20, 
+    elevation: 3, 
+    shadowColor: "#000", 
+    shadowOpacity: 0.1, 
+    shadowRadius: 4, 
+    borderWidth: 0.3, 
+    borderColor: "#E53935" // Red border for wanted reports
+  },
+  wantedAvatar: { 
+    width: 170, // Much larger width - almost spans available space
+    height: 240, // Tall image that almost reaches card end
+    borderRadius: 12, 
+    marginRight: 12, // Same margin as normal cards
+    resizeMode: "cover",
+    alignSelf: "flex-start", // Align to top
+  },
+  
+  cardContent: {
+    flex: 1,
+    paddingVertical: 2, // Minimal vertical padding
+  },
+  cardHeader: { 
+    flexDirection: "row", 
+    justifyContent: "space-between", 
+    alignItems: "flex-start", 
+    marginBottom: 6, // Minimal margin
+  },
+  cardHeaderRight: {
+    flexDirection: 'row', 
+    alignItems: 'center',
+  },
+  bookmarkBtn: {
+    marginRight: 10, 
+    padding: 4,
+  },
+  name: { 
+    fontSize: 18, 
+    fontWeight: "bold", 
+    color: "#222", 
+    flex: 1,
+    marginRight: 10,
+    lineHeight: 20, // Tighter line height for wrapping
+  },
+  detailsSection: {
+    flex: 1, // Takes available space
+    justifyContent: "flex-start",
+  },
+  details: { 
+    fontSize: 13, // Slightly smaller for more compact layout
+    color: "gray", 
+    marginTop: 1, // Minimal spacing
+    lineHeight: 16, // Tighter line spacing
+  },
+  wantedDetails: {
+    marginTop: 2, // Minimal spacing
+  },
+  actionButtonsContainer: {
+    marginTop: 6, // Minimal top margin
+    marginBottom: 2, // Minimal bottom margin
+  },
+  viewBtn: { 
+    backgroundColor: "#7CC242", 
+    borderRadius: 8, 
+    paddingVertical: 8, // Compact buttons
+    alignItems: "center", 
+    width: "100%",
+    marginBottom: 3, // Very small spacing between buttons
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  lastButton: {
+    marginBottom: 2, // Last button minimal margin
+  },
+  viewText: { 
+    color: "white", 
+    fontWeight: "bold", 
+    fontSize: 13, // Slightly smaller
+  },
+  time: { 
+    fontSize: 10, // Small time text
+    color: "gray", 
+    textAlign: "left", 
+    fontStyle: "italic",
+    marginTop: 2, // Minimal margin
+    marginBottom: 2, // Card ends right here
+  },
   bottomNav: {
     flexDirection: "row",
     justifyContent: "space-between",

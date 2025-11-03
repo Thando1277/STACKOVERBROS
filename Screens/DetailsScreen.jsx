@@ -1026,7 +1026,7 @@ export default function DetailsScreen({ route }) {
 
           <View style={styles.sectionContainer}>
             <Text style={styles.sectionTitle}>Last Seen</Text>
-            <Text style={[styles.sectionText, { color: themeColors.textLight }]}>{report.lastSeenDate}</Text>
+            <Text style={[styles.sectionText, { color: themeColors.textLight }]}>{new Date(report.createdAt?.seconds ? report.createdAt.toDate() : report.createdAt).toLocaleString()}</Text>
             <Text style={[styles.sectionText, { color: themeColors.textLight }]}>{report.lastSeenLocation}</Text>
           </View>
 

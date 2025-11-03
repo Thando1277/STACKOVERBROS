@@ -16,6 +16,7 @@ import {
 import MapView, { Marker } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import BottomNavigation from "../components/BottomNavigation";
 
 import { db } from "../Firebase/firebaseConfig";
 import { collection, getDocs } from "firebase/firestore";
@@ -309,33 +310,7 @@ export default function MapScreen() {
             )}
           </View>
         )}
-
-        {/* Bottom Navigation */}
-        <View style={styles.bottomNav}>
-          <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate("Home")}>
-            <Ionicons name="home-outline" size={24} color="black" />
-            <Text style={styles.navText}>Home</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.navItem}>
-            <Ionicons name="notifications-outline" size={24} color="black" />
-            <Text style={styles.navText}>Alerts</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.reportBtn} onPress={() => navigation.navigate("Report")}>
-            <Ionicons name="add" size={30} color="white" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.navItem}>
-            <Ionicons name="map-outline" size={24} color="#7CC242" />
-            <Text style={[styles.navText, { color: "#7CC242" }]}>Map</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate("ProfilePage")}>
-            <Ionicons name="person-outline" size={24} color="black" />
-            <Text style={styles.navText}>Profile</Text>
-          </TouchableOpacity>
-        </View>
+        <BottomNavigation navigation={navigation} currentRoute="MapScreen"/>
       </View>
     </>
   );
@@ -387,30 +362,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
     fontSize: width * 0.035,
     color: "#333",
-  },
-  bottomNav: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    paddingVertical: height * 0.015,
-    borderTopWidth: 1,
-    borderColor: "#ddd",
-    backgroundColor: "#fff",
-  },
-  navItem: { alignItems: "center" },
-  navText: { fontSize: width * 0.03, color: "black" },
-  reportBtn: {
-    backgroundColor: "#7CC242",
-    width: width * 0.15,
-    height: width * 0.15,
-    borderRadius: width * 0.075,
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: -width * 0.075,
-    elevation: 5,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
   },
   nameText: { 
     fontWeight: "bold", 

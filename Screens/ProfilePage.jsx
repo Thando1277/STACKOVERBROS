@@ -37,6 +37,7 @@ import Animated, {
   withTiming,
   withDelay,
 } from "react-native-reanimated";
+import BottomNavigation from "../components/BottomNavigation";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -90,6 +91,7 @@ export default function ProfileScreen() {
     border: isDark ? "#333" : "#E5E5E5",
     popupBg: isDark ? "#2B2B2B" : "#fff",
     chartBg: isDark ? "#2A2A2A" : "#FFFFFF",
+    primary: "#7CC242",
   };
 
   // Handle dimension changes (orientation, etc)
@@ -715,59 +717,7 @@ export default function ProfileScreen() {
       )}
 
       {/* Bottom Navigation */}
-      <View style={[styles.bottomNav, { backgroundColor: themeColors.bg, borderTopColor: themeColors.border }]}>
-        <TouchableOpacity 
-          style={styles.navItem} 
-          onPress={() => navigation.navigate("Home")}
-        >
-          <Ionicons name="home-outline" size={moderateScale(24)} color={themeColors.text} />
-          <Text style={[styles.navText, { color: themeColors.text }]}>Home</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.navItem} 
-          onPress={() => navigation.navigate("Alerts")}
-        >
-          <Ionicons name="notifications-outline" size={moderateScale(24)} color={themeColors.text} />
-          <Text style={[styles.navText, { color: themeColors.text }]}>Alerts</Text>
-        </TouchableOpacity>
-        
-        <View style={styles.navItem} />
-        
-        <TouchableOpacity 
-          style={styles.navItem} 
-          onPress={() => navigation.navigate("MapScreen")}
-        >
-          <Ionicons name="map-outline" size={moderateScale(24)} color={themeColors.text} />
-          <Text style={[styles.navText, { color: themeColors.text }]}>Map</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={styles.navItem} 
-          onPress={() => navigation.navigate("ProfilePage")}
-        >
-          <Ionicons name="person" size={moderateScale(24)} color="#7CC242" />
-          <Text style={[styles.navText, { color: "#7CC242" }]}>Profile</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Report Button */}
-      <TouchableOpacity 
-        style={[
-          styles.reportBtn,
-          { 
-            bottom: SCREEN_HEIGHT * 0.04,
-            left: (SCREEN_WIDTH / 2) - (SCREEN_WIDTH * 0.075),
-            width: SCREEN_WIDTH * 0.15,
-            height: SCREEN_WIDTH * 0.15,
-            borderRadius: SCREEN_WIDTH * 0.075,
-          }
-        ]} 
-        onPress={() => navigation.navigate("Report")}
-        activeOpacity={0.8}
-      >
-        <Ionicons name="add" size={moderateScale(30)} color="white" />
-      </TouchableOpacity>
+      <BottomNavigation navigation={navigation} currentRoute="ProfilePage"/>
     </SafeAreaView>
   );
 }
@@ -1052,21 +1002,15 @@ const styles = StyleSheet.create({
   
   // Bottom Navigation
   bottomNav: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: scale(20),
-    paddingVertical: verticalScale(11),
+    paddingHorizontal: 20,
+    paddingVertical: 11,
     borderTopWidth: 1,
-    elevation: 8,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: -2 },
+    borderColor: "#ddd",
+    backgroundColor: "#fff",
+    height: 70
   },
   navItem: { 
     alignItems: "center",
@@ -1090,6 +1034,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     zIndex: 1000,
+    marginBottom: 7
   },
   
   // Loading

@@ -683,20 +683,20 @@ export default function HomeScreen() {
       {/* Bottom Navigation - Fixed */}
       <View style={[styles.bottomNav, { backgroundColor: themeColors.bg }]}>
         <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate("Home")}>
-          <Ionicons name="home-outline" size={24} color={themeColors.primary} />
+          <Ionicons name="home-outline" size={26} color={themeColors.primary} />
           <Text style={[styles.navText, { color: themeColors.primary }]}>Home</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate("Alerts")}>
-          <Ionicons name="notifications-outline" size={24} color={themeColors.text} />
+          <Ionicons name="notifications-outline" size={26} color={themeColors.text} />
           <Text style={[styles.navText, { color: themeColors.text }]}>Alerts</Text>
         </TouchableOpacity>
         <View style={styles.navItem} />
         <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate("MapScreen")}>
-          <Ionicons name="map-outline" size={24} color={themeColors.text} />
+          <Ionicons name="map-outline" size={26} color={themeColors.text} />
           <Text style={[styles.navText, { color: themeColors.text }]}>Map</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate("ProfilePage")}>
-          <Ionicons name="person-outline" size={24} color={themeColors.text} />
+          <Ionicons name="person-outline" size={26} color={themeColors.text} />
           <Text style={[styles.navText, { color: themeColors.text }]}>Profile</Text>
         </TouchableOpacity>
       </View>

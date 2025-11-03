@@ -79,6 +79,8 @@ export default function ProfileScreen() {
   const stat1Scale = useSharedValue(0);
   const stat2Scale = useSharedValue(0);
   const stat3Scale = useSharedValue(0);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+
 
   const totalFound = allReports.filter((r) => r.status === "found").length;
 
@@ -192,10 +194,7 @@ export default function ProfileScreen() {
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== "granted") {
-      Alert.alert(
-        "Permission denied",
-        "We need access to your gallery to upload an image."
-      );
+      Alert.alert("Permission denied", "We need access to your gallery to upload an image.");
       return;
     }
 
@@ -208,8 +207,10 @@ export default function ProfileScreen() {
 
     if (!result.canceled && result.assets[0].uri) {
       setSelectedImage(result.assets[0].uri);
+      setShowSaveConfirm(true); // 👈 show save popup
     }
   };
+
 
   const saveImage = async () => {
     if (!selectedImage) return;
@@ -396,11 +397,6 @@ export default function ProfileScreen() {
               </TouchableOpacity>
             </View>
 
-            {selectedImage && (
-              <TouchableOpacity style={styles.saveBtn} onPress={saveImage}>
-                <Text style={[styles.saveTxt, { fontSize: moderateScale(12) }]}>Save Image</Text>
-              </TouchableOpacity>
-            )}
           </View>
         </View>
 
@@ -706,6 +702,42 @@ export default function ProfileScreen() {
           </View>
         </TouchableWithoutFeedback>
       </Modal>
+
+      {/* Save Confirmation Popup */}
+      <Modal visible={showSaveConfirm} transparent animationType="fade">
+        <TouchableWithoutFeedback onPress={() => setShowSaveConfirm(false)}>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.popupContainer_2, { backgroundColor: themeColors.popupBg }]}>
+              <Text style={[styles.popupTitle, { color: themeColors.text, marginBottom: 10 }]}>
+                Save this image as your profile picture?
+              </Text>
+
+              <View style={{ flexDirection: "row", justifyContent: "space-around" }}>
+                <TouchableOpacity
+                  style={[styles.confirmBtn, { backgroundColor: "#7CC242" }]}
+                  onPress={() => {
+                    setShowSaveConfirm(false);
+                    saveImage();
+                  }}
+                >
+                  <Text style={{ color: "#fff", fontWeight: "600" }}>Save</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[styles.confirmBtn, { backgroundColor: "#ccc" }]}
+                  onPress={() => {
+                    setShowSaveConfirm(false);
+                    setSelectedImage(null);
+                  }}
+                >
+                  <Text style={{ color: "#000", fontWeight: "600" }}>Cancel</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
 
       {uploading && (
         <View style={styles.loadingOverlay}>
@@ -1114,4 +1146,22 @@ const styles = StyleSheet.create({
     justifyContent: "center", 
     alignItems: "center" 
   },
+  popupContainer_2: { 
+    borderRadius: moderateScale(16), 
+    width: scale(280),
+    padding: scale(20),
+  },
+  popupTitle: {
+  fontSize: 16,
+  fontWeight: "600",
+  textAlign: "center",
+  marginBottom: 12,
+},
+confirmBtn: {
+  paddingVertical: 10,
+  paddingHorizontal: 25,
+  borderRadius: 8,
+  marginHorizontal: 15,
+},
+
 });

@@ -19,9 +19,8 @@ import { useNavigation } from "@react-navigation/native";
 import { collection, onSnapshot, doc, updateDoc, deleteDoc, arrayUnion, arrayRemove, getDoc } from "firebase/firestore";
 import { db, auth } from "../Firebase/firebaseConfig";
 import { getAuth } from "firebase/auth";
-import { useTheme } from "../context/ThemeContext"; // ✅ ThemeContext
+import { useTheme } from "../context/ThemeContext";
 import ChatIcon from '../components/ChatIcon'
-
 
 const { width, height } = Dimensions.get("window");
 
@@ -323,17 +322,18 @@ export default function HomeScreen() {
     }
   };
 
-  //Fetch user avatar
+  // Fetch user avatar
   useEffect(() => {
     const auth = getAuth();
     const currentUser = auth.currentUser;
-    if(!currentUser) return;
+    if (!currentUser) return;
 
     const unsubscribe = onSnapshot(doc(db, 'users', currentUser.uid), (docSnap) => {
-      if(docSnap.exists()){
+      if (docSnap.exists()) {
         setAvatarUrl(docSnap.data().avatar)
       }
     });
+    return () => unsubscribe();
   }, []);
 
   const handleStatusChange = async (report, newStatus) => {
@@ -419,7 +419,7 @@ export default function HomeScreen() {
   // Interpolate height for smooth animation
   const animatedHeight = filterSectionHeight.interpolate({
     inputRange: [0, 1],
-    outputRange: [0, 160], // Increased for full visibility
+    outputRange: [0, 160],
   });
 
   const animatedOpacity = filterSectionHeight.interpolate({
@@ -434,7 +434,7 @@ export default function HomeScreen() {
       {/* Header - Fixed */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.navigate("ProfilePage")}>
-          <Image source={ avatarUrl ? {uri: avatarUrl} : require('../assets/log.png')} style={styles.logo} />
+          <Image source={avatarUrl ? {uri: avatarUrl} : require('../assets/log.png')} style={styles.logo} />
         </TouchableOpacity>
         <View style={styles.headerIcons}>
           <TextInput

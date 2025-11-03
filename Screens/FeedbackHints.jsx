@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   Modal,
   Animated,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -25,6 +26,9 @@ import {
   arrayRemove,
 } from 'firebase/firestore';
 import { db, auth } from '../Firebase/firebaseConfig';
+
+const { width: SCREEN_WIDTH } = Dimensions.get("window");
+const scale = (size) => (SCREEN_WIDTH / 375) * size;
 
 export default function FeedbackHintsScreen() {
   const navigation = useNavigation();
@@ -280,14 +284,15 @@ export default function FeedbackHintsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <Ionicons name="arrow-back" size={24} color="#7CC242" />
-          <Text style={styles.backText}>Back</Text>
+
+      {/* Back Button */}
+      <View style={styles.headerRow}>
+        <TouchableOpacity onPress={() => navigation.goBack()}>
+          <Ionicons name="chevron-back" size={scale(28)} color="#7CC242" />
         </TouchableOpacity>
+      </View>
+      
+      <View style={{ flex: 1,padding: 30, paddingTop: 10 }}>
         <Text style={styles.title}>Feedback & Comments</Text>
       </View>
 
@@ -614,5 +619,13 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
+  },
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: scale(16),
+    paddingVertical: scale(10),
+    borderBottomWidth: 0.3,
   },
 });

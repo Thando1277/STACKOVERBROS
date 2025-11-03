@@ -7,6 +7,8 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   SafeAreaView,
+  Modal,
+  Animated,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -17,6 +19,10 @@ import {
   onSnapshot,
   orderBy,
   getDocs,
+  doc,
+  updateDoc,
+  arrayUnion,
+  arrayRemove,
 } from 'firebase/firestore';
 import { db, auth } from '../Firebase/firebaseConfig';
 
@@ -25,6 +31,9 @@ export default function FeedbackHintsScreen() {
   const [posts, setPosts] = useState([]);
   const [notifications, setNotifications] = useState({});
   const [loading, setLoading] = useState(true);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [selectedPostId, setSelectedPostId] = useState(null);
+  const [hiddenPosts, setHiddenPosts] = useState([]);
 
   // Fetch user's posts and listen for notifications
   useEffect(() => {
@@ -33,6 +42,23 @@ export default function FeedbackHintsScreen() {
       setLoading(false);
       return;
     }
+
+    // Fetch hidden posts from user document
+    const fetchHiddenPosts = async () => {
+      try {
+        const userDoc = await getDocs(
+          query(collection(db, 'users'), where('__name__', '==', userId))
+        );
+        if (!userDoc.empty) {
+          const userData = userDoc.docs[0].data();
+          setHiddenPosts(userData.hiddenReports || []);
+        }
+      } catch (error) {
+        console.error('Error fetching hidden posts:', error);
+      }
+    };
+
+    fetchHiddenPosts();
 
     // Fetch user's posts
     const fetchPosts = async () => {
@@ -44,7 +70,6 @@ export default function FeedbackHintsScreen() {
         );
 
         const snapshot = await getDocs(q);
-        // Sort posts manually by timestamp (newest first)
         const userPosts = snapshot.docs
           .map(doc => ({
             id: doc.id,
@@ -53,7 +78,7 @@ export default function FeedbackHintsScreen() {
           .sort((a, b) => {
             const aTime = a.timestamp?.seconds || 0;
             const bTime = b.timestamp?.seconds || 0;
-            return bTime - aTime; // Descending order (newest first)
+            return bTime - aTime;
           });
 
         setPosts(userPosts);
@@ -76,8 +101,10 @@ export default function FeedbackHintsScreen() {
 
     const unsubscribe = onSnapshot(
       notifQuery,
-      (snapshot) => {
+      async (snapshot) => {
         const notifMap = {};
+        const newlyCommentedPosts = [];
+
         snapshot.docs.forEach(doc => {
           const data = doc.data();
           const reportId = data.reportId;
@@ -91,9 +118,32 @@ export default function FeedbackHintsScreen() {
           
           notifMap[reportId].count += 1;
           notifMap[reportId].latestCommenter = data.commenterName;
+
+          // Track posts that received new comments
+          if (!newlyCommentedPosts.includes(reportId)) {
+            newlyCommentedPosts.push(reportId);
+          }
         });
         
         setNotifications(notifMap);
+
+        // Unhide posts that received new comments
+        if (newlyCommentedPosts.length > 0) {
+          try {
+            const userDocRef = doc(db, 'users', userId);
+            const currentHidden = hiddenPosts.filter(
+              id => !newlyCommentedPosts.includes(id)
+            );
+            
+            await updateDoc(userDocRef, {
+              hiddenReports: currentHidden
+            });
+            
+            setHiddenPosts(currentHidden);
+          } catch (error) {
+            console.error('Error unhiding posts:', error);
+          }
+        }
       },
       (error) => {
         console.error('Error listening to notifications:', error);
@@ -103,7 +153,34 @@ export default function FeedbackHintsScreen() {
     return () => unsubscribe();
   }, []);
 
-  // Navigate to CommentsScreen with reportId parameter
+  // Handle long press to show confirmation modal
+  const handleLongPress = (postId) => {
+    setSelectedPostId(postId);
+    setShowConfirmModal(true);
+  };
+
+  // Hide the post
+  const confirmHidePost = async () => {
+    try {
+      const userId = auth.currentUser?.uid;
+      if (!userId || !selectedPostId) return;
+
+      const userDocRef = doc(db, 'users', userId);
+      
+      await updateDoc(userDocRef, {
+        hiddenReports: arrayUnion(selectedPostId)
+      });
+
+      setHiddenPosts(prev => [...prev, selectedPostId]);
+      setShowConfirmModal(false);
+      setSelectedPostId(null);
+    } catch (error) {
+      console.error('Error hiding post:', error);
+      alert('Failed to hide post. Please try again.');
+    }
+  };
+
+  // Navigate to CommentsScreen
   const handleCommentsPress = (reportId) => {
     console.log('📱 Navigating to Comments with reportId:', reportId);
     navigation.navigate('Comments', { reportId });
@@ -115,64 +192,78 @@ export default function FeedbackHintsScreen() {
     navigation.navigate('Details', { reportId });
   };
 
+  // Filter out hidden posts
+  const visiblePosts = posts.filter(post => !hiddenPosts.includes(post.id));
+
   const renderPost = ({ item }) => {
     const unreadCount = notifications[item.id]?.count || 0;
     const latestCommenter = notifications[item.id]?.latestCommenter;
 
     return (
-      <View style={styles.postCard}>
-        <View style={styles.postHeader}>
-          <View style={styles.postInfo}>
-            <Text style={styles.postTitle} numberOfLines={2}>
-              {item.type || 'Report'}: {item.location || 'Location unavailable'}
-            </Text>
-            <Text style={styles.postDate}>
-              {item.timestamp?.seconds
-                ? new Date(item.timestamp.toDate()).toLocaleDateString()
-                : 'Date unavailable'}
-            </Text>
-          </View>
-          
-          {unreadCount > 0 && (
-            <View style={styles.notificationBadge}>
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>
-                  {unreadCount > 99 ? '99+' : unreadCount}
-                </Text>
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onLongPress={() => handleLongPress(item.id)}
+        delayLongPress={800}
+      >
+        <View style={styles.postCard}>
+          <View style={styles.postHeader}>
+            <View style={styles.postInfo}>
+              <Text style={styles.postTitle} numberOfLines={2}>
+                {item.type || 'Report'}: {item.location || 'Location unavailable'}
+              </Text>
+              <Text style={styles.postDate}>
+                {item.timestamp?.seconds
+                  ? new Date(item.timestamp.toDate()).toLocaleDateString()
+                  : 'Date unavailable'}
+              </Text>
+            </View>
+            
+            {unreadCount > 0 && (
+              <View style={styles.notificationBadge}>
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Text>
+                </View>
               </View>
+            )}
+          </View>
+
+          {unreadCount > 0 && latestCommenter && (
+            <View style={styles.notificationInfo}>
+              <Ionicons name="chatbubble-ellipses" size={16} color="#7CC242" />
+              <Text style={styles.notificationText}>
+                {latestCommenter} {unreadCount === 1 ? 'commented' : `and ${unreadCount - 1} other${unreadCount > 2 ? 's' : ''} commented`} on your post
+              </Text>
             </View>
           )}
-        </View>
 
-        {unreadCount > 0 && latestCommenter && (
-          <View style={styles.notificationInfo}>
-            <Ionicons name="chatbubble-ellipses" size={16} color="#7CC242" />
-            <Text style={styles.notificationText}>
-              {latestCommenter} {unreadCount === 1 ? 'commented' : `and ${unreadCount - 1} other${unreadCount > 2 ? 's' : ''} commented`} on your post
-            </Text>
+          <View style={styles.postFooter}>
+            <TouchableOpacity 
+              style={styles.viewReportButton}
+              onPress={() => handleViewReport(item.id)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="document-text-outline" size={16} color="#fff" />
+              <Text style={styles.viewReportText}>View Report</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity 
+              style={styles.viewCommentsButton}
+              onPress={() => handleCommentsPress(item.id)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="chatbubble-outline" size={16} color="#7CC242" />
+              <Text style={styles.viewCommentsText}>View Comments</Text>
+            </TouchableOpacity>
           </View>
-        )}
 
-        <View style={styles.postFooter}>
-          <TouchableOpacity 
-            style={styles.viewReportButton}
-            onPress={() => handleViewReport(item.id)}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="document-text-outline" size={16} color="#fff" />
-            <Text style={styles.viewReportText}>View Report</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={styles.viewCommentsButton}
-            onPress={() => handleCommentsPress(item.id)}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="chatbubble-outline" size={16} color="#7CC242" />
-            <Text style={styles.viewCommentsText}>View Comments</Text>
-          </TouchableOpacity>
+          <View style={styles.hintContainer}>
+            <Ionicons name="information-circle-outline" size={12} color="#666" />
+            <Text style={styles.hintText}>Hold to hide this post</Text>
+          </View>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -201,20 +292,69 @@ export default function FeedbackHintsScreen() {
       </View>
 
       <FlatList
-        data={posts}
+        data={visiblePosts}
         keyExtractor={(item) => item.id}
         renderItem={renderPost}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             <Ionicons name="document-text-outline" size={60} color="#555" />
-            <Text style={styles.emptyText}>No posts yet</Text>
+            <Text style={styles.emptyText}>
+              {hiddenPosts.length > 0 ? 'All posts hidden' : 'No posts yet'}
+            </Text>
             <Text style={styles.emptySubtext}>
-              Create a report to receive comments and feedback
+              {hiddenPosts.length > 0 
+                ? 'Hidden posts will reappear when someone comments on them'
+                : 'Create a report to receive comments and feedback'}
             </Text>
           </View>
         }
       />
+
+      {/* Custom Confirmation Modal */}
+      <Modal
+        transparent
+        visible={showConfirmModal}
+        animationType="fade"
+        onRequestClose={() => setShowConfirmModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalIconContainer}>
+              <Ionicons name="eye-off" size={48} color="#7CC242" />
+            </View>
+            
+            <Text style={styles.modalTitle}>Hide This Post?</Text>
+            
+            <Text style={styles.modalMessage}>
+              This post will be hidden from your feed. Don't worry - it will automatically 
+              reappear when someone comments on it!
+            </Text>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => {
+                  setShowConfirmModal(false);
+                  setSelectedPostId(null);
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.confirmButton}
+                onPress={confirmHidePost}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="eye-off-outline" size={18} color="#fff" />
+                <Text style={styles.confirmButtonText}>Hide Post</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -352,6 +492,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  hintContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+    gap: 4,
+  },
+  hintText: {
+    fontSize: 11,
+    color: '#666',
+    fontStyle: 'italic',
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -380,5 +532,87 @@ const styles = StyleSheet.create({
     marginTop: 8,
     textAlign: 'center',
     paddingHorizontal: 40,
+  },
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContainer: {
+    backgroundColor: '#1A1A1A',
+    borderRadius: 20,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    borderWidth: 1,
+    borderColor: '#333',
+    shadowColor: '#7CC242',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  modalIconContainer: {
+    alignSelf: 'center',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#262626',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+    borderWidth: 2,
+    borderColor: '#7CC242',
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#fff',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  modalMessage: {
+    fontSize: 15,
+    color: '#aaa',
+    textAlign: 'center',
+    lineHeight: 22,
+    marginBottom: 24,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  cancelButton: {
+    flex: 1,
+    backgroundColor: '#333',
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#444',
+  },
+  cancelButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  confirmButton: {
+    flex: 1,
+    backgroundColor: '#7CC242',
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 6,
+  },
+  confirmButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

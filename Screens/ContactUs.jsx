@@ -21,7 +21,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const scale = (size) => (SCREEN_WIDTH / 375) * size;
 
 export default function ContactSupportScreen({ navigation }) {
-  const { colors, isDark } = useTheme();
+  const { colors} = useTheme();
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -54,7 +54,7 @@ export default function ContactSupportScreen({ navigation }) {
 
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={{ flex: 1, backgroundColor: colors.background }}>
-          
+
           <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
             <View style={styles.formContainer}>
               <Text style={[styles.title, { color: '#7CC242' }]}>Contact Us</Text>

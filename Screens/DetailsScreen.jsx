@@ -12,11 +12,12 @@ import { db, auth } from "../Firebase/firebaseConfig";
 import * as ImagePicker from 'expo-image-picker';
 import { File, Directory, Paths } from 'expo-file-system';  // ✅ NEW API
 import { LineChart } from 'react-native-chart-kit';
+import Config from '../Config';
 
 const screenWidth = Dimensions.get("window").width;
 
 // ⚠ IMPORTANT: Use your actual IP
-const API_URL = "http://10.250.152.87:5000";
+const API_URL = Config.API_URL;
 
 // Test connection function
 async function testServerConnection() {

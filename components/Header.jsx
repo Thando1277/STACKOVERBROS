@@ -9,7 +9,7 @@ const scale = (size) => (SCREEN_WIDTH / 375) * size;
 export default function Header({ 
   navigation, 
   iconColor = '#7CC242', 
-  borderColor = '#444',
+  borderColor = '#b6b5b5ff',
   onBackPress 
 }) {
   const insets = useSafeAreaInsets();

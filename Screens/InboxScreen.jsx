@@ -23,6 +23,7 @@ import { db } from '../Firebase/firebaseConfig';
 import UserItem from '../components/UserItem';
 import Header from '../components/Header';
 
+
 const InboxScreen = () => {
   const navigation = useNavigation();
   const [users, setUsers] = useState([]);
@@ -93,15 +94,9 @@ const InboxScreen = () => {
     <SafeAreaView style={styles.container}>
 
       <View style={styles.headerView}>
-        <View style={{ flex: 1 }}>
-          <Header navigation={navigation} borderColor ={'#F8F9FB'} />
-        </View>
         <Text style={styles.header}>Inbox</Text>
-        <View style={{ flex: 1 }} />
       </View>
       
-
-
       {/* Search Input */}
       <View style={styles.searchContainer}>
         <TextInput
@@ -217,10 +212,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   headerView: {
-    height: 50,
-    borderBottomWidth:0.3,
-    borderBottomColor:'#444',
+    height: 40,
     flexDirection: "row",
     alignItems: "center",
+    paddingHorizontal: 20,
   }
 });

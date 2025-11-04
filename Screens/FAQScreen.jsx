@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, Modal, Dimensions } from "react-native";
 import { useTheme } from "../context/ThemeContext";
 import { Ionicons } from "@expo/vector-icons";
+import Header from '../components/Header';
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const scale = (size) => (SCREEN_WIDTH / 375) * size;
@@ -27,15 +28,11 @@ export default function FAQScreen({ navigation }) {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
 
-      <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back" size={scale(28)} color="#7CC242" />
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: isDark ? "#E0E0E0" : "#1A1A1A" }]}>FAQ / Help Center</Text>
-        <View style={{ width: scale(28) }} />
-      </View>
+      <Header navigation={navigation}/>
 
       <ScrollView contentContainerStyle={styles.scroll}>
+
+        <Text style={[styles.title, { color: isDark ? "#E0E0E0" : "#1A1A1A" }]}>FAQ / Help Center</Text>
 
         {faqs.map((faq, index) => (
           <TouchableOpacity key={index} style={[styles.item, { backgroundColor: colors.card }]} onPress={() => handlePress(faq.answer)}>
@@ -74,13 +71,6 @@ const styles = StyleSheet.create({
   modalText: { fontSize: 16, textAlign: "center", marginBottom: 20 },
   modalButton: { paddingVertical: 10, paddingHorizontal: 25, borderRadius: 8 },
   modalButtonText: { fontSize: 16, fontWeight: "600" },
-  headerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: scale(20),
-    paddingVertical: scale(10),
-    borderBottomWidth: 0.3,
-  },
-  title: { fontWeight: "700", fontSize: scale(22), textAlign: "center" },
+  
+  title: { fontWeight: "700", fontSize: scale(22),paddingBottom: scale(15) },
 });

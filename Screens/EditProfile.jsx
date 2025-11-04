@@ -28,10 +28,9 @@ import {
 import { doc, updateDoc, setDoc, getDoc } from "firebase/firestore";
 import { db } from "../Firebase/firebaseConfig";
 import { useTheme } from "../context/ThemeContext"; // ✅ Theme context
-import { Ionicons } from "@expo/vector-icons";
+import Header from '../components/Header';
 
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const scale = (size) => (SCREEN_WIDTH / 375) * size;
+
 
 export default function EditProfile({ navigation }) {
   const { isDark } = useTheme(); // ✅ theme toggle
@@ -268,11 +267,7 @@ export default function EditProfile({ navigation }) {
     >
 
       {/* Back Button */}
-      <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back" size={scale(28)} color="#7CC242" />
-        </TouchableOpacity>
-      </View>
+      <Header navigation={navigation} />
 
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <ScrollView
@@ -399,12 +394,5 @@ const styles = StyleSheet.create({
   modalContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0,0,0,0.4)" },
   modalContent: { backgroundColor: "#fff", padding: 20, borderRadius: 8, width: "80%", alignItems: "center" },
   modalButton: { marginTop: 15, backgroundColor: "#7CC242", padding: 10, borderRadius: 6, alignItems: "center", width: "100%" },
-  headerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: scale(16),
-    paddingVertical: scale(10),
-    borderBottomWidth: 0.3,
-  },
+  
 });

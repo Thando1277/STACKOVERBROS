@@ -22,10 +22,12 @@ export default function ChatbotScreen() {
             chat-title="findy-chat!💡"
             agent-id="56c2497a-867e-41d0-bd80-0c488729855b"
             language-code="en"
+            expand="true"
         ></df-messenger>
       </div>
     </body>
   </html>`;
+
 
   return (
     <View style={styles.container}>
@@ -42,7 +44,7 @@ export default function ChatbotScreen() {
   );
 }
 
+
 const styles = StyleSheet.create({
-  container: { flex: 1
-  },
+  container: { flex: 1 },
 });

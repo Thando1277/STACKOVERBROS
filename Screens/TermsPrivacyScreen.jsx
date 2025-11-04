@@ -2,6 +2,8 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { Ionicons } from "@expo/vector-icons";
+import Header from '../components/Header';
+
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const scale = (size) => (SCREEN_WIDTH / 375) * size;
 
@@ -17,12 +19,13 @@ export default function TermsPrivacyScreen({ navigation }) {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
 
-      <View style={styles.headerRow}>
+      {/* <View style={styles.headerRow}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={scale(28)} color="#7CC242" />
         </TouchableOpacity>
         <View style={{ width: scale(28) }} />
-      </View>
+      </View> */}
+      <Header navigation={navigation} />
       
       <ScrollView contentContainerStyle={styles.scroll}>
 

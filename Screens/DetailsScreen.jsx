@@ -1,3 +1,4 @@
+// DetailsScreen.js - COMPLETE FIXED VERSION (Handles file overwrites)
 import React, { useState, useEffect } from "react";
 import { 
   View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, 
@@ -9,11 +10,12 @@ import { useTheme } from "../context/ThemeContext";
 import { doc, getDoc, deleteDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { db, auth } from "../Firebase/firebaseConfig";
 import * as ImagePicker from 'expo-image-picker';
+import { File, Directory, Paths } from 'expo-file-system';  // ✅ NEW API
 import { LineChart } from 'react-native-chart-kit';
 
 const screenWidth = Dimensions.get("window").width;
 
-// ⚠️ IMPORTANT: Use your actual IP
+// ⚠ IMPORTANT: Use your actual IP
 const API_URL = "http://10.250.152.87:5000";
 
 // Test connection function
@@ -39,31 +41,65 @@ const convertCloudinaryToJpeg = (url) => {
   return url;
 };
 
-// Enhanced image conversion
+// ✅ FIXED: Proper file handling with unique names
 const imageToBase64 = async (imageUri) => {
   try {
-    const processedUri = convertCloudinaryToJpeg(imageUri);
-    const response = await fetch(processedUri, {
-      method: 'GET',
-      headers: { 'Accept': 'image/*' },
-    });
+    console.log('Converting image to base64:', imageUri);
     
-    if (!response.ok) {
-      throw new Error(`Failed to fetch image: HTTP ${response.status}`);
+    // Check if it's a local file or remote URL
+    if (imageUri.startsWith('file://')) {
+      // Local file - use new File API directly
+      const file = new File(imageUri);
+      const base64 = await file.base64();
+      return base64;
+    } else {
+      // Remote URL - download using new API
+      const processedUri = convertCloudinaryToJpeg(imageUri);
+      
+      // Create destination directory
+      const destination = new Directory(Paths.cache, 'temp_downloads');
+      
+      // Try to create directory, ignore if exists
+      try {
+        destination.create({ intermediates: true });
+      } catch (err) {
+        // Directory exists, that's fine
+      }
+      
+      console.log('📥 Downloading from:', processedUri);
+      
+      // Generate unique filename based on timestamp
+      const timestamp = Date.now();
+      const fileName = `img_${timestamp}.jpg`;
+      const targetFile = new File(destination.uri, fileName);
+      
+      // Delete if file exists (overwrite)
+      if (targetFile.exists) {
+        targetFile.delete();
+      }
+      
+      // Download file using new API with specific filename
+      const downloadedFile = await File.downloadFileAsync(
+        processedUri, 
+        new File(destination.uri, fileName)
+      );
+      
+      console.log('✓ Downloaded to:', downloadedFile.uri);
+      
+      // Convert to base64
+      const base64 = await downloadedFile.base64();
+      
+      // Cleanup after conversion
+      try {
+        downloadedFile.delete();
+      } catch (cleanupErr) {
+        console.log('⚠️ Could not cleanup temp file:', cleanupErr.message);
+      }
+      
+      return base64;
     }
-    
-    const blob = await response.blob();
-    
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const base64 = reader.result.split(',')[1];
-        resolve(base64);
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(blob);
-    });
   } catch (error) {
+    console.error('Image conversion error:', error);
     throw new Error(`Image conversion failed: ${error.message}`);
   }
 };
@@ -206,6 +242,7 @@ function ImageComparisonModal({
         throw new Error('Cannot connect to server at ' + API_URL);
       }
 
+      console.log('🔄 Converting images to base64...');
       const img1Base64 = await imageToBase64(referenceImage);
       const img2Base64 = await imageToBase64(capturedImage);
 
@@ -213,9 +250,16 @@ function ImageComparisonModal({
         throw new Error('Image conversion produced empty data');
       }
 
+      console.log('✓ Images converted, sending to API...');
+      console.log(`✓ Image 1 size: ${img1Base64.length} bytes`);
+      console.log(`✓ Image 2 size: ${img2Base64.length} bytes`);
+
       const response = await fetch(`${API_URL}/compare`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
         body: JSON.stringify({
           image1: img1Base64,
           image2: img2Base64,
@@ -228,15 +272,16 @@ function ImageComparisonModal({
       }
 
       const data = await response.json();
+      console.log('✓ Comparison result:', data);
 
       setResult({
-        similarity: data.similarity,
-        match: data.match,
-        confidence: data.confidence_level,
-        message: data.message,
+        similarity: data.similarity || 0,
+        match: data.match || false,
+        confidence: data.confidence_level || 'unknown',
+        message: data.message || 'Analysis complete',
         faceDistance: data.face_distance || data.distance,
-        interpretation: data.analysis_details?.interpretation,
-        analysisType: data.analysis_type
+        interpretation: data.analysis_details?.interpretation || 'No interpretation available',
+        analysisType: data.analysis_type || data.comparison_type || 'unknown'
       });
 
       const matchStatus = data.similarity >= 75 ? "Strong Match! 🎯" : 
@@ -302,7 +347,7 @@ function ImageComparisonModal({
                     AI Vision Analysis
                   </Text>
                   <Text style={[comparisonStyles.modalSubtitle, { color: themeColors.subText }]}>
-                    90%+ accuracy • Real-time processing
+                    Google Vision AI • Real-time processing
                   </Text>
                 </View>
               </View>
@@ -360,7 +405,6 @@ function ImageComparisonModal({
               </View>
             </View>
 
-            {/* Animated Loading Section */}
             {comparing && (
               <View style={comparisonStyles.analysisSection}>
                 <AnimatedLoadingGraph />
@@ -397,7 +441,6 @@ function ImageComparisonModal({
               </View>
             )}
 
-            {/* Action Button */}
             {!result && !comparing && capturedImage && (
               <TouchableOpacity 
                 style={comparisonStyles.compareBtn}
@@ -408,7 +451,6 @@ function ImageComparisonModal({
               </TouchableOpacity>
             )}
 
-            {/* Results Display */}
             {result && (
               <View style={comparisonStyles.resultContainer}>
                 <View style={[
@@ -436,7 +478,9 @@ function ImageComparisonModal({
                         Analysis Type
                       </Text>
                       <Text style={[comparisonStyles.resultValue, { color: themeColors.text }]}>
-                        {result.analysisType === 'face_recognition' ? 'Face Recognition' : 'Deep Learning'}
+                        {result.analysisType === 'face_recognition' ? '👤 Face Recognition' : 
+                         result.analysisType === 'object_pet_comparison' ? '🐾 Object/Pet Matching' : 
+                         '🔍 Deep Learning'}
                       </Text>
                     </View>
                   </View>
@@ -497,7 +541,7 @@ function ImageComparisonModal({
             <View style={comparisonStyles.footer}>
               <Ionicons name="shield-checkmark" size={16} color="#7CC242" />
               <Text style={[comparisonStyles.footerText, { color: themeColors.subText }]}>
-                Powered by advanced neural networks • Always verify in person
+                Powered by Google Vision AI • Always verify in person
               </Text>
             </View>
           </View>
@@ -702,14 +746,12 @@ export default function DetailsScreen({ route }) {
 
           <View style={styles.sectionContainer}>
             <Text style={styles.sectionTitle}>Contact Information</Text>
-            <Text style={[styles.sectionText, { color: themeColors.textLight }]}>Name: {report.contactName || "N/A"}</Text>
-            <Text style={[styles.sectionText, { color: themeColors.textLight }]}>Phone: {report.contactNumber || "N/A"}</Text>
+            <Text style={[styles.sectionText, { color: themeColors.text }]}>Name: {report.contactName || "N/A"}</Text>
+            <Text style={[styles.sectionText, { color: themeColors.text }]}>Phone: {report.contactNumber || "N/A"}</Text>
             
-            {/* ✅ UPDATED Reply Privately Button with self-message prevention */}
             <TouchableOpacity
               style={styles.replyPrivatelyBtn}
               onPress={async () => {
-                // ✅ Check if user is trying to message themselves
                 if (report.userId === auth.currentUser?.uid) {
                   Alert.alert(
                     "Cannot Message Yourself",
@@ -758,7 +800,7 @@ export default function DetailsScreen({ route }) {
           <Ionicons name="analytics" size={24} color="white" />
           <View style={styles.ctaTextContainer}>
             <Text style={styles.ctaTitle}>AI Vision Analysis</Text>
-            <Text style={styles.ctaSubtitle}>90%+ accuracy • Real-time processing</Text>
+            <Text style={styles.ctaSubtitle}>Google Vision • Face + Object matching</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="white" />
         </TouchableOpacity>
@@ -882,10 +924,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginTop: 12,
     elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
   },
   replyPrivatelyText: { color: "white", fontSize: 15, fontWeight: "600", marginLeft: 8 },
   aiComparisonCta: {
@@ -1225,128 +1263,5 @@ const comparisonStyles = StyleSheet.create({
     fontStyle: 'italic',
     textAlign: 'center',
     flex: 1,
-  },
-});
-
-const uploadStyles = StyleSheet.create({
-  modalContainer: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    justifyContent: 'center',
-    padding: 20,
-  },
-  modalContent: {
-    backgroundColor: 'white',
-    borderRadius: 20,
-    padding: 20,
-    maxHeight: '80%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  modalTitle: { fontSize: 20, fontWeight: 'bold' },
-  scrollContent: {
-    flexGrow: 1,
-  },
-  imagePreviewContainer: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  imagePreview: {
-    width: 200,
-    height: 200,
-    borderRadius: 12,
-    marginBottom: 12,
-  },
-  changeImageBtn: {
-    padding: 8,
-  },
-  changeImageText: {
-    color: '#7CC242',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  imageSelection: {
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 12,
-  },
-  sourceButtons: {
-    gap: 12,
-  },
-  sourceBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 16,
-    borderRadius: 12,
-    gap: 12,
-  },
-  sourceBtnText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  descriptionContainer: {
-    marginBottom: 20,
-  },
-  textInput: {
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    textAlignVertical: 'top',
-    minHeight: 80,
-  },
-  progressContainer: {
-    marginBottom: 20,
-  },
-  progressText: {
-    fontSize: 14,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  progressBar: {
-    height: 6,
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  cancelBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 10,
-    borderWidth: 2,
-    alignItems: 'center',
-  },
-  cancelBtnText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  uploadBtn: {
-    flex: 2,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    borderRadius: 10,
-    gap: 8,
-  },
-  uploadBtnText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '700',
   },
 });

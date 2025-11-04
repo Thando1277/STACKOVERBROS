@@ -17,9 +17,11 @@ import {
   onSnapshot,
   query,
   orderBy,
+  Dimensions
 } from 'firebase/firestore';
 import { db } from '../Firebase/firebaseConfig';
 import UserItem from '../components/UserItem';
+import Header from '../components/Header';
 
 const InboxScreen = () => {
   const navigation = useNavigation();
@@ -89,7 +91,16 @@ const InboxScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.header}>Inbox</Text>
+
+      <View style={styles.headerView}>
+        <View style={{ flex: 1 }}>
+          <Header navigation={navigation} borderColor ={'#F8F9FB'} />
+        </View>
+        <Text style={styles.header}>Inbox</Text>
+        <View style={{ flex: 1 }} />
+      </View>
+      
+
 
       {/* Search Input */}
       <View style={styles.searchContainer}>
@@ -148,16 +159,12 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8F9FB',
+    
   },
   header: {
     fontSize: 24,
     fontWeight: '800',
     color: '#222',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
-    backgroundColor: '#fff',
   },
   searchContainer: {
     paddingHorizontal: 16,
@@ -209,4 +216,11 @@ const styles = StyleSheet.create({
     color: '#999',
     fontWeight: '600',
   },
+  headerView: {
+    height: 50,
+    borderBottomWidth:0.3,
+    borderBottomColor:'#444',
+    flexDirection: "row",
+    alignItems: "center",
+  }
 });

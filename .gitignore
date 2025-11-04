@@ -3,6 +3,7 @@
 # Local configuration (each developer has their own)
 config.js
 
+
 # dependencies
 node_modules/
 

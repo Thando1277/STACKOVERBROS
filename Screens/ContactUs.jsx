@@ -15,10 +15,8 @@ import {
 } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 import { Ionicons } from "@expo/vector-icons";
+import Header from '../components/Header';
 
-
-const { width: SCREEN_WIDTH } = Dimensions.get("window");
-const scale = (size) => (SCREEN_WIDTH / 375) * size;
 
 export default function ContactSupportScreen({ navigation }) {
   const { colors} = useTheme();
@@ -45,12 +43,7 @@ export default function ContactSupportScreen({ navigation }) {
       style={{ flex: 1, backgroundColor: colors.background }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Ionicons name="chevron-back" size={scale(28)} color="#7CC242" />
-        </TouchableOpacity>
-        <View style={{ width: scale(28) }} />
-      </View>
+      <Header navigation={navigation} />
 
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={{ flex: 1, backgroundColor: colors.background }}>
@@ -147,12 +140,4 @@ const styles = StyleSheet.create({
   modalText: { fontSize: 16, textAlign: 'center', marginBottom: 20 },
   modalButton: { paddingVertical: 12, paddingHorizontal: 30, borderRadius: 8, alignItems: 'center' },
   modalButtonText: { fontSize: 16, fontWeight: '600' },
-  headerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: scale(20),
-    paddingVertical: scale(10),
-    borderBottomWidth: 0.3,
-  },
 });

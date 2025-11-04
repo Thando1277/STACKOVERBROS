@@ -1,5 +1,8 @@
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
+# Local configuration (each developer has their own)
+config.js
+
 # dependencies
 node_modules/
 

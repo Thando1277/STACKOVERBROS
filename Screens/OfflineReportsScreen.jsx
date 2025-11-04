@@ -379,10 +379,13 @@ export default function OfflineReportsScreen() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
+
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={28} color="#7CC242" />
         </TouchableOpacity>
+
         <Text style={styles.headerTitle}>Offline Reports</Text>
+
         {reports.length > 0 && (
           <TouchableOpacity onPress={clearAllReports}>
             <Ionicons name="trash-outline" size={24} color="#ff3b30" />
@@ -498,7 +501,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     paddingHorizontal: 16,
-    paddingTop: 50,
+    paddingTop: 30,
     paddingBottom: 16,
     backgroundColor: "#fff",
     borderBottomWidth: 1,

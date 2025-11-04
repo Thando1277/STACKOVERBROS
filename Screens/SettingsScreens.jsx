@@ -5,6 +5,7 @@ import { useTheme } from '../context/ThemeContext';
 import { collection, query, where, onSnapshot } from "firebase/firestore";
 import { db, auth } from "../Firebase/firebaseConfig";
 import { OfflineReportManager } from '../utils/OfflineReportManager';
+import Header from '../components/Header';
 
 export default function SettingsScreen({ navigation }) {
   const { isDark, toggleTheme } = useTheme();
@@ -67,21 +68,17 @@ export default function SettingsScreen({ navigation }) {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <Header 
+          navigation={navigation} 
+          iconColor={colors.accent} 
+          borderColor={colors.border} 
+        />
       <ScrollView 
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
-        <View style={styles.headerRow}>
-          <TouchableOpacity 
-            onPress={() => navigation.goBack()}
-            style={[styles.backButton, { backgroundColor: colors.card }]}
-            activeOpacity={0.7}
-          >
-            <Icon name="chevron-left" size={24} color={colors.accent} />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>Settings</Text>
-        </View>
+
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Settings</Text>
 
         {/* Profile Card */}
         <View style={[
@@ -286,7 +283,7 @@ const styles = StyleSheet.create({
   },
   scroll: { 
     padding: 20,
-    paddingTop: 60,
+    paddingTop: 40,
   },
   headerRow: { 
     flexDirection: 'row', 
@@ -305,6 +302,7 @@ const styles = StyleSheet.create({
     fontSize: 28, 
     fontWeight: '700',
     letterSpacing: -0.5,
+    paddingBottom: 10,
   },
   profileSection: { 
     borderRadius: 16, 

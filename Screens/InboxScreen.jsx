@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   TextInput,
   SafeAreaView,
+  TouchableOpacity,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { getAuth } from 'firebase/auth';
@@ -17,12 +18,10 @@ import {
   onSnapshot,
   query,
   orderBy,
-  Dimensions
 } from 'firebase/firestore';
 import { db } from '../Firebase/firebaseConfig';
 import UserItem from '../components/UserItem';
-import Header from '../components/Header';
-
+import { Ionicons } from '@expo/vector-icons';
 
 const InboxScreen = () => {
   const navigation = useNavigation();
@@ -57,7 +56,7 @@ const InboxScreen = () => {
             avatar: userData.avatar || '',
             lastMessage: chatData.lastMessage || '',
             lastMessageAt: chatData.lastMessageAt || null,
-            isRead: chatData.isRead ?? true, // 👈 default true if not present
+            isRead: chatData.isRead ?? true,
           };
         })
       );
@@ -92,8 +91,14 @@ const InboxScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-
+      {/* Header with Back Button */}
       <View style={styles.headerView}>
+        <TouchableOpacity 
+          onPress={() => navigation.goBack()}
+          style={styles.backButton}
+        >
+          <Ionicons name="arrow-back" size={24} color="#222" />
+        </TouchableOpacity>
         <Text style={styles.header}>Inbox</Text>
       </View>
       
@@ -123,7 +128,7 @@ const InboxScreen = () => {
                 name={item.fullName}
                 profilePic={item.avatar}
                 lastMessage={item.lastMessage}
-                hasUnreadMessages={!item.isRead} // 👈 Show red dot if not read
+                hasUnreadMessages={!item.isRead}
                 onPress={() =>
                   navigation.navigate('ChatScreen', {
                     user: {
@@ -154,7 +159,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F8F9FB',
-    
+  },
+  headerView: {
+    height: 60,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  backButton: {
+    padding: 8,
+    marginRight: 12,
   },
   header: {
     fontSize: 24,
@@ -211,10 +228,4 @@ const styles = StyleSheet.create({
     color: '#999',
     fontWeight: '600',
   },
-  headerView: {
-    height: 40,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 20,
-  }
 });

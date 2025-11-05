@@ -9,11 +9,7 @@
     "newArchEnabled": true,
     "scheme": "findsos",
     "main": "index.js",
-    "platforms": [
-      "ios",
-      "android",
-      "web"
-    ],
+    "platforms": ["ios", "android", "web"],
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -22,9 +18,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.anonymous.FindSOS",
-      "config": {
-        "googleMapsApiKey": "$(GOOGLE_MAPS_API_KEY)"
-      },
+      "config": { "googleMapsApiKey": "$(GOOGLE_MAPS_API_KEY)" },
       "infoPlist": {
         "NSCameraUsageDescription": "FindSOS needs access to your camera to take photos and compare them with missing person/pet reports using AI.",
         "NSPhotoLibraryUsageDescription": "FindSOS needs access to your photo library to select photos for comparison with missing person/pet reports.",
@@ -39,21 +33,10 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.anonymous.FindSOS",
-      "config": {
-        "googleMaps": {
-          "apiKey": "$(GOOGLE_MAPS_API_KEY)"
-        }
-      },
-      "permissions": [
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE",
-        "READ_MEDIA_IMAGES"
-      ]
+      "config": { "googleMaps": { "apiKey": "$(GOOGLE_MAPS_API_KEY)" } },
+      "permissions": ["CAMERA", "READ_EXTERNAL_STORAGE", "WRITE_EXTERNAL_STORAGE", "READ_MEDIA_IMAGES"]
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
+    "web": { "favicon": "./assets/favicon.png" },
     "plugins": [
       "expo-web-browser",
       [
@@ -67,15 +50,15 @@
       ]
     ],
     "extra": {
-      "FIREBASE_API_KEY": "AIzaSyDM9ajCTkROObUtA4QM8V6J9zRWSV964HY",
-      "FIREBASE_AUTH_DOMAIN": "findsos.firebaseapp.com",
-      "FIREBASE_PROJECT_ID": "findsos",
-      "FIREBASE_STORAGE_BUCKET": "findsos.firebasestorage.app",
-      "FIREBASE_MESSAGING_SENDER_ID": "633214674311",
-      "FIREBASE_APP_ID": "1:633214674311:web:981141b66deac72c995f22",
-      "FIREBASE_MEASUREMENT_ID": "G-77M5D3DF0R",
-      "API_URL": "http://10.250.152.87:5000",
-      "GOOGLE_MAPS_API_KEY": "AIzaSyBNkhpJ5AKndXYUZ4G5aMYZ3oVc3jKqssQ"
+      "FIREBASE_API_KEY": "your_firebase_api_key_here",
+      "FIREBASE_AUTH_DOMAIN": "your_project.firebaseapp.com",
+      "FIREBASE_PROJECT_ID": "your_project_id",
+      "FIREBASE_STORAGE_BUCKET": "your_project.firebasestorage.app",
+      "FIREBASE_MESSAGING_SENDER_ID": "your_messaging_sender_id",
+      "FIREBASE_APP_ID": "your_app_id",
+      "FIREBASE_MEASUREMENT_ID": "your_measurement_id",
+      "API_URL": "http://your_local_ip:5000",
+      "GOOGLE_MAPS_API_KEY": "your_google_maps_api_key_here"
     }
   }
 }

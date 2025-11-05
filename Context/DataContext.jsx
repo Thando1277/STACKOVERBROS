@@ -2,27 +2,37 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { collection, onSnapshot } from "firebase/firestore";
-import { db } from "../Firebase/firebaseConfig"; // adjust path if needed
+import { db } from "../Firebase/firebaseConfig";
 
 const DataContext = createContext();
 
 export const DataProvider = ({ children }) => {
   const [reports, setReports] = useState([]);
+  const [lastSeenAlerts, setLastSeenAlerts] = useState(null);
+
+  // ✅ Load last seen timestamp on mount
+  useEffect(() => {
+    loadLastSeenAlerts();
+  }, []);
 
   // ✅ Real-time Firestore listener
   useEffect(() => {
-    const unsub = onSnapshot(collection(db, "reports"), (snapshot) => {
-      const list = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setReports(list);
+    const unsub = onSnapshot(
+      collection(db, "reports"),
+      (snapshot) => {
+        const list = snapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setReports(list);
 
-      // Also persist in AsyncStorage
-      persist(list);
-    }, (error) => {
-      console.error("Firestore fetch error:", error);
-    });
+        // Also persist in AsyncStorage
+        persist(list);
+      },
+      (error) => {
+        console.error("Firestore fetch error:", error);
+      }
+    );
 
     return () => unsub();
   }, []);
@@ -45,6 +55,62 @@ export const DataProvider = ({ children }) => {
       await AsyncStorage.setItem("reports", JSON.stringify(next));
     } catch (e) {
       console.warn("Failed to save reports to AsyncStorage", e);
+    }
+  };
+
+  // ✅ NEW: Load last seen alerts timestamp
+  const loadLastSeenAlerts = async () => {
+    try {
+      const timestamp = await AsyncStorage.getItem("lastSeenAlerts");
+      if (timestamp) {
+        setLastSeenAlerts(new Date(timestamp));
+      }
+    } catch (error) {
+      console.warn("Error loading lastSeenAlerts:", error);
+    }
+  };
+
+  // ✅ NEW: Mark alerts as seen
+  const markAlertsAsSeen = async () => {
+    try {
+      const now = new Date().toISOString();
+      await AsyncStorage.setItem("lastSeenAlerts", now);
+      setLastSeenAlerts(new Date(now));
+      console.log("✅ Alerts marked as seen at:", now);
+    } catch (error) {
+      console.warn("Error marking alerts as seen:", error);
+    }
+  };
+
+  // ✅ NEW: Get unseen alerts count (SAFE VERSION)
+  const getUnseenAlertsCount = () => {
+    try {
+      // Safety checks
+      if (!Array.isArray(reports)) {
+        return 0;
+      }
+
+      if (!lastSeenAlerts) {
+        // First time user - count all alerts
+        const allAlerts = reports.filter(
+          (r) => r && (r.type === "Panic" || r.type === "Wanted")
+        );
+        return allAlerts.length || 0;
+      }
+
+      // Count alerts created after last seen timestamp
+      const unseenAlerts = reports.filter((r) => {
+        if (!r || !r.type || !r.createdAt) return false;
+        const isAlert = r.type === "Panic" || r.type === "Wanted";
+        const createdDate = new Date(r.createdAt);
+        const isNew = createdDate > lastSeenAlerts;
+        return isAlert && isNew;
+      });
+
+      return unseenAlerts.length || 0;
+    } catch (error) {
+      console.warn("Error in getUnseenAlertsCount:", error);
+      return 0;
     }
   };
 
@@ -115,6 +181,10 @@ export const DataProvider = ({ children }) => {
         addComment,
         updateReportStatus,
         deleteReport,
+        // ✅ NEW: Badge tracking functions
+        lastSeenAlerts,
+        markAlertsAsSeen,
+        getUnseenAlertsCount,
       }}
     >
       {children}

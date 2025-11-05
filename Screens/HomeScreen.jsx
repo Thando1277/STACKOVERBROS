@@ -22,6 +22,7 @@ import { getAuth } from "firebase/auth";
 import { useTheme } from "../context/ThemeContext";
 import ChatIcon from '../components/ChatIcon'
 import { useCallback } from 'react';
+import BottomNavigation from "../components/BottomNavigation";
 
 const { width, height } = Dimensions.get("window");
 
@@ -794,7 +795,8 @@ export default function HomeScreen() {
       />
 
       {/* Bottom Navigation - Fixed */}
-      <View style={[styles.bottomNav, { backgroundColor: themeColors.bg }]}>
+      <BottomNavigation navigation={navigation} currentRoute="Home"/>
+      {/* <View style={[styles.bottomNav, { backgroundColor: themeColors.bg }]}>
         <TouchableOpacity style={styles.navItem} onPress={() => navigation.navigate("Home")}>
           <Ionicons name="home-outline" size={26} color={themeColors.primary} />
           <Text style={[styles.navText, { color: themeColors.primary }]}>Home</Text>
@@ -812,7 +814,7 @@ export default function HomeScreen() {
           <Ionicons name="person-outline" size={26} color={themeColors.text} />
           <Text style={[styles.navText, { color: themeColors.text }]}>Profile</Text>
         </TouchableOpacity>
-      </View>
+      </View> */}
 
       {/* Report Button - Fixed */}
       <TouchableOpacity 

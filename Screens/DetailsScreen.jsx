@@ -1,4 +1,4 @@
-// DetailsScreen.js - COMPLETE FIXED VERSION (Handles file overwrites)
+// DetailsScreen.js - COMPLETE VERSION WITH CUSTOM THEMED ANDROID ALERT
 import React, { useState, useEffect } from "react";
 import { 
   View, Text, StyleSheet, Image, ScrollView, TouchableOpacity, 
@@ -10,13 +10,11 @@ import { useTheme } from "../context/ThemeContext";
 import { doc, getDoc, deleteDoc, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { db, auth } from "../Firebase/firebaseConfig";
 import * as ImagePicker from 'expo-image-picker';
-import { File, Directory, Paths } from 'expo-file-system';  // ✅ NEW API
+import { File, Directory, Paths } from 'expo-file-system';
 import { LineChart } from 'react-native-chart-kit';
 import Config from '../Config';
 
 const screenWidth = Dimensions.get("window").width;
-
-// ⚠ IMPORTANT: Use your actual IP
 const API_URL = Config.API_URL;
 
 // Test connection function
@@ -42,44 +40,35 @@ const convertCloudinaryToJpeg = (url) => {
   return url;
 };
 
-// ✅ FIXED: Proper file handling with unique names
+// Image to base64 conversion
 const imageToBase64 = async (imageUri) => {
   try {
     console.log('Converting image to base64:', imageUri);
     
-    // Check if it's a local file or remote URL
     if (imageUri.startsWith('file://')) {
-      // Local file - use new File API directly
       const file = new File(imageUri);
       const base64 = await file.base64();
       return base64;
     } else {
-      // Remote URL - download using new API
       const processedUri = convertCloudinaryToJpeg(imageUri);
-      
-      // Create destination directory
       const destination = new Directory(Paths.cache, 'temp_downloads');
       
-      // Try to create directory, ignore if exists
       try {
         destination.create({ intermediates: true });
       } catch (err) {
-        // Directory exists, that's fine
+        // Directory exists
       }
       
       console.log('📥 Downloading from:', processedUri);
       
-      // Generate unique filename based on timestamp
       const timestamp = Date.now();
       const fileName = `img_${timestamp}.jpg`;
       const targetFile = new File(destination.uri, fileName);
       
-      // Delete if file exists (overwrite)
       if (targetFile.exists) {
         targetFile.delete();
       }
       
-      // Download file using new API with specific filename
       const downloadedFile = await File.downloadFileAsync(
         processedUri, 
         new File(destination.uri, fileName)
@@ -87,10 +76,8 @@ const imageToBase64 = async (imageUri) => {
       
       console.log('✓ Downloaded to:', downloadedFile.uri);
       
-      // Convert to base64
       const base64 = await downloadedFile.base64();
       
-      // Cleanup after conversion
       try {
         downloadedFile.delete();
       } catch (cleanupErr) {
@@ -104,6 +91,80 @@ const imageToBase64 = async (imageUri) => {
     throw new Error(`Image conversion failed: ${error.message}`);
   }
 };
+
+// ✅ NEW: Custom Themed Android Alert Modal
+function CustomAlertModal({ visible, onClose, isDark }) {
+  const themeColors = {
+    overlay: 'rgba(0, 0, 0, 0.85)',
+    card: isDark ? "#2A2A2A" : "#FFF",
+    text: isDark ? "#E0E0E0" : "#222",
+    subText: isDark ? "#AAA" : "#666",
+    primary: "#7CC242",
+    border: isDark ? "#555" : "#EEE",
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <View style={customAlertStyles.overlay}>
+        <View style={[customAlertStyles.container, { backgroundColor: themeColors.card }]}>
+          {/* Icon Header */}
+          <View style={[customAlertStyles.iconCircle, { backgroundColor: '#7CC24215' }]}>
+            <Ionicons name="phone-portrait-outline" size={48} color="#7CC242" />
+          </View>
+
+          {/* Title */}
+          <Text style={[customAlertStyles.title, { color: themeColors.text }]}>
+            iOS Only Feature
+          </Text>
+
+          {/* Description */}
+          <Text style={[customAlertStyles.description, { color: themeColors.subText }]}>
+            Face scanning with AI is currently only available on iPhone devices.{'\n\n'}
+            Android support is coming soon! 🚀
+          </Text>
+
+          {/* Feature Pills */}
+          <View style={customAlertStyles.featurePills}>
+            <View style={customAlertStyles.pill}>
+              <Ionicons name="logo-apple" size={16} color="#7CC242" />
+              <Text style={[customAlertStyles.pillText, { color: themeColors.text }]}>iOS Ready</Text>
+            </View>
+            <View style={[customAlertStyles.pill, { opacity: 0.5 }]}>
+              <Ionicons name="logo-android" size={16} color="#999" />
+              <Text style={[customAlertStyles.pillText, { color: themeColors.subText }]}>Coming Soon</Text>
+            </View>
+          </View>
+
+          {/* Divider */}
+          <View style={[customAlertStyles.divider, { backgroundColor: themeColors.border }]} />
+
+          {/* Buttons */}
+          <TouchableOpacity
+            style={[customAlertStyles.button, customAlertStyles.primaryButton]}
+            onPress={onClose}
+            activeOpacity={0.8}
+          >
+            <Text style={customAlertStyles.buttonText}>Got It!</Text>
+            <Ionicons name="checkmark-circle" size={20} color="white" />
+          </TouchableOpacity>
+
+          {/* Footer */}
+          <View style={customAlertStyles.footer}>
+            <Ionicons name="information-circle-outline" size={14} color={themeColors.subText} />
+            <Text style={[customAlertStyles.footerText, { color: themeColors.subText }]}>
+              Powered by Google Vision AI
+            </Text>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
 
 // Animated Loading Graph Component
 function AnimatedLoadingGraph() {
@@ -173,6 +234,7 @@ function ImageComparisonModal({
   const [result, setResult] = useState(null);
   const [analysisSteps, setAnalysisSteps] = useState([]);
   const [currentMetric, setCurrentMetric] = useState({ name: '', value: 0 });
+  const [showAndroidAlert, setShowAndroidAlert] = useState(false);
   const fadeAnim = new Animated.Value(0);
 
   useEffect(() => {
@@ -185,7 +247,13 @@ function ImageComparisonModal({
     }
   }, [visible]);
 
+  // ✅ UPDATED: Use custom alert
   const pickImage = async () => {
+    if (Platform.OS === 'android') {
+      setShowAndroidAlert(true);
+      return;
+    }
+
     try {
       const permission = await ImagePicker.requestCameraPermissionsAsync();
       if (!permission.granted) {
@@ -212,6 +280,12 @@ function ImageComparisonModal({
   };
 
   const compareImages = async () => {
+    // ✅ UPDATED: Use custom alert
+    if (Platform.OS === 'android') {
+      setShowAndroidAlert(true);
+      return;
+    }
+
     if (!capturedImage || !referenceImage) {
       Alert.alert("Error", "Both images are required for comparison.");
       return;
@@ -230,7 +304,6 @@ function ImageComparisonModal({
       { name: "✅ Finalizing results", metric: "Analysis", value: 100 }
     ];
 
-    // Animate through analysis steps
     for (let i = 0; i < steps.length; i++) {
       setAnalysisSteps(prev => [...prev, steps[i].name]);
       setCurrentMetric({ name: steps[i].metric, value: steps[i].value });
@@ -252,9 +325,6 @@ function ImageComparisonModal({
       }
 
       console.log('✓ Images converted, sending to API...');
-      console.log(`✓ Image 1 size: ${img1Base64.length} bytes`);
-      console.log(`✓ Image 2 size: ${img2Base64.length} bytes`);
-
       const response = await fetch(`${API_URL}/compare`, {
         method: 'POST',
         headers: { 
@@ -348,7 +418,7 @@ function ImageComparisonModal({
                     AI Vision Analysis
                   </Text>
                   <Text style={[comparisonStyles.modalSubtitle, { color: themeColors.subText }]}>
-                    Google Vision AI • Real-time processing
+                    Google Vision AI • Real-time processing • iOS Only
                   </Text>
                 </View>
               </View>
@@ -542,12 +612,19 @@ function ImageComparisonModal({
             <View style={comparisonStyles.footer}>
               <Ionicons name="shield-checkmark" size={16} color="#7CC242" />
               <Text style={[comparisonStyles.footerText, { color: themeColors.subText }]}>
-                Powered by Google Vision AI • Always verify in person
+                Powered by Google Vision AI • iOS Only • Always verify in person
               </Text>
             </View>
           </View>
         </ScrollView>
       </Animated.View>
+
+      {/* ✅ Custom Android Alert inside ImageComparisonModal */}
+      <CustomAlertModal
+        visible={showAndroidAlert}
+        onClose={() => setShowAndroidAlert(false)}
+        isDark={themeColors.text === "#E0E0E0"}
+      />
     </Modal>
   );
 }
@@ -561,6 +638,7 @@ export default function DetailsScreen({ route }) {
   const [isSaved, setIsSaved] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
   const [showComparisonModal, setShowComparisonModal] = useState(false);
+  const [showAndroidAlert, setShowAndroidAlert] = useState(false);
 
   const { report: reportProp, reportId } = route.params;
 
@@ -669,6 +747,16 @@ export default function DetailsScreen({ route }) {
     );
   };
 
+  // ✅ UPDATED: Use custom themed alert
+  const handleAIClick = () => {
+    if (Platform.OS === 'android') {
+      setShowAndroidAlert(true);
+      return;
+    }
+    
+    setShowComparisonModal(true);
+  };
+
   if (loading || !report) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: themeColors.bg, justifyContent: 'center', alignItems: 'center' }]}>
@@ -688,7 +776,7 @@ export default function DetailsScreen({ route }) {
           
           <View style={styles.headerActions}>
             <TouchableOpacity 
-              onPress={() => setShowComparisonModal(true)}
+              onPress={handleAIClick}
               style={styles.cameraButton}
             >
               <Ionicons name="camera" size={22} color="#7CC242" />
@@ -796,12 +884,12 @@ export default function DetailsScreen({ route }) {
 
         <TouchableOpacity 
           style={styles.aiComparisonCta}
-          onPress={() => setShowComparisonModal(true)}
+          onPress={handleAIClick}
         >
           <Ionicons name="analytics" size={24} color="white" />
           <View style={styles.ctaTextContainer}>
             <Text style={styles.ctaTitle}>AI Vision Analysis</Text>
-            <Text style={styles.ctaSubtitle}>Google Vision • Face + Object matching</Text>
+            <Text style={styles.ctaSubtitle}>Google Vision • iOS Only • Face + Object matching</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="white" />
         </TouchableOpacity>
@@ -837,6 +925,13 @@ export default function DetailsScreen({ route }) {
         </Modal>
       )}
 
+      {/* ✅ Custom Android Alert Modal */}
+      <CustomAlertModal
+        visible={showAndroidAlert}
+        onClose={() => setShowAndroidAlert(false)}
+        isDark={isDark}
+      />
+
       <ImageComparisonModal
         visible={showComparisonModal}
         onClose={() => setShowComparisonModal(false)}
@@ -848,6 +943,7 @@ export default function DetailsScreen({ route }) {
   );
 }
 
+// Main Styles
 const styles = StyleSheet.create({
   container: { flex: 1 },
   headerRow: {
@@ -962,6 +1058,107 @@ const styles = StyleSheet.create({
   imageModal: { width: "90%", height: "90%", borderRadius: 12 },
 });
 
+// ✅ Custom Alert Styles
+const customAlertStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  container: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 24,
+    padding: 28,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  iconCircle: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  description: {
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  featurePills: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 24,
+  },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#7CC24210',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: '#7CC24230',
+  },
+  pillText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  divider: {
+    width: '100%',
+    height: 1,
+    marginBottom: 20,
+  },
+  button: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    borderRadius: 14,
+    gap: 8,
+  },
+  primaryButton: {
+    backgroundColor: '#7CC242',
+    shadowColor: '#7CC242',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 17,
+    fontWeight: 'bold',
+  },
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 16,
+  },
+  footerText: {
+    fontSize: 11,
+    fontStyle: 'italic',
+  },
+});
+
+// Comparison Modal Styles (keeping existing)
 const comparisonStyles = StyleSheet.create({
   modalContainer: {
     flex: 1,

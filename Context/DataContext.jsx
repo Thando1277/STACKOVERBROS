@@ -25,6 +25,7 @@ export const DataProvider = ({ children }) => {
           ...doc.data(),
         }));
         setReports(list);
+        console.log(`📦 Loaded ${list.length} reports from Firestore`);
 
         // Also persist in AsyncStorage
         persist(list);
@@ -58,19 +59,23 @@ export const DataProvider = ({ children }) => {
     }
   };
 
-  // ✅ NEW: Load last seen alerts timestamp
+  // ✅ Load last seen alerts timestamp
   const loadLastSeenAlerts = async () => {
     try {
       const timestamp = await AsyncStorage.getItem("lastSeenAlerts");
       if (timestamp) {
-        setLastSeenAlerts(new Date(timestamp));
+        const date = new Date(timestamp);
+        setLastSeenAlerts(date);
+        console.log("📅 Last seen alerts:", date.toLocaleString());
+      } else {
+        console.log("📅 No lastSeenAlerts found (first time user)");
       }
     } catch (error) {
       console.warn("Error loading lastSeenAlerts:", error);
     }
   };
 
-  // ✅ NEW: Mark alerts as seen
+  // ✅ Mark alerts as seen
   const markAlertsAsSeen = async () => {
     try {
       const now = new Date().toISOString();
@@ -82,7 +87,7 @@ export const DataProvider = ({ children }) => {
     }
   };
 
-  // ✅ NEW: Get unseen alerts count (SAFE VERSION)
+  // ✅ Get unseen alerts count (SAFE VERSION)
   const getUnseenAlertsCount = () => {
     try {
       // Safety checks
@@ -95,6 +100,7 @@ export const DataProvider = ({ children }) => {
         const allAlerts = reports.filter(
           (r) => r && (r.type === "Panic" || r.type === "Wanted")
         );
+        console.log(`🔢 Unseen count (first time): ${allAlerts.length}`);
         return allAlerts.length || 0;
       }
 
@@ -102,11 +108,19 @@ export const DataProvider = ({ children }) => {
       const unseenAlerts = reports.filter((r) => {
         if (!r || !r.type || !r.createdAt) return false;
         const isAlert = r.type === "Panic" || r.type === "Wanted";
-        const createdDate = new Date(r.createdAt);
+        
+        let createdDate;
+        if (r.createdAt?.seconds) {
+          createdDate = new Date(r.createdAt.seconds * 1000);
+        } else {
+          createdDate = new Date(r.createdAt);
+        }
+        
         const isNew = createdDate > lastSeenAlerts;
         return isAlert && isNew;
       });
 
+      console.log(`🔢 Unseen count: ${unseenAlerts.length}`);
       return unseenAlerts.length || 0;
     } catch (error) {
       console.warn("Error in getUnseenAlertsCount:", error);
@@ -181,7 +195,7 @@ export const DataProvider = ({ children }) => {
         addComment,
         updateReportStatus,
         deleteReport,
-        // ✅ NEW: Badge tracking functions
+        // ✅ Badge tracking functions
         lastSeenAlerts,
         markAlertsAsSeen,
         getUnseenAlertsCount,

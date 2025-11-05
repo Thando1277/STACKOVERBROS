@@ -6,29 +6,26 @@ import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 import Constants from 'expo-constants';
 
-// Get environment variables
-// In development, these come from .env file
-// In production/Expo, these come from app.json extra field
+// Prefer .env in development; fallback to Expo extra for builds
+const isDev = __DEV__ === true;
+
 const getEnvVar = (key, fallback = null) => {
-  // Try Expo Constants first (for production builds)
+  // 1) In dev, prefer process.env (babel inline from .env)
+  if (isDev && process.env[key]) {
+    return process.env[key];
+  }
+  // 2) Expo extra (EAS/builds or when provided via app.json)
   if (Constants.expoConfig?.extra?.[key]) {
     return Constants.expoConfig.extra[key];
   }
-  
-  // Try process.env (for development with babel-plugin-inline-dotenv)
-  if (process.env[key]) {
+  // 3) Non-dev fallback to process.env if present
+  if (!isDev && process.env[key]) {
     return process.env[key];
   }
-  
-  // Use fallback or throw error
-  if (fallback !== null) {
-    return fallback;
-  }
-  
-  throw new Error(`Environment variable ${key} is not defined. Please check your .env file or app.json configuration.`);
+  if (fallback !== null) return fallback;
+  throw new Error(`Environment variable ${key} is not defined. Check your .env (dev) or app config (prod).`);
 };
 
-// Firebase config using environment variables
 const firebaseConfig = {
   apiKey: getEnvVar('FIREBASE_API_KEY'),
   authDomain: getEnvVar('FIREBASE_AUTH_DOMAIN'),
@@ -36,31 +33,22 @@ const firebaseConfig = {
   storageBucket: getEnvVar('FIREBASE_STORAGE_BUCKET'),
   messagingSenderId: getEnvVar('FIREBASE_MESSAGING_SENDER_ID'),
   appId: getEnvVar('FIREBASE_APP_ID'),
-  measurementId: getEnvVar('FIREBASE_MEASUREMENT_ID', ''), // Optional
+  measurementId: getEnvVar('FIREBASE_MEASUREMENT_ID', ''),
 };
 
-// Initialize Firebase
 const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
 
-// Initialize Auth with React Native persistence
 let auth;
 try {
-  auth = initializeAuth(app, {
-    persistence: getReactNativePersistence(AsyncStorage),
-  });
+  auth = initializeAuth(app, { persistence: getReactNativePersistence(AsyncStorage) });
 } catch (e) {
-  // Auth already initialized, get existing instance
   auth = getAuth(app);
 }
 
-// Firestore - React Native doesn't need enableIndexedDbPersistence
-// Firestore automatically handles offline persistence in React Native
 const db = getFirestore(app);
-
-// Storage
 const storage = getStorage(app);
 
-console.log("🔥 Firebase initialized successfully!");
-console.log("📦 Storage bucket:", firebaseConfig.storageBucket);
+console.log('🔥 Firebase initialized');
+console.log('📦 Storage bucket:', firebaseConfig.storageBucket);
 
 export { app, auth, db, storage };

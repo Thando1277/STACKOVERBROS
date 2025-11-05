@@ -23,12 +23,17 @@ const { width, height } = Dimensions.get("window");
 const isSmallDevice = width < 375;
 
 export default function Alerts({ navigation }) {
-  const { reports } = useData();
+  const { reports, markAlertsAsSeen } = useData();
   const nav = useNavigation();
   const { isDark } = useTheme();
   const [filter, setFilter] = useState("All");
   const [userInfo, setUserInfo] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
+
+  // ✅ Mark alerts as seen when component mounts
+  useEffect(() => {
+    markAlertsAsSeen();
+  }, []);
 
   // Fetch logged-in user's data
   useEffect(() => {
@@ -63,32 +68,39 @@ export default function Alerts({ navigation }) {
     const sorted = filtered.sort(
       (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
     );
-    
+
     let result = filter === "All" ? sorted : sorted.filter((r) => r.type === filter);
-    
+
     // Apply comprehensive search filter
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      result = result.filter(r => {
-        const isAnonymous = r.type === "Panic" && r.reporter && r.reporter.toLowerCase() === "anonymous";
-        const displayName = isAnonymous ? "Anonymous" : (r.fullName || r.reporter || "").toLowerCase();
+      result = result.filter((r) => {
+        const isAnonymous =
+          r.type === "Panic" &&
+          r.reporter &&
+          r.reporter.toLowerCase() === "anonymous";
+        const displayName = isAnonymous
+          ? "Anonymous"
+          : (r.fullName || r.reporter || "").toLowerCase();
         const location = (r.location || "").toLowerCase();
         const description = (r.description || "").toLowerCase();
         const crime = (r.crimeWantedFor || "").toLowerCase();
         const armedWith = (r.armedWith || "").toLowerCase();
         const reward = (r.rewardOffered || "").toLowerCase();
         const type = (r.type || "").toLowerCase();
-        
-        return displayName.includes(query) || 
-               location.includes(query) || 
-               description.includes(query) || 
-               crime.includes(query) ||
-               armedWith.includes(query) ||
-               reward.includes(query) ||
-               type.includes(query);
+
+        return (
+          displayName.includes(query) ||
+          location.includes(query) ||
+          description.includes(query) ||
+          crime.includes(query) ||
+          armedWith.includes(query) ||
+          reward.includes(query) ||
+          type.includes(query)
+        );
       });
     }
-    
+
     return result;
   }, [reports, filter, searchQuery]);
 
@@ -97,7 +109,7 @@ export default function Alerts({ navigation }) {
     if (t === "Panic") return "#e74c3c";
     return "#7f8c8d";
   };
-  
+
   const typeIcon = (t) => {
     if (t === "Wanted") return "alert-circle-outline";
     if (t === "Panic") return "warning-outline";
@@ -120,7 +132,9 @@ export default function Alerts({ navigation }) {
 
     const avatarUri = isAnonymous
       ? "https://cdn-icons-png.flaticon.com/512/456/456141.png"
-      : item.photo || item.reporterAvatar || userInfo?.avatar ||
+      : item.photo ||
+        item.reporterAvatar ||
+        userInfo?.avatar ||
         "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 
     return (
@@ -150,18 +164,25 @@ export default function Alerts({ navigation }) {
                     {displayName}
                   </Text>
                 </View>
-                <Text style={[styles.meta, { color: colors.textSecondary }]}>
-                  <Ionicons name="location-outline" size={12} color={colors.textSecondary} />
-                  {" "}{item.location || "Unknown location"}
-                </Text>
+                {/* ✅ FIXED: Separate View for icon and text */}
+                <View style={styles.locationRow}>
+                  <Ionicons
+                    name="location-outline"
+                    size={12}
+                    color={colors.textSecondary}
+                  />
+                  <Text style={[styles.meta, { color: colors.textSecondary }]}>
+                    {item.location || "Unknown location"}
+                  </Text>
+                </View>
               </View>
             </View>
             <Text style={[styles.timeText, { color: colors.textSecondary }]}>
-              {new Date(item.createdAt).toLocaleString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
+              {new Date(item.createdAt).toLocaleString("en-US", {
+                month: "short",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
               })}
             </Text>
           </View>
@@ -209,7 +230,9 @@ export default function Alerts({ navigation }) {
                 size={isSmallDevice ? 16 : 18}
                 color={colors.textSecondary}
               />
-              <Text style={[styles.commentsText, { color: colors.textSecondary }]}>
+              <Text
+                style={[styles.commentsText, { color: colors.textSecondary }]}
+              >
                 {(item.comments || []).length}
               </Text>
             </TouchableOpacity>
@@ -243,24 +266,33 @@ export default function Alerts({ navigation }) {
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: colors.background }]}
+    >
       <StatusBar barStyle={isDark ? "light-content" : "dark-content"} />
-      
+
       {/* Header with back button */}
       <View style={styles.headerContainer}>
         <View style={styles.topBar}>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.backBtn}
             onPress={() => navigation.goBack()}
           >
             <Ionicons name="arrow-back" size={24} color={colors.text} />
           </TouchableOpacity>
-          <Text style={[styles.title, { color: colors.text }]}>Alerts Feed</Text>
+          <Text style={[styles.title, { color: colors.text }]}>
+            Alerts Feed
+          </Text>
           <View style={styles.placeholder} />
         </View>
 
         {/* Search bar */}
-        <View style={[styles.searchContainer, { backgroundColor: colors.searchBg }]}>
+        <View
+          style={[
+            styles.searchContainer,
+            { backgroundColor: colors.searchBg },
+          ]}
+        >
           <Ionicons name="search" size={20} color={colors.textSecondary} />
           <TextInput
             style={[styles.searchInput, { color: colors.text }]}
@@ -271,7 +303,11 @@ export default function Alerts({ navigation }) {
           />
           {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery("")}>
-              <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
+              <Ionicons
+                name="close-circle"
+                size={20}
+                color={colors.textSecondary}
+              />
             </TouchableOpacity>
           )}
         </View>
@@ -286,16 +322,18 @@ export default function Alerts({ navigation }) {
 
       {alerts.length === 0 ? (
         <View style={styles.empty}>
-          <Ionicons 
-            name={searchQuery ? "search" : "notifications-off-outline"} 
-            size={64} 
-            color={colors.textSecondary} 
+          <Ionicons
+            name={searchQuery ? "search" : "notifications-off-outline"}
+            size={64}
+            color={colors.textSecondary}
           />
           <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
             {searchQuery ? "No alerts match your search" : "No alerts yet"}
           </Text>
           {searchQuery && (
-            <Text style={[styles.emptySubtext, { color: colors.textSecondary }]}>
+            <Text
+              style={[styles.emptySubtext, { color: colors.textSecondary }]}
+            >
               Try searching by name, location, or crime type
             </Text>
           )}
@@ -310,14 +348,14 @@ export default function Alerts({ navigation }) {
         />
       )}
 
-      {/* Use the BottomNavigation component */}
+      {/* Bottom Navigation with Badge */}
       <BottomNavigation navigation={navigation} currentRoute="Alerts" />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { 
+  container: {
     flex: 1,
   },
   headerContainer: {
@@ -326,29 +364,29 @@ const styles = StyleSheet.create({
     paddingBottom: 12,
   },
   topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: 16,
   },
   backBtn: {
     width: 40,
     height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   placeholder: {
     width: 40,
   },
-  title: { 
-    fontSize: isSmallDevice ? 20 : 24, 
+  title: {
+    fontSize: isSmallDevice ? 20 : 24,
     fontWeight: "900",
     flex: 1,
-    textAlign: 'center',
+    textAlign: "center",
   },
   searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderRadius: 12,
@@ -359,8 +397,8 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     fontSize: 16,
   },
-  filterRow: { 
-    flexDirection: "row", 
+  filterRow: {
+    flexDirection: "row",
     gap: 10,
   },
   filterBtn: {
@@ -382,8 +420,8 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   leftStripe: { width: 6 },
-  cardBody: { 
-    flex: 1, 
+  cardBody: {
+    flex: 1,
     padding: isSmallDevice ? 12 : 16,
   },
   topRow: {
@@ -392,54 +430,60 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
   },
   userInfo: {
-    flexDirection: 'row',
+    flexDirection: "row",
     flex: 1,
     marginRight: 8,
   },
-  avatar: { 
-    width: isSmallDevice ? 44 : 52, 
-    height: isSmallDevice ? 44 : 52, 
+  avatar: {
+    width: isSmallDevice ? 44 : 52,
+    height: isSmallDevice ? 44 : 52,
     borderRadius: 10,
   },
   userDetails: {
     marginLeft: 12,
     flex: 1,
-    justifyContent: 'center',
+    justifyContent: "center",
   },
   nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   typeIcon: {
     marginRight: 6,
   },
-  reporter: { 
-    fontWeight: "800", 
+  reporter: {
+    fontWeight: "800",
     fontSize: isSmallDevice ? 14 : 16,
     flex: 1,
   },
-  meta: { 
-    fontSize: isSmallDevice ? 11 : 12, 
+  // ✅ NEW: Location row style
+  locationRow: {
+    flexDirection: "row",
+    alignItems: "center",
     marginTop: 4,
   },
-  timeText: { 
+  meta: {
+    fontSize: isSmallDevice ? 11 : 12,
+    marginLeft: 4,
+  },
+  timeText: {
     fontSize: isSmallDevice ? 10 : 11,
-    textAlign: 'right',
+    textAlign: "right",
   },
   detailsContainer: {
     marginTop: 12,
   },
-  snippet: { 
+  snippet: {
     fontSize: isSmallDevice ? 13 : 14,
     lineHeight: 20,
   },
-  detail: { 
-    fontSize: isSmallDevice ? 12 : 13, 
+  detail: {
+    fontSize: isSmallDevice ? 12 : 13,
     marginTop: 4,
     lineHeight: 18,
   },
   detailLabel: {
-    fontWeight: '700',
+    fontWeight: "700",
   },
   bottomRow: {
     marginTop: 16,
@@ -447,26 +491,26 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  badge: { 
-    paddingVertical: 6, 
-    paddingHorizontal: 12, 
+  badge: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
     borderRadius: 20,
   },
-  badgeText: { 
-    color: "#fff", 
-    fontWeight: "800", 
+  badgeText: {
+    color: "#fff",
+    fontWeight: "800",
     fontSize: isSmallDevice ? 10 : 11,
     letterSpacing: 0.5,
   },
   commentsBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: 4,
   },
   commentsText: {
     marginLeft: 6,
     fontSize: isSmallDevice ? 12 : 14,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   listContent: {
     paddingBottom: 100,
@@ -481,12 +525,12 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 16,
     marginTop: 16,
-    textAlign: 'center',
-    fontWeight: '600',
+    textAlign: "center",
+    fontWeight: "600",
   },
   emptySubtext: {
     fontSize: 14,
     marginTop: 8,
-    textAlign: 'center',
+    textAlign: "center",
   },
 });

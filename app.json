@@ -7,7 +7,8 @@
     "icon": "./assets/FINDSOS-LOGO2.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "scheme": "findsos",      
+    "scheme": "findsos",
+    "main": "index.js",
     "platforms": [
       "ios",
       "android",
@@ -22,7 +23,7 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.anonymous.FindSOS",
       "config": {
-        "googleMapsApiKey": "AIzaSyBNkhpJ5AKndXYUZ4G5aMYZ3oVc3jKqssQ"
+        "googleMapsApiKey": "$(GOOGLE_MAPS_API_KEY)"
       },
       "infoPlist": {
         "NSCameraUsageDescription": "FindSOS needs access to your camera to take photos and compare them with missing person/pet reports using AI.",
@@ -37,10 +38,10 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.anonymous.FindSOS", 
+      "package": "com.anonymous.FindSOS",
       "config": {
         "googleMaps": {
-          "apiKey": "AIzaSyBNkhpJ5AKndXYUZ4G5aMYZ3oVc3jKqssQ"
+          "apiKey": "$(GOOGLE_MAPS_API_KEY)"
         }
       },
       "permissions": [
@@ -64,6 +65,17 @@
           "speechRecognitionPermission": "Allow FindSOS to securely recognize user speech."
         }
       ]
-    ]
+    ],
+    "extra": {
+      "FIREBASE_API_KEY": "AIzaSyDM9ajCTkROObUtA4QM8V6J9zRWSV964HY",
+      "FIREBASE_AUTH_DOMAIN": "findsos.firebaseapp.com",
+      "FIREBASE_PROJECT_ID": "findsos",
+      "FIREBASE_STORAGE_BUCKET": "findsos.firebasestorage.app",
+      "FIREBASE_MESSAGING_SENDER_ID": "633214674311",
+      "FIREBASE_APP_ID": "1:633214674311:web:981141b66deac72c995f22",
+      "FIREBASE_MEASUREMENT_ID": "G-77M5D3DF0R",
+      "API_URL": "http://10.250.152.87:5000",
+      "GOOGLE_MAPS_API_KEY": "AIzaSyBNkhpJ5AKndXYUZ4G5aMYZ3oVc3jKqssQ"
+    }
   }
 }

@@ -447,16 +447,16 @@ const styles = StyleSheet.create({
   },
   logoContainer: { 
     alignItems: 'center', 
-    marginBottom: 24  // REDUCED from 32
+    marginBottom: 20  // Reduced from 32
   },
   logoCircle: {
-    width: 80,  // REDUCED from 100
-    height: 80,  // REDUCED from 100
-    borderRadius: 40,  // REDUCED from 50
+    width: 70,  // Reduced from 100
+    height: 70,  // Reduced from 100
+    borderRadius: 35,  // Reduced from 50
     backgroundColor: '#F0FFF4',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,  // REDUCED from 16
+    marginBottom: 10,  // Reduced from 16
     shadowColor: '#0FC436',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
@@ -464,21 +464,21 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   logo: { 
-    width: 55,  // REDUCED from 70
-    height: 55  // REDUCED from 70
+    width: 50,  // Reduced from 70
+    height: 50  // Reduced from 70
   },
   title: { 
-    fontSize: 24,  // REDUCED from 26
+    fontSize: 22,  // Reduced from 26
     fontWeight: '700', 
     color: '#1A1A1A', 
-    marginBottom: 6  // REDUCED from 8
+    marginBottom: 6  // Reduced from 8
   },
   subtitle: { 
-    fontSize: 13,  // REDUCED from 14
+    fontSize: 12,  // Reduced from 14
     color: '#6B7280', 
     textAlign: 'center',
     paddingHorizontal: 20,
-    lineHeight: 18,  // REDUCED from 20
+    lineHeight: 17,  // Reduced from 20
   },
   formContainer: { 
     width: '100%', 
@@ -486,16 +486,16 @@ const styles = StyleSheet.create({
   },
   fieldGroup: { 
     width: '100%', 
-    marginBottom: 12  // REDUCED from 16
+    marginBottom: 10  // Reduced from 16
   },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 10,  // REDUCED from 12
+    borderRadius: 10,  // Reduced from 12
     borderWidth: 2,
-    paddingHorizontal: 14,  // REDUCED from 16
-    height: 48,  // REDUCED from 56 - THIS IS THE KEY CHANGE
+    paddingHorizontal: 12,  // Reduced from 16
+    height: 44,  // Reduced from 56
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -503,22 +503,22 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   iconContainer: {
-    marginRight: 10,  // REDUCED from 12
+    marginRight: 8,  // Reduced from 12
   },
   input: { 
     flex: 1, 
-    fontSize: 14,  // REDUCED from 15
+    fontSize: 14,  // Reduced from 15
     color: '#1A1A1A',
     fontWeight: '500',
   },
   mainButton: {
     width: '100%',
-    marginTop: 6,  // REDUCED from 8
-    marginBottom: 16,  // REDUCED from 20
+    marginTop: 6,  // Reduced from 8
+    marginBottom: 14,  // Reduced from 20
   },
   gradientButton: { 
-    borderRadius: 10,  // REDUCED from 12
-    height: 48,  // REDUCED from 56 - BUTTON HEIGHT
+    borderRadius: 10,  // Reduced from 12
+    height: 44,  // Reduced from 56
     alignItems: 'center', 
     justifyContent: 'center',
     shadowColor: '#0FC436',
@@ -530,16 +530,16 @@ const styles = StyleSheet.create({
   buttonText: { 
     color: '#fff', 
     fontWeight: '700', 
-    fontSize: 15,  // REDUCED from 16
+    fontSize: 15,  // Reduced from 16
     letterSpacing: 0.5,
   },
   forgotPassword: {
     alignSelf: 'flex-end',
-    marginBottom: 16,  // REDUCED from 20
+    marginBottom: 14,  // Reduced from 20
   },
   forgotPasswordText: {
     color: '#0FC436',
-    fontSize: 13,
+    fontSize: 12,  // Reduced from 13
     fontWeight: '600',
   },
   switchContainer: { 
@@ -548,13 +548,13 @@ const styles = StyleSheet.create({
   },
   switchText: { 
     color: '#6B7280', 
-    fontSize: 13,  // REDUCED from 14
+    fontSize: 13,  // Reduced from 14
     fontWeight: '500',
   },
   switchLink: { 
     color: '#0FC436', 
     fontWeight: '700', 
-    fontSize: 13  // REDUCED from 14
+    fontSize: 13  // Reduced from 14
   },
   // Alert Styles
   alertOverlay: {
@@ -566,8 +566,8 @@ const styles = StyleSheet.create({
   alertBox: {
     width: width * 0.85,
     backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 28,
+    borderRadius: 20,  // Reduced from 24
+    padding: 24,  // Reduced from 28
     alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 8 },
@@ -576,36 +576,36 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   alertIconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 64,  // Reduced from 80
+    height: 64,  // Reduced from 80
+    borderRadius: 32,  // Reduced from 40
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 12,  // Reduced from 16
   },
   alertTitle: {
-    fontSize: 20,
+    fontSize: 18,  // Reduced from 20
     fontWeight: '700',
     color: '#1A1A1A',
-    marginBottom: 8,
+    marginBottom: 6,  // Reduced from 8
     textAlign: 'center',
   },
   alertMessage: {
-    fontSize: 14,
+    fontSize: 13,  // Reduced from 14
     color: '#6B7280',
     textAlign: 'center',
-    marginBottom: 24,
-    lineHeight: 20,
+    marginBottom: 20,  // Reduced from 24
+    lineHeight: 18,  // Reduced from 20
   },
   alertButton: {
-    paddingVertical: 14,
-    paddingHorizontal: 48,
-    borderRadius: 12,
-    minWidth: 120,
+    paddingVertical: 12,  // Reduced from 14
+    paddingHorizontal: 40,  // Reduced from 48
+    borderRadius: 10,  // Reduced from 12
+    minWidth: 100,  // Reduced from 120
   },
   alertButtonText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 15,  // Reduced from 16
     fontWeight: '700',
     textAlign: 'center',
   },

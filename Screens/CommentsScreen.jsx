@@ -37,7 +37,7 @@ import { useTheme } from "../context/ThemeContext";
 
 export default function CommentsScreen({ route }) {
   const navigation = useNavigation();
-  const { colors } = useTheme();
+  const { isDark } = useTheme();
   const { reportId } = route.params || { reportId: "default" };
 
   const [comments, setComments] = useState([]);
@@ -49,6 +49,20 @@ export default function CommentsScreen({ route }) {
   const [currentUserName, setCurrentUserName] = useState("Anonymous");
   const [reportOwnerId, setReportOwnerId] = useState(null);
   const flatListRef = useRef(null);
+
+  // Theme colors
+  const themeColors = {
+    background: isDark ? '#0D0D0D' : '#F5F5F7',
+    text: isDark ? '#FFFFFF' : '#1A1A1A',
+    subText: isDark ? '#888' : '#666',
+    card: isDark ? '#1A1A1A' : '#FFFFFF',
+    cardAlt: isDark ? '#262626' : '#F0F0F0',
+    replyCard: isDark ? '#262626' : '#E8E8E8',
+    replyCardAlt: isDark ? '#333333' : '#DADADA',
+    modalBg: isDark ? '#1A1A1A' : '#FFFFFF',
+    inputBg: isDark ? '#262626' : '#F5F5F5',
+    border: isDark ? '#333' : '#E0E0E0',
+  };
 
   // Fetch current user's name
   useEffect(() => {
@@ -232,14 +246,14 @@ export default function CommentsScreen({ route }) {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
         <ActivityIndicator size="large" color="#7CC242" />
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -251,7 +265,7 @@ export default function CommentsScreen({ route }) {
               <Text style={styles.backText}>Back</Text>
             </TouchableOpacity>
 
-            <Text style={[styles.title, { color: colors.text }]}>Comments</Text>
+            <Text style={[styles.title, { color: themeColors.text }]}>Comments</Text>
             <Text style={{ color: "#7CC242", textAlign: "center", marginVertical: 5 }}>
               Logged in as: {currentUserName}
             </Text>
@@ -264,16 +278,16 @@ export default function CommentsScreen({ route }) {
                 <View
                   style={[
                     styles.commentCard,
-                    { backgroundColor: index % 2 === 0 ? "#1a1919" : "#343131" },
+                    { backgroundColor: index % 2 === 0 ? themeColors.card : themeColors.cardAlt },
                   ]}
                 >
                   <TouchableOpacity onLongPress={() => handleLongPress(item)}>
-                    <Text style={{ color: colors.text }}>
+                    <Text style={{ color: themeColors.text }}>
                       <Text style={{ color: "#7CC242" }}>@{item.fullname}: </Text>
                       {item.text}
                     </Text>
                   </TouchableOpacity>
-                  <Text style={styles.commentTime}>
+                  <Text style={[styles.commentTime, { color: themeColors.subText }]}>
                     {item.createdAt?.seconds
                       ? new Date(item.createdAt.toDate()).toLocaleString()
                       : new Date(item.createdAt).toLocaleString()}
@@ -290,14 +304,14 @@ export default function CommentsScreen({ route }) {
                       <View
                         style={[
                           styles.replyCard,
-                          { backgroundColor: idx % 2 === 0 ? "#262626" : "#333333" },
+                          { backgroundColor: idx % 2 === 0 ? themeColors.replyCard : themeColors.replyCardAlt },
                         ]}
                       >
-                        <Text style={{ color: colors.text }}>
+                        <Text style={{ color: themeColors.text }}>
                           <Text style={{ color: "#7CC242" }}>@{rep.fullname}: </Text>
                           {rep.text}
                         </Text>
-                        <Text style={styles.commentTime}>
+                        <Text style={[styles.commentTime, { color: themeColors.subText }]}>
                           {new Date(rep.createdAt).toLocaleString()}
                         </Text>
                       </View>
@@ -306,7 +320,7 @@ export default function CommentsScreen({ route }) {
                 </View>
               )}
               ListEmptyComponent={
-                <Text style={{ textAlign: "center", color: colors.subText, marginTop: 20 }}>
+                <Text style={{ textAlign: "center", color: themeColors.subText, marginTop: 20 }}>
                   No comments yet.
                 </Text>
               }
@@ -315,7 +329,7 @@ export default function CommentsScreen({ route }) {
             {/* Input */}
             <View style={styles.inputContainer}>
               {replyToId && (
-                <View style={styles.replyingTo}>
+                <View style={[styles.replyingTo, { backgroundColor: themeColors.cardAlt }]}>
                   <Text style={styles.replyingToText}>Replying...</Text>
                   <TouchableOpacity
                     onPress={() => {
@@ -331,8 +345,15 @@ export default function CommentsScreen({ route }) {
                 value={commentText}
                 onChangeText={setCommentText}
                 placeholder="Type your comment..."
-                placeholderTextColor={colors.subText}
-                style={[styles.input, { backgroundColor: colors.card, color: colors.text }]}
+                placeholderTextColor={themeColors.subText}
+                style={[
+                  styles.input, 
+                  { 
+                    backgroundColor: themeColors.inputBg, 
+                    color: themeColors.text,
+                    borderColor: themeColors.border
+                  }
+                ]}
                 multiline
               />
               <TouchableOpacity
@@ -349,17 +370,17 @@ export default function CommentsScreen({ route }) {
             {/* Confirm Delete Modal */}
             <Modal transparent visible={showConfirm} animationType="fade">
               <View style={styles.modalOverlay}>
-                <View style={styles.modalBox}>
-                  <Text style={styles.modalTitle}>Delete Comment?</Text>
-                  <Text style={styles.modalMessage}>
+                <View style={[styles.modalBox, { backgroundColor: themeColors.modalBg }]}>
+                  <Text style={[styles.modalTitle, { color: "#7CC242" }]}>Delete Comment?</Text>
+                  <Text style={[styles.modalMessage, { color: themeColors.subText }]}>
                     Are you sure? This cannot be undone.
                   </Text>
                   <View style={styles.modalButtons}>
                     <TouchableOpacity
-                      style={[styles.cancelBtn]}
+                      style={[styles.cancelBtn, { backgroundColor: themeColors.cardAlt }]}
                       onPress={() => setShowConfirm(false)}
                     >
-                      <Text style={styles.cancelText}>Cancel</Text>
+                      <Text style={[styles.cancelText, { color: themeColors.text }]}>Cancel</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       style={[styles.confirmBtn]}
@@ -385,14 +406,13 @@ const styles = StyleSheet.create({
   title: { fontSize: 20, fontWeight: "bold", textAlign: "center", marginVertical: 10 },
   commentCard: { borderRadius: 12, padding: 10, marginVertical: 5 },
   replyCard: { borderRadius: 10, padding: 8, marginTop: 5, marginLeft: 15 },
-  commentTime: { fontSize: 12, color: "#ccc", marginTop: 4 },
+  commentTime: { fontSize: 12, marginTop: 4 },
   replyBtn: { color: "#7CC242", fontWeight: "600", marginTop: 4 },
   inputContainer: { marginBottom: 20 },
   replyingTo: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    backgroundColor: "#1A1A1A",
     padding: 8,
     borderRadius: 6,
     marginBottom: 8,
@@ -400,11 +420,11 @@ const styles = StyleSheet.create({
   replyingToText: { color: "#7CC242", fontStyle: "italic" },
   input: {
     borderWidth: 1,
-    borderColor: "#7CC242",
     borderRadius: 8,
     padding: 10,
     minHeight: 50,
     textAlignVertical: "top",
+    marginBottom: 10,
   },
   addBtn: {
     backgroundColor: "#7CC242",
@@ -421,16 +441,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalBox: {
-    backgroundColor: "#1A1A1A",
     borderRadius: 12,
     padding: 20,
     width: "80%",
   },
-  modalTitle: { color: "#7CC242", fontWeight: "bold", fontSize: 18 },
-  modalMessage: { color: "#ccc", marginVertical: 10 },
-  modalButtons: { flexDirection: "row", justifyContent: "flex-end", gap: 10 },
+  modalTitle: { fontWeight: "bold", fontSize: 18, marginBottom: 10 },
+  modalMessage: { marginVertical: 10 },
+  modalButtons: { flexDirection: "row", justifyContent: "flex-end", gap: 10, marginTop: 10 },
   cancelBtn: {
-    backgroundColor: "#333",
     paddingHorizontal: 15,
     paddingVertical: 8,
     borderRadius: 6,
@@ -441,6 +459,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 6,
   },
-  cancelText: { color: "#fff" },
-  confirmText: { color: "#fff" },
+  cancelText: { fontWeight: '600' },
+  confirmText: { color: "#fff", fontWeight: '600' },
 });

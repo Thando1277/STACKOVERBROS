@@ -8,7 +8,6 @@ import {
   ActivityIndicator,
   SafeAreaView,
   Modal,
-  Animated,
   Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,21 +22,34 @@ import {
   doc,
   updateDoc,
   arrayUnion,
-  arrayRemove,
 } from 'firebase/firestore';
 import { db, auth } from '../Firebase/firebaseConfig';
+import { useTheme } from '../context/ThemeContext'; // Import theme
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const scale = (size) => (SCREEN_WIDTH / 375) * size;
 
 export default function FeedbackHintsScreen() {
   const navigation = useNavigation();
+  const { isDark } = useTheme(); // Get theme
   const [posts, setPosts] = useState([]);
   const [notifications, setNotifications] = useState({});
   const [loading, setLoading] = useState(true);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [selectedPostId, setSelectedPostId] = useState(null);
   const [hiddenPosts, setHiddenPosts] = useState([]);
+
+  // Theme colors
+  const themeColors = {
+    background: isDark ? '#0D0D0D' : '#F5F5F7',
+    cardBg: isDark ? '#1A1A1A' : '#FFFFFF',
+    text: isDark ? '#FFFFFF' : '#1A1A1A',
+    textSecondary: isDark ? '#888' : '#666',
+    border: isDark ? '#333' : '#E0E0E0',
+    modalBg: isDark ? '#1A1A1A' : '#FFFFFF',
+    notifBg: isDark ? '#262626' : '#F0F0F0',
+    buttonBg: isDark ? '#333' : '#E8E8E8',
+  };
 
   // Fetch user's posts and listen for notifications
   useEffect(() => {
@@ -123,7 +135,6 @@ export default function FeedbackHintsScreen() {
           notifMap[reportId].count += 1;
           notifMap[reportId].latestCommenter = data.commenterName;
 
-          // Track posts that received new comments
           if (!newlyCommentedPosts.includes(reportId)) {
             newlyCommentedPosts.push(reportId);
           }
@@ -157,13 +168,11 @@ export default function FeedbackHintsScreen() {
     return () => unsubscribe();
   }, []);
 
-  // Handle long press to show confirmation modal
   const handleLongPress = (postId) => {
     setSelectedPostId(postId);
     setShowConfirmModal(true);
   };
 
-  // Hide the post
   const confirmHidePost = async () => {
     try {
       const userId = auth.currentUser?.uid;
@@ -184,19 +193,14 @@ export default function FeedbackHintsScreen() {
     }
   };
 
-  // Navigate to CommentsScreen
   const handleCommentsPress = (reportId) => {
-    console.log('📱 Navigating to Comments with reportId:', reportId);
     navigation.navigate('Comments', { reportId });
   };
 
-  // Navigate to Details screen
   const handleViewReport = (reportId) => {
-    console.log('📱 Navigating to Details with reportId:', reportId);
     navigation.navigate('Details', { reportId });
   };
 
-  // Filter out hidden posts
   const visiblePosts = posts.filter(post => !hiddenPosts.includes(post.id));
 
   const renderPost = ({ item }) => {
@@ -209,13 +213,13 @@ export default function FeedbackHintsScreen() {
         onLongPress={() => handleLongPress(item.id)}
         delayLongPress={800}
       >
-        <View style={styles.postCard}>
+        <View style={[styles.postCard, { backgroundColor: themeColors.cardBg, borderColor: themeColors.border }]}>
           <View style={styles.postHeader}>
             <View style={styles.postInfo}>
-              <Text style={styles.postTitle} numberOfLines={2}>
+              <Text style={[styles.postTitle, { color: themeColors.text }]} numberOfLines={2}>
                 {item.type || 'Report'}: {item.location || 'Location unavailable'}
               </Text>
-              <Text style={styles.postDate}>
+              <Text style={[styles.postDate, { color: themeColors.textSecondary }]}>
                 {item.timestamp?.seconds
                   ? new Date(item.timestamp.toDate()).toLocaleDateString()
                   : 'Date unavailable'}
@@ -234,26 +238,26 @@ export default function FeedbackHintsScreen() {
           </View>
 
           {unreadCount > 0 && latestCommenter && (
-            <View style={styles.notificationInfo}>
+            <View style={[styles.notificationInfo, { backgroundColor: themeColors.notifBg }]}>
               <Ionicons name="chatbubble-ellipses" size={16} color="#7CC242" />
-              <Text style={styles.notificationText}>
+              <Text style={[styles.notificationText, { color: themeColors.text }]}>
                 {latestCommenter} {unreadCount === 1 ? 'commented' : `and ${unreadCount - 1} other${unreadCount > 2 ? 's' : ''} commented`} on your post
               </Text>
             </View>
           )}
 
-          <View style={styles.postFooter}>
+          <View style={[styles.postFooter, { borderTopColor: themeColors.border }]}>
             <TouchableOpacity 
-              style={styles.viewReportButton}
+              style={[styles.viewReportButton, { backgroundColor: themeColors.buttonBg }]}
               onPress={() => handleViewReport(item.id)}
               activeOpacity={0.7}
             >
-              <Ionicons name="document-text-outline" size={16} color="#fff" />
-              <Text style={styles.viewReportText}>View Report</Text>
+              <Ionicons name="document-text-outline" size={16} color={themeColors.text} />
+              <Text style={[styles.viewReportText, { color: themeColors.text }]}>View Report</Text>
             </TouchableOpacity>
 
             <TouchableOpacity 
-              style={styles.viewCommentsButton}
+              style={[styles.viewCommentsButton, { backgroundColor: themeColors.notifBg }]}
               onPress={() => handleCommentsPress(item.id)}
               activeOpacity={0.7}
             >
@@ -263,8 +267,8 @@ export default function FeedbackHintsScreen() {
           </View>
 
           <View style={styles.hintContainer}>
-            <Ionicons name="information-circle-outline" size={12} color="#666" />
-            <Text style={styles.hintText}>Hold to hide this post</Text>
+            <Ionicons name="information-circle-outline" size={12} color={themeColors.textSecondary} />
+            <Text style={[styles.hintText, { color: themeColors.textSecondary }]}>Hold to hide this post</Text>
           </View>
         </View>
       </TouchableOpacity>
@@ -273,27 +277,26 @@ export default function FeedbackHintsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#7CC242" />
-          <Text style={styles.loadingText}>Loading your posts...</Text>
+          <Text style={[styles.loadingText, { color: themeColors.text }]}>Loading your posts...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-
+    <SafeAreaView style={[styles.container, { backgroundColor: themeColors.background }]}>
       {/* Back Button */}
-      <View style={styles.headerRow}>
+      <View style={[styles.headerRow, { borderBottomColor: themeColors.border }]}>
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="chevron-back" size={scale(28)} color="#7CC242" />
         </TouchableOpacity>
       </View>
       
-      <View style={{ flex: 1,padding: 30, paddingTop: 10 }}>
-        <Text style={styles.title}>Feedback & Comments</Text>
+      <View style={{ flex: 1, padding: 30, paddingTop: 10 }}>
+        <Text style={[styles.title, { color: themeColors.text }]}>Feedback & Comments</Text>
       </View>
 
       <FlatList
@@ -303,11 +306,11 @@ export default function FeedbackHintsScreen() {
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="document-text-outline" size={60} color="#555" />
-            <Text style={styles.emptyText}>
+            <Ionicons name="document-text-outline" size={60} color={themeColors.textSecondary} />
+            <Text style={[styles.emptyText, { color: themeColors.textSecondary }]}>
               {hiddenPosts.length > 0 ? 'All posts hidden' : 'No posts yet'}
             </Text>
-            <Text style={styles.emptySubtext}>
+            <Text style={[styles.emptySubtext, { color: themeColors.textSecondary }]}>
               {hiddenPosts.length > 0 
                 ? 'Hidden posts will reappear when someone comments on them'
                 : 'Create a report to receive comments and feedback'}
@@ -324,28 +327,28 @@ export default function FeedbackHintsScreen() {
         onRequestClose={() => setShowConfirmModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContainer}>
-            <View style={styles.modalIconContainer}>
+          <View style={[styles.modalContainer, { backgroundColor: themeColors.modalBg, borderColor: themeColors.border }]}>
+            <View style={[styles.modalIconContainer, { backgroundColor: themeColors.notifBg }]}>
               <Ionicons name="eye-off" size={48} color="#7CC242" />
             </View>
             
-            <Text style={styles.modalTitle}>Hide This Post?</Text>
+            <Text style={[styles.modalTitle, { color: themeColors.text }]}>Hide This Post?</Text>
             
-            <Text style={styles.modalMessage}>
+            <Text style={[styles.modalMessage, { color: themeColors.textSecondary }]}>
               This post will be hidden from your feed. Don't worry - it will automatically 
               reappear when someone comments on it!
             </Text>
 
             <View style={styles.modalButtons}>
               <TouchableOpacity
-                style={styles.cancelButton}
+                style={[styles.cancelButton, { backgroundColor: themeColors.buttonBg, borderColor: themeColors.border }]}
                 onPress={() => {
                   setShowConfirmModal(false);
                   setSelectedPostId(null);
                 }}
                 activeOpacity={0.8}
               >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text style={[styles.cancelButtonText, { color: themeColors.text }]}>Cancel</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -367,39 +370,28 @@ export default function FeedbackHintsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0D0D0D',
   },
-  header: {
-    padding: 20,
-    paddingTop: 30,
-  },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 15,
-  },
-  backText: {
-    color: '#7CC242',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 5,
+  headerRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: scale(16),
+    paddingVertical: scale(10),
+    borderBottomWidth: 0.3,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#fff',
   },
   listContent: {
     padding: 20,
     paddingTop: 10,
   },
   postCard: {
-    backgroundColor: '#1A1A1A',
     borderRadius: 12,
     padding: 15,
     marginBottom: 15,
     borderWidth: 1,
-    borderColor: '#333',
   },
   postHeader: {
     flexDirection: 'row',
@@ -414,12 +406,10 @@ const styles = StyleSheet.create({
   postTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
     marginBottom: 5,
   },
   postDate: {
     fontSize: 12,
-    color: '#888',
   },
   notificationBadge: {
     alignItems: 'center',
@@ -442,14 +432,12 @@ const styles = StyleSheet.create({
   notificationInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#262626',
     padding: 10,
     borderRadius: 8,
     marginBottom: 10,
   },
   notificationText: {
     fontSize: 14,
-    color: '#ccc',
     marginLeft: 8,
     flex: 1,
   },
@@ -460,7 +448,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#333',
     gap: 10,
   },
   viewReportButton: {
@@ -468,14 +455,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#333',
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 8,
     gap: 6,
   },
   viewReportText: {
-    color: '#fff',
     fontSize: 14,
     fontWeight: '600',
   },
@@ -484,7 +469,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#262626',
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 8,
@@ -506,7 +490,6 @@ const styles = StyleSheet.create({
   },
   hintText: {
     fontSize: 11,
-    color: '#666',
     fontStyle: 'italic',
   },
   loadingContainer: {
@@ -515,7 +498,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   loadingText: {
-    color: '#fff',
     marginTop: 10,
     fontSize: 16,
   },
@@ -528,17 +510,14 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#888',
     marginTop: 15,
   },
   emptySubtext: {
     fontSize: 14,
-    color: '#666',
     marginTop: 8,
     textAlign: 'center',
     paddingHorizontal: 40,
   },
-  // Modal Styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.85)',
@@ -547,13 +526,11 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modalContainer: {
-    backgroundColor: '#1A1A1A',
     borderRadius: 20,
     padding: 24,
     width: '100%',
     maxWidth: 400,
     borderWidth: 1,
-    borderColor: '#333',
     shadowColor: '#7CC242',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
@@ -565,7 +542,6 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#262626',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -575,13 +551,11 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: '#fff',
     textAlign: 'center',
     marginBottom: 12,
   },
   modalMessage: {
     fontSize: 15,
-    color: '#aaa',
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: 24,
@@ -592,16 +566,13 @@ const styles = StyleSheet.create({
   },
   cancelButton: {
     flex: 1,
-    backgroundColor: '#333',
     paddingVertical: 14,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#444',
   },
   cancelButtonText: {
-    color: '#fff',
     fontSize: 16,
     fontWeight: '600',
   },
@@ -619,13 +590,5 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '700',
-  },
-  headerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: scale(16),
-    paddingVertical: scale(10),
-    borderBottomWidth: 0.3,
   },
 });

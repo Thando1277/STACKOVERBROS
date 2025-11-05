@@ -149,17 +149,6 @@ export default function SettingsScreen({ navigation }) {
           />
         </View>
 
-        {/* Notifications Section */}
-        <SectionTitle text="Notifications" color={colors.textSecondary} />
-        <View style={[styles.section, { backgroundColor: colors.card, shadowColor: colors.shadow }]}>
-          <SettingsItemPro 
-            icon="bell-outline" 
-            iconBg={isDark ? '#2A3F1F' : '#F0F7E8'}
-            label="Notification Settings" 
-            subtext="Manage your alerts"
-            colors={colors} 
-          />
-        </View>
 
         {/* Help & Support Section */}
         <SectionTitle text="Help & Support" color={colors.textSecondary} />

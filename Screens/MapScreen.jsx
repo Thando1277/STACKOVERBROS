@@ -11,12 +11,13 @@ import {
   Image,
   ActivityIndicator,
   Platform,
-  StatusBar,
 } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import { StatusBar } from 'expo-status-bar'; // CHANGED: Use expo-status-bar
 import BottomNavigation from "../components/BottomNavigation";
+import { useTheme } from "../context/ThemeContext"; // ADDED: Import theme
 
 import { db } from "../Firebase/firebaseConfig";
 import { collection, getDocs } from "firebase/firestore";
@@ -28,6 +29,7 @@ const GOOGLE_MAPS_API_KEY = "AIzaSyBNkhpJ5AKndXYUZ4G5aMYZ3oVc3jKqssQ";
 export default function MapScreen() {
   const navigation = useNavigation();
   const mapRef = useRef(null);
+  const { isDark } = useTheme(); // ADDED: Get theme
 
   const [selectedMarker, setSelectedMarker] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -158,173 +160,163 @@ export default function MapScreen() {
   };
 
   return (
-    <>
-      {/* Black status bar overlay */}
-      <View style={styles.statusBarOverlay} />
-      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+    <View style={styles.container}>
+      {/* CHANGED: Use expo-status-bar with theme */}
+      <StatusBar style={isDark ? "light" : "dark"} />
 
-      <View style={styles.container}>
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <Ionicons name="search-outline" size={24} color="#333" style={{ marginHorizontal: 8 }} />
-          <TextInput
-            placeholder="Enter location..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            onSubmitEditing={handleSearch}
-            style={styles.searchInput}
-            returnKeyType="search"
-          />
-          <TouchableOpacity onPress={handleSearch} style={{ marginHorizontal: 8 }}>
-            <Ionicons name="checkmark-outline" size={28} color="#7CC242" />
-          </TouchableOpacity>
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <Ionicons name="search-outline" size={24} color="#333" style={{ marginHorizontal: 8 }} />
+        <TextInput
+          placeholder="Enter location..."
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          onSubmitEditing={handleSearch}
+          style={styles.searchInput}
+          returnKeyType="search"
+        />
+        <TouchableOpacity onPress={handleSearch} style={{ marginHorizontal: 8 }}>
+          <Ionicons name="checkmark-outline" size={28} color="#7CC242" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Loading */}
+      {loading && (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#7CC242" />
+          <Text style={styles.loadingText}>Loading reports...</Text>
         </View>
+      )}
 
-        {/* Loading */}
-        {loading && (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#7CC242" />
-            <Text style={styles.loadingText}>Loading reports...</Text>
-          </View>
+      {/* Map */}
+      <MapView
+        ref={mapRef}
+        style={styles.map}
+        provider="google"
+        initialRegion={{
+          latitude: -25.7479,
+          longitude: 28.2293,
+          latitudeDelta: 0.5,
+          longitudeDelta: 0.5,
+        }}
+      >
+        {markers.map((marker) => (
+          <Marker
+            key={marker.id}
+            coordinate={{
+              latitude: parseFloat(marker.latitude),
+              longitude: parseFloat(marker.longitude),
+            }}
+            pinColor={getPinColor(marker.type)}
+            onPress={() => setSelectedMarker(marker)}
+          />
+        ))}
+        {searchMarker && (
+          <Marker
+            coordinate={{
+              latitude: searchMarker.latitude,
+              longitude: searchMarker.longitude,
+            }}
+            title={searchMarker.title}
+            description={searchMarker.description}
+            pinColor="green"
+          />
         )}
+      </MapView>
 
-        {/* Map */}
-        <MapView
-          ref={mapRef}
-          style={styles.map}
-          provider="google"
-          initialRegion={{
-            latitude: -25.7479,
-            longitude: 28.2293,
-            latitudeDelta: 0.5,
-            longitudeDelta: 0.5,
-          }}
-        >
-          {markers.map((marker) => (
-            <Marker
-              key={marker.id}
-              coordinate={{
-                latitude: parseFloat(marker.latitude),
-                longitude: parseFloat(marker.longitude),
-              }}
-              pinColor={getPinColor(marker.type)}
-              onPress={() => setSelectedMarker(marker)}
-            />
-          ))}
-          {searchMarker && (
-            <Marker
-              coordinate={{
-                latitude: searchMarker.latitude,
-                longitude: searchMarker.longitude,
-              }}
-              title={searchMarker.title}
-              description={searchMarker.description}
-              pinColor="green"
+      {/* Legend Toggle Button */}
+      <TouchableOpacity 
+        style={styles.legendToggle}
+        onPress={() => setShowLegend(!showLegend)}
+      >
+        <Ionicons name="information-circle" size={28} color="#7CC242" />
+      </TouchableOpacity>
+
+      {/* Legend */}
+      {showLegend && (
+        <View style={styles.legendCard}>
+          <Text style={styles.legendTitle}>Pin Colors</Text>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: 'purple' }]} />
+            <Text style={styles.legendText}>Person</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: 'blue' }]} />
+            <Text style={styles.legendText}>Pet</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: 'red' }]} />
+            <Text style={styles.legendText}>Wanted</Text>
+          </View>
+          <View style={styles.legendItem}>
+            <View style={[styles.legendDot, { backgroundColor: 'green' }]} />
+            <Text style={styles.legendText}>Search Location</Text>
+          </View>
+        </View>
+      )}
+
+      {/* Marker Details */}
+      {selectedMarker && (
+        <View style={styles.detailsCard}>
+          <TouchableOpacity 
+            style={styles.closeButton}
+            onPress={() => setSelectedMarker(null)}
+          >
+            <Ionicons name="close" size={24} color="#666" />
+          </TouchableOpacity>
+
+          <Text style={styles.nameText}>{selectedMarker.fullName || "Unknown"}</Text>
+          
+          <View style={styles.infoRow}>
+            <Text style={[styles.typeBadgeText, { 
+              backgroundColor: getPinColor(selectedMarker.type),
+            }]}>{selectedMarker.type || "Unknown"}</Text>
+          </View>
+          
+          {selectedMarker.gender && (
+            <Text style={styles.descText}>
+              <Text style={styles.labelText}>Gender: </Text>
+              {selectedMarker.gender}
+            </Text>
+          )}
+          
+          {selectedMarker.description && (
+            <Text style={styles.descText}>
+              <Text style={styles.labelText}>Description: </Text>
+              {selectedMarker.description}
+            </Text>
+          )}
+          
+          {selectedMarker.lastSeenDate && (
+            <Text style={styles.descText}>
+              <Text style={styles.labelText}>Last Seen: </Text>
+              {formatDate(selectedMarker.lastSeenDate)}
+            </Text>
+          )}
+          
+          {selectedMarker.lastSeenLocation && (
+            <Text style={styles.descText}>
+              <Text style={styles.labelText}>Location: </Text>
+              {selectedMarker.lastSeenLocation}
+            </Text>
+          )}
+          
+          {selectedMarker.photo && (
+            <Image
+              source={{ uri: selectedMarker.photo }}
+              style={styles.detailPhoto}
+              resizeMode="cover"
             />
           )}
-        </MapView>
-
-        {/* Legend Toggle Button */}
-        <TouchableOpacity 
-          style={styles.legendToggle}
-          onPress={() => setShowLegend(!showLegend)}
-        >
-          <Ionicons name="information-circle" size={28} color="#7CC242" />
-        </TouchableOpacity>
-
-        {/* Legend */}
-        {showLegend && (
-          <View style={styles.legendCard}>
-            <Text style={styles.legendTitle}>Pin Colors</Text>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: 'purple' }]} />
-              <Text style={styles.legendText}>Person</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: 'blue' }]} />
-              <Text style={styles.legendText}>Pet</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: 'red' }]} />
-              <Text style={styles.legendText}>Wanted</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: 'green' }]} />
-              <Text style={styles.legendText}>Search Location</Text>
-            </View>
-          </View>
-        )}
-
-        {/* Marker Details */}
-        {selectedMarker && (
-          <View style={styles.detailsCard}>
-            <TouchableOpacity 
-              style={styles.closeButton}
-              onPress={() => setSelectedMarker(null)}
-            >
-              <Ionicons name="close" size={24} color="#666" />
-            </TouchableOpacity>
-
-            <Text style={styles.nameText}>{selectedMarker.fullName || "Unknown"}</Text>
-            
-            <View style={styles.infoRow}>
-              <Text style={[styles.typeBadgeText, { 
-                backgroundColor: getPinColor(selectedMarker.type),
-              }]}>{selectedMarker.type || "Unknown"}</Text>
-            </View>
-            
-            {selectedMarker.gender && (
-              <Text style={styles.descText}>
-                <Text style={styles.labelText}>Gender: </Text>
-                {selectedMarker.gender}
-              </Text>
-            )}
-            
-            {selectedMarker.description && (
-              <Text style={styles.descText}>
-                <Text style={styles.labelText}>Description: </Text>
-                {selectedMarker.description}
-              </Text>
-            )}
-            
-            {selectedMarker.lastSeenDate && (
-              <Text style={styles.descText}>
-                <Text style={styles.labelText}>Last Seen: </Text>
-                {formatDate(selectedMarker.lastSeenDate)}
-              </Text>
-            )}
-            
-            {selectedMarker.lastSeenLocation && (
-              <Text style={styles.descText}>
-                <Text style={styles.labelText}>Location: </Text>
-                {selectedMarker.lastSeenLocation}
-              </Text>
-            )}
-            
-            {selectedMarker.photo && (
-              <Image
-                source={{ uri: selectedMarker.photo }}
-                style={styles.detailPhoto}
-                resizeMode="cover"
-              />
-            )}
-          </View>
-        )}
-        <BottomNavigation navigation={navigation} currentRoute="MapScreen"/>
-      </View>
-    </>
+        </View>
+      )}
+      <BottomNavigation navigation={navigation} currentRoute="MapScreen"/>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  statusBarOverlay: {
-    height: isIOS ? 40 : StatusBar.currentHeight,
-    backgroundColor: "black",
-    width: "100%",
-    position: "absolute",
-    top: 0,
-    zIndex: 200,
-  },
+  // REMOVED: statusBarOverlay style
   container: { flex: 1 },
   map: { flex: 1 },
   searchContainer: {

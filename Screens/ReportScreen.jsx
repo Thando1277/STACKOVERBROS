@@ -13,6 +13,9 @@ import {
   Platform,
   Alert,
   KeyboardAvoidingView,
+  SafeAreaView,
+  Animated,
+  Dimensions,
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
@@ -21,9 +24,45 @@ import { auth, db } from "../Firebase/firebaseConfig";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { useNavigation } from "@react-navigation/native";
 import NetInfo from "@react-native-community/netinfo";
-import SuccessCheck from "../components/SuccessCheck";
 import { OfflineReportManager } from "../utils/OfflineReportManager";
 import { useTheme } from "../context/ThemeContext";
+
+const { width } = Dimensions.get('window');
+
+// Custom Success Modal
+const SuccessModal = ({ visible, message, onClose }) => {
+  const scaleAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (visible) {
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }).start();
+    } else {
+      scaleAnim.setValue(0);
+    }
+  }, [visible]);
+
+  return (
+    <Modal transparent visible={visible} animationType="fade">
+      <View style={styles.modalOverlay}>
+        <Animated.View style={[styles.successBox, { transform: [{ scale: scaleAnim }] }]}>
+          <View style={styles.successIconContainer}>
+            <Ionicons name="checkmark-circle" size={64} color="#7CC242" />
+          </View>
+          <Text style={styles.successTitle}>Success!</Text>
+          <Text style={styles.successMessage}>{message}</Text>
+          <TouchableOpacity onPress={onClose} style={styles.successButton}>
+            <Text style={styles.successButtonText}>Done</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      </View>
+    </Modal>
+  );
+};
 
 function Select({ label, value, onSelect, options, isDark }) {
   const [open, setOpen] = useState(false);
@@ -121,7 +160,6 @@ function Select({ label, value, onSelect, options, isDark }) {
 
 export default function ReportScreen() {
   const navigation = useNavigation();
-  const successRef = useRef();
   const { isDark } = useTheme();
 
   const [fullName, setFullName] = useState("");
@@ -143,6 +181,8 @@ export default function ReportScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [isConnected, setIsConnected] = useState(true);
   const [pendingCount, setPendingCount] = useState(0);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
 
   // Check for pending offline reports and network status
   useEffect(() => {
@@ -153,7 +193,6 @@ export default function ReportScreen() {
       setIsConnected(connected);
       
       if (connected) {
-        // Auto-sync when connection is restored
         syncOfflineReports();
       }
     });
@@ -186,12 +225,8 @@ export default function ReportScreen() {
 
             if (result.success) {
               await checkPendingReports();
-              Alert.alert(
-                "Sync Complete",
-                `Successfully synced ${result.synced} report(s).${
-                  result.failed > 0 ? ` ${result.failed} failed.` : ""
-                }`
-              );
+              setSuccessMessage(`Successfully synced ${result.synced} report(s).`);
+              setShowSuccess(true);
             } else {
               Alert.alert("Sync Failed", result.error || "Please try again later.");
             }
@@ -270,16 +305,13 @@ export default function ReportScreen() {
       const result = await OfflineReportManager.saveOfflineReport(reportPayload);
       
       if (result.success) {
-        Alert.alert(
-          "Saved Offline ✓",
-          "Your report has been saved and will be submitted automatically when you're back online.",
-          [{ text: "OK", onPress: () => navigation.goBack() }]
-        );
+        setSubmitting(false);
+        setSuccessMessage("Report saved offline. It will be submitted when you're back online.");
+        setShowSuccess(true);
       } else {
+        setSubmitting(false);
         Alert.alert("Error", "Failed to save report offline. Please try again.");
       }
-      
-      setSubmitting(false);
       return;
     }
 
@@ -304,17 +336,12 @@ export default function ReportScreen() {
 
       await addDoc(collection(db, "reports"), payload);
 
-      if (successRef.current) successRef.current.play();
-      setTimeout(() => {
-        setSubmitting(false);
-        Alert.alert("Success!", "Report submitted successfully.", [
-          { text: "OK", onPress: () => navigation.goBack() }
-        ]);
-      }, 900);
+      setSubmitting(false);
+      setSuccessMessage("Report submitted successfully!");
+      setShowSuccess(true);
     } catch (error) {
       console.error("Submission error:", error);
       
-      // Offer to save offline if online submission fails
       Alert.alert(
         "Submission Failed",
         "Could not submit report online. Would you like to save it for later?",
@@ -325,8 +352,8 @@ export default function ReportScreen() {
             onPress: async () => {
               const result = await OfflineReportManager.saveOfflineReport(reportPayload);
               if (result.success) {
-                Alert.alert("Saved Offline", "Report will be submitted when online.");
-                navigation.goBack();
+                setSuccessMessage("Report saved offline. It will be submitted when online.");
+                setShowSuccess(true);
               }
             },
           },
@@ -349,10 +376,12 @@ export default function ReportScreen() {
         }
       }
     } else {
+      // iOS - closes picker when done
+      setShowDatePicker(false);
       if (selectedDate && selectedDate <= new Date()) {
         setLastSeenDate(selectedDate);
       } else if (selectedDate) {
-        Alert.alert("Invalid Date", "Please select today or a past date.");
+        Alert.alert("Invalid Date", "Please select today or a past date and time.");
       }
     }
   };
@@ -376,254 +405,54 @@ export default function ReportScreen() {
       setTempDate(lastSeenDate);
       setShowDatePicker(true);
     } else {
+      // iOS shows datetime picker
       setShowDatePicker(true);
     }
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-    >
-      <ScrollView
-        style={[
-          styles.container,
-          { backgroundColor: isDark ? "#1f1f1f" : "#fff" },
-        ]}
-        contentContainerStyle={{ paddingBottom: 60 }}
-        keyboardShouldPersistTaps="handled"
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: isDark ? "#1f1f1f" : "#fff" }]}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
       >
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
+        {/* Fixed Header */}
+        <View style={[styles.header, { backgroundColor: isDark ? "#1f1f1f" : "#fff" }]}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <Ionicons
               name="chevron-back"
               size={28}
-              color={isDark ? "#7CC242" : "#7CC242"}
+              color="#7CC242"
             />
           </TouchableOpacity>
-          <Text
-            style={[
-              styles.headerTitle,
-              { color: isDark ? "#7CC242" : "#7CC242" },
-            ]}
-          >
-            Submit Report
-          </Text>
+          <Text style={styles.headerTitle}>Submit Report</Text>
           <View style={{ width: 28 }} />
         </View>
 
-        {/* Offline/Pending Reports Banner */}
-        {!isConnected && (
-          <View style={styles.offlineBanner}>
-            <Ionicons name="cloud-offline" size={20} color="#fff" />
-            <Text style={styles.offlineText}>Offline Mode - Reports will sync when online</Text>
-          </View>
-        )}
-
-        {pendingCount > 0 && (
-          <TouchableOpacity style={styles.pendingBanner} onPress={syncOfflineReports}>
-            <Ionicons name="sync" size={20} color="#fff" />
-            <Text style={styles.pendingText}>
-              {pendingCount} pending report{pendingCount > 1 ? "s" : ""} - Tap to sync
-            </Text>
-          </TouchableOpacity>
-        )}
-
-        {/* Personal Info */}
-        <View
-          style={[
-            styles.card,
-            {
-              backgroundColor: isDark ? "#2a2a2a" : "#fff",
-              borderColor: isDark ? "#333" : "#eee",
-            },
-          ]}
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={{ paddingBottom: 60 }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <Text
-            style={[
-              styles.cardTitle,
-              { color: isDark ? "#7CC242" : "#7CC242" },
-            ]}
-          >
-            Personal Information
-          </Text>
-
-          <Text style={[styles.label, { color: isDark ? "#ccc" : "#222" }]}>
-            Full Name*
-          </Text>
-          <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: isDark ? "#333" : "#fafafa",
-                color: isDark ? "#fff" : "#000",
-                borderColor: isDark ? "#444" : "#ddd",
-              },
-            ]}
-            placeholder="Bob Smith"
-            placeholderTextColor={isDark ? "#aaa" : "#888"}
-            value={fullName}
-            onChangeText={setFullName}
-          />
-
-          <Text style={[styles.label, { color: isDark ? "#ccc" : "#222" }]}>
-            Age*
-          </Text>
-          <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: isDark ? "#333" : "#fafafa",
-                color: isDark ? "#fff" : "#000",
-                borderColor: isDark ? "#444" : "#ddd",
-              },
-            ]}
-            placeholder="30"
-            placeholderTextColor={isDark ? "#aaa" : "#888"}
-            keyboardType="numeric"
-            value={age}
-            onChangeText={setAge}
-          />
-
-          <Text style={[styles.label, { color: isDark ? "#ccc" : "#222" }]}>
-            Gender*
-          </Text>
-          <Select
-            label="Gender"
-            value={gender}
-            onSelect={setGender}
-            isDark={isDark}
-            options={[
-              { label: "Male", value: "male" },
-              { label: "Female", value: "female" },
-            ]}
-          />
-
-          <Text style={[styles.label, { color: isDark ? "#ccc" : "#222" }]}>
-            Report Type*
-          </Text>
-          <Select
-            label="Type"
-            value={type}
-            onSelect={setType}
-            isDark={isDark}
-            options={[
-              { label: "Person", value: "Person" },
-              { label: "Pet", value: "Pet" },
-              { label: "Wanted", value: "Wanted" },
-            ]}
-          />
-
-          <Text style={[styles.label, { color: isDark ? "#ccc" : "#222" }]}>
-            Recent Photo*
-          </Text>
-          <TouchableOpacity
-            style={[styles.uploadBtn, { backgroundColor: "#7CC242" }]}
-            onPress={pickImage}
-          >
-            <Text style={styles.uploadText}>
-              {photo ? "Change Photo" : "Upload Recent Photo"}
-            </Text>
-          </TouchableOpacity>
-          {photo && <Image source={{ uri: photo }} style={styles.preview} />}
-        </View>
-
-        {/* Last Seen Info */}
-        <View
-          style={[
-            styles.card,
-            {
-              backgroundColor: isDark ? "#2a2a2a" : "#fff",
-              borderColor: isDark ? "#333" : "#eee",
-            },
-          ]}
-        >
-          <Text
-            style={[
-              styles.cardTitle,
-              { color: isDark ? "#7CC242" : "#7CC242" },
-            ]}
-          >
-            Last Seen Information
-          </Text>
-
-          <Text style={[styles.label, { color: isDark ? "#ccc" : "#222" }]}>
-            Last Seen Date & Time*
-          </Text>
-          <TouchableOpacity
-            style={[
-              styles.inputBox,
-              {
-                backgroundColor: isDark ? "#333" : "#fafafa",
-                borderColor: isDark ? "#444" : "#ddd",
-              },
-            ]}
-            onPress={openDateTimePicker}
-          >
-            <Text
-              style={[styles.placeholder, { color: isDark ? "#ccc" : "#666" }]}
-            >
-              {lastSeenDate.toLocaleString()}
-            </Text>
-          </TouchableOpacity>
-          {showDatePicker && (
-            <DateTimePicker
-              value={Platform.OS === "android" ? tempDate : lastSeenDate}
-              mode="date"
-              display={Platform.OS === "ios" ? "spinner" : "default"}
-              maximumDate={new Date()}
-              onChange={handleDateChange}
-            />
-          )}
-          {showTimePicker && Platform.OS === "android" && (
-            <DateTimePicker
-              value={tempDate}
-              mode="time"
-              display="default"
-              onChange={handleTimeChange}
-            />
+          {/* Offline/Pending Reports Banner */}
+          {!isConnected && (
+            <View style={styles.offlineBanner}>
+              <Ionicons name="cloud-offline" size={20} color="#fff" />
+              <Text style={styles.offlineText}>Offline Mode - Reports will sync when online</Text>
+            </View>
           )}
 
-          <Text style={[styles.label, { color: isDark ? "#ccc" : "#222" }]}>
-            Last Seen Location*
-          </Text>
-          <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: isDark ? "#333" : "#fafafa",
-                color: isDark ? "#fff" : "#000",
-                borderColor: isDark ? "#444" : "#ddd",
-              },
-            ]}
-            placeholder="Brixton, Johannesburg"
-            placeholderTextColor={isDark ? "#aaa" : "#888"}
-            value={lastSeenLocation}
-            onChangeText={setLastSeenLocation}
-          />
+          {pendingCount > 0 && (
+            <TouchableOpacity style={styles.pendingBanner} onPress={syncOfflineReports}>
+              <Ionicons name="sync" size={20} color="#fff" />
+              <Text style={styles.pendingText}>
+                {pendingCount} pending report{pendingCount > 1 ? "s" : ""} - Tap to sync
+              </Text>
+            </TouchableOpacity>
+          )}
 
-          <Text style={[styles.label, { color: isDark ? "#ccc" : "#222" }]}>
-            Description
-          </Text>
-          <TextInput
-            style={[
-              styles.input,
-              {
-                height: 90,
-                backgroundColor: isDark ? "#333" : "#fafafa",
-                color: isDark ? "#fff" : "#000",
-                borderColor: isDark ? "#444" : "#ddd",
-              },
-            ]}
-            placeholder="Short description (height, clothing, marks...)"
-            placeholderTextColor={isDark ? "#aaa" : "#888"}
-            multiline
-            value={description}
-            onChangeText={setDescription}
-          />
-        </View>
-
-        {type === "Wanted" && (
+          {/* Personal Info */}
           <View
             style={[
               styles.card,
@@ -639,10 +468,11 @@ export default function ReportScreen() {
                 { color: isDark ? "#7CC242" : "#7CC242" },
               ]}
             >
-              Wanted Details
+              Personal Information
             </Text>
+
             <Text style={[styles.label, { color: isDark ? "#ccc" : "#222" }]}>
-              Crime wanted for*
+              Full Name*
             </Text>
             <TextInput
               style={[
@@ -653,14 +483,14 @@ export default function ReportScreen() {
                   borderColor: isDark ? "#444" : "#ddd",
                 },
               ]}
-              placeholder="e.g. Robbery, Fraud"
+              placeholder="Sibusiso Ndlovu"
               placeholderTextColor={isDark ? "#aaa" : "#888"}
-              value={crimeWantedFor}
-              onChangeText={setCrimeWantedFor}
+              value={fullName}
+              onChangeText={setFullName}
             />
 
             <Text style={[styles.label, { color: isDark ? "#ccc" : "#222" }]}>
-              Armed with*
+              Age*
             </Text>
             <TextInput
               style={[
@@ -671,118 +501,337 @@ export default function ReportScreen() {
                   borderColor: isDark ? "#444" : "#ddd",
                 },
               ]}
-              placeholder="e.g. Firearm, Knife"
+              placeholder="30"
               placeholderTextColor={isDark ? "#aaa" : "#888"}
-              value={armedWith}
-              onChangeText={setArmedWith}
+              keyboardType="numeric"
+              value={age}
+              onChangeText={setAge}
             />
 
             <Text style={[styles.label, { color: isDark ? "#ccc" : "#222" }]}>
-              Reward offered*
+              Gender*
             </Text>
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: isDark ? "#333" : "#fafafa",
-                  color: isDark ? "#fff" : "#000",
-                  borderColor: isDark ? "#444" : "#ddd",
-                },
+            <Select
+              label="Gender"
+              value={gender}
+              onSelect={setGender}
+              isDark={isDark}
+              options={[
+                { label: "Male", value: "male" },
+                { label: "Female", value: "female" },
               ]}
-              placeholder="e.g. R10,000"
-              placeholderTextColor={isDark ? "#aaa" : "#888"}
-              value={rewardOffered}
-              onChangeText={setRewardOffered}
             />
+
+            <Text style={[styles.label, { color: isDark ? "#ccc" : "#222" }]}>
+              Report Type*
+            </Text>
+            <Select
+              label="Type"
+              value={type}
+              onSelect={setType}
+              isDark={isDark}
+              options={[
+                { label: "Person", value: "Person" },
+                { label: "Pet", value: "Pet" },
+                { label: "Wanted", value: "Wanted" },
+              ]}
+            />
+
+            <Text style={[styles.label, { color: isDark ? "#ccc" : "#222" }]}>
+              Recent Photo*
+            </Text>
+            <TouchableOpacity
+              style={[styles.uploadBtn, { backgroundColor: "#7CC242" }]}
+              onPress={pickImage}
+            >
+              <Text style={styles.uploadText}>
+                {photo ? "Change Photo" : "Upload Recent Photo"}
+              </Text>
+            </TouchableOpacity>
+            {photo && <Image source={{ uri: photo }} style={styles.preview} />}
           </View>
-        )}
 
-        {/* Reporter Contact */}
-        <View
-          style={[
-            styles.card,
-            {
-              backgroundColor: isDark ? "#2a2a2a" : "#fff",
-              borderColor: isDark ? "#333" : "#eee",
-            },
-          ]}
-        >
-          <Text
+          {/* Last Seen Info */}
+          <View
             style={[
-              styles.cardTitle,
-              { color: isDark ? "#7CC242" : "#7CC242" },
+              styles.card,
+              {
+                backgroundColor: isDark ? "#2a2a2a" : "#fff",
+                borderColor: isDark ? "#333" : "#eee",
+              },
             ]}
           >
-            Reporter Contact
-          </Text>
+            <Text
+              style={[
+                styles.cardTitle,
+                { color: isDark ? "#7CC242" : "#7CC242" },
+              ]}
+            >
+              Last Seen Information
+            </Text>
 
-          <Text style={[styles.label, { color: isDark ? "#ccc" : "#222" }]}>
-            Contact Name
-          </Text>
-          <TextInput
+            <Text style={[styles.label, { color: isDark ? "#ccc" : "#222" }]}>
+              Last Seen Date & Time*
+            </Text>
+            <TouchableOpacity
+              style={[
+                styles.inputBox,
+                {
+                  backgroundColor: isDark ? "#333" : "#fafafa",
+                  borderColor: isDark ? "#444" : "#ddd",
+                },
+              ]}
+              onPress={openDateTimePicker}
+            >
+              <Text
+                style={[styles.placeholder, { color: isDark ? "#ccc" : "#666" }]}
+              >
+                {lastSeenDate.toLocaleString()}
+              </Text>
+            </TouchableOpacity>
+            {showDatePicker && (
+              <DateTimePicker
+                value={Platform.OS === "android" ? tempDate : lastSeenDate}
+                mode={Platform.OS === "ios" ? "datetime" : "date"}
+                display={Platform.OS === "ios" ? "spinner" : "default"}
+                maximumDate={new Date()}
+                onChange={handleDateChange}
+              />
+            )}
+            {showTimePicker && Platform.OS === "android" && (
+              <DateTimePicker
+                value={tempDate}
+                mode="time"
+                display="default"
+                onChange={handleTimeChange}
+              />
+            )}
+
+            <Text style={[styles.label, { color: isDark ? "#ccc" : "#222" }]}>
+              Last Seen Location*
+            </Text>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  backgroundColor: isDark ? "#333" : "#fafafa",
+                  color: isDark ? "#fff" : "#000",
+                  borderColor: isDark ? "#444" : "#ddd",
+                },
+              ]}
+              placeholder="Brixton, Johannesburg"
+              placeholderTextColor={isDark ? "#aaa" : "#888"}
+              value={lastSeenLocation}
+              onChangeText={setLastSeenLocation}
+            />
+
+            <Text style={[styles.label, { color: isDark ? "#ccc" : "#222" }]}>
+              Description
+            </Text>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  height: 90,
+                  backgroundColor: isDark ? "#333" : "#fafafa",
+                  color: isDark ? "#fff" : "#000",
+                  borderColor: isDark ? "#444" : "#ddd",
+                },
+              ]}
+              placeholder="Short description (height, clothing, marks...)"
+              placeholderTextColor={isDark ? "#aaa" : "#888"}
+              multiline
+              value={description}
+              onChangeText={setDescription}
+            />
+          </View>
+
+          {type === "Wanted" && (
+            <View
+              style={[
+                styles.card,
+                {
+                  backgroundColor: isDark ? "#2a2a2a" : "#fff",
+                  borderColor: isDark ? "#333" : "#eee",
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.cardTitle,
+                  { color: isDark ? "#7CC242" : "#7CC242" },
+                ]}
+              >
+                Wanted Details
+              </Text>
+              <Text style={[styles.label, { color: isDark ? "#ccc" : "#222" }]}>
+                Crime wanted for*
+              </Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: isDark ? "#333" : "#fafafa",
+                    color: isDark ? "#fff" : "#000",
+                    borderColor: isDark ? "#444" : "#ddd",
+                  },
+                ]}
+                placeholder="e.g. Robbery, Fraud"
+                placeholderTextColor={isDark ? "#aaa" : "#888"}
+                value={crimeWantedFor}
+                onChangeText={setCrimeWantedFor}
+              />
+
+              <Text style={[styles.label, { color: isDark ? "#ccc" : "#222" }]}>
+                Armed with*
+              </Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: isDark ? "#333" : "#fafafa",
+                    color: isDark ? "#fff" : "#000",
+                    borderColor: isDark ? "#444" : "#ddd",
+                  },
+                ]}
+                placeholder="e.g. Firearm, Knife"
+                placeholderTextColor={isDark ? "#aaa" : "#888"}
+                value={armedWith}
+                onChangeText={setArmedWith}
+              />
+
+              <Text style={[styles.label, { color: isDark ? "#ccc" : "#222" }]}>
+                Reward offered*
+              </Text>
+              <TextInput
+                style={[
+                  styles.input,
+                  {
+                    backgroundColor: isDark ? "#333" : "#fafafa",
+                    color: isDark ? "#fff" : "#000",
+                    borderColor: isDark ? "#444" : "#ddd",
+                  },
+                ]}
+                placeholder="e.g. R10,000"
+                placeholderTextColor={isDark ? "#aaa" : "#888"}
+                value={rewardOffered}
+                onChangeText={setRewardOffered}
+              />
+            </View>
+          )}
+
+          {/* Reporter Contact */}
+          <View
             style={[
-              styles.input,
+              styles.card,
               {
-                backgroundColor: isDark ? "#333" : "#fafafa",
-                color: isDark ? "#fff" : "#000",
-                borderColor: isDark ? "#444" : "#ddd",
+                backgroundColor: isDark ? "#2a2a2a" : "#fff",
+                borderColor: isDark ? "#333" : "#eee",
               },
             ]}
-            placeholder="John Doe"
-            placeholderTextColor={isDark ? "#aaa" : "#888"}
-            value={contactName}
-            onChangeText={setContactName}
-          />
+          >
+            <Text
+              style={[
+                styles.cardTitle,
+                { color: isDark ? "#7CC242" : "#7CC242" },
+              ]}
+            >
+              Reporter Contact
+            </Text>
 
-          <Text style={[styles.label, { color: isDark ? "#ccc" : "#222" }]}>
-            Contact Number
-          </Text>
-          <TextInput
+            <Text style={[styles.label, { color: isDark ? "#ccc" : "#222" }]}>
+              Contact Name
+            </Text>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  backgroundColor: isDark ? "#333" : "#fafafa",
+                  color: isDark ? "#fff" : "#000",
+                  borderColor: isDark ? "#444" : "#ddd",
+                },
+              ]}
+              placeholder="Sibusiso Ndlovu"
+              placeholderTextColor={isDark ? "#aaa" : "#888"}
+              value={contactName}
+              onChangeText={setContactName}
+            />
+
+            <Text style={[styles.label, { color: isDark ? "#ccc" : "#222" }]}>
+              Contact Number
+            </Text>
+            <TextInput
+              style={[
+                styles.input,
+                {
+                  backgroundColor: isDark ? "#333" : "#fafafa",
+                  color: isDark ? "#fff" : "#000",
+                  borderColor: isDark ? "#444" : "#ddd",
+                },
+              ]}
+              placeholder="0712345678"
+              placeholderTextColor={isDark ? "#aaa" : "#888"}
+              keyboardType="phone-pad"
+              value={contactNumber}
+              onChangeText={setContactNumber}
+              maxLength={10}
+            />
+          </View>
+
+          <TouchableOpacity
             style={[
-              styles.input,
-              {
-                backgroundColor: isDark ? "#333" : "#fafafa",
-                color: isDark ? "#fff" : "#000",
-                borderColor: isDark ? "#444" : "#ddd",
-              },
+              styles.submitBtn,
+              { backgroundColor: "#7CC242", opacity: submitting ? 0.7 : 1 },
             ]}
-            placeholder="0710000000"
-            placeholderTextColor={isDark ? "#aaa" : "#888"}
-            keyboardType="phone-pad"
-            value={contactNumber}
-            onChangeText={setContactNumber}
-            maxLength={10}
-          />
-        </View>
+            onPress={submit}
+            disabled={submitting}
+          >
+            <Text style={styles.submitText}>
+              {submitting ? "Submitting..." : "Submit Report"}
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
 
-        <TouchableOpacity
-          style={[
-            styles.submitBtn,
-            { backgroundColor: "#7CC242", opacity: submitting ? 0.7 : 1 },
-          ]}
-          onPress={submit}
-          disabled={submitting}
-        >
-          <Text style={styles.submitText}>
-            {submitting ? "Submitting..." : "Submit Report"}
-          </Text>
-        </TouchableOpacity>
-
-        <SuccessCheck ref={successRef} />
-      </ScrollView>
-    </KeyboardAvoidingView>
+        {/* Success Modal */}
+        <SuccessModal
+          visible={showSuccess}
+          message={successMessage}
+          onClose={() => {
+            setShowSuccess(false);
+            navigation.goBack();
+          }}
+        />
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 16 },
+  safeArea: {
+    flex: 1,
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
-  headerTitle: { fontSize: 18, fontWeight: "800", color: "#7CC242" },
+  backButton: {
+    padding: 4,
+  },
+  headerTitle: { 
+    fontSize: 18, 
+    fontWeight: "800", 
+    color: "#7CC242" 
+  },
+  scrollView: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 12,
+  },
   offlineBanner: {
     flexDirection: "row",
     alignItems: "center",
@@ -869,4 +918,53 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   clearText: { fontWeight: "600" },
+  // Success Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  successBox: {
+    width: width * 0.85,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
+    padding: 32,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  successIconContainer: {
+    marginBottom: 20,
+  },
+  successTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1A1A1A',
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  successMessage: {
+    fontSize: 15,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 22,
+  },
+  successButton: {
+    backgroundColor: '#7CC242',
+    paddingVertical: 14,
+    paddingHorizontal: 48,
+    borderRadius: 12,
+    minWidth: 120,
+  },
+  successButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
 });

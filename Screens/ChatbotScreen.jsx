@@ -19,7 +19,7 @@ export default function ChatbotScreen() {
     <body>
       <div id="chat">
         <df-messenger
-            chat-title="findy-chat!💡"
+            chat-title="Botman💡"
             agent-id="56c2497a-867e-41d0-bd80-0c488729855b"
             language-code="en"
             expand="true"

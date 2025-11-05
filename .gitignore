@@ -1,8 +1,14 @@
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
+# Environment variables - NEVER commit these!
+.env
+.env.local
+.env.production
+.env.development
+.env*.local
+
 # Local configuration (each developer has their own)
 Config.js
-
 
 # dependencies
 node_modules/
@@ -33,9 +39,6 @@ yarn-error.*
 # macOS
 .DS_Store
 *.pem
-
-# local env files
-.env*.local
 
 # typescript
 *.tsbuildinfo

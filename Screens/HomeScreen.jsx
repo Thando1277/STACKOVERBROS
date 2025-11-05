@@ -13,6 +13,7 @@ import {
   Platform,
   StatusBar,
   Animated,
+  RefreshControl,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
@@ -180,7 +181,7 @@ function FilterModal({ visible, onClose, themeColors, gender, setGender, ageGrou
   const clearAllFilters = () => {
     setGender("");
     setAgeGroup("");
-    setSortBy("alphabetical"); // Reset to default alphabetical sorting
+    setSortBy("alphabetical");
   };
 
   return (
@@ -305,7 +306,8 @@ export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState("");
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [savedReports, setSavedReports] = useState([]);
-  const [sortBy, setSortBy] = useState("alphabetical"); // New state for sorting
+  const [sortBy, setSortBy] = useState("alphabetical");
+  const [refreshing, setRefreshing] = useState(false); // NEW: Pull to refresh state
 
   // Animation values
   const filterSectionHeight = useRef(new Animated.Value(1)).current;
@@ -325,10 +327,20 @@ export default function HomeScreen() {
     cardBg: isDark ? "#2A2A2A" : "#fff",
   };
 
+  // NEW: Pull to Refresh function
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    
+    // Simulate refresh - in your case, Firestore is already real-time
+    // But you can force re-fetch or reload user data here
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1000);
+  }, []);
+
   // Reset to Person category when returning from other screens
   useFocusEffect(
     useCallback(() => {
-      // Reset to "Person" category and "search" tab when returning from Panic or other screens
       if (selectedCategory !== "Person" && selectedCategory !== "Pet" && selectedCategory !== "Wanted") {
         setSelectedCategory("Person");
         setActiveTab("search");
@@ -428,10 +440,8 @@ export default function HomeScreen() {
     const currentScrollY = event.nativeEvent.contentOffset.y;
     const scrollDiff = currentScrollY - lastScrollY.current;
 
-    // Only trigger animation if scroll difference is significant (> 10px for smoother Android performance)
     if (Math.abs(scrollDiff) > 10) {
       if (scrollDiff > 0 && currentScrollY > 50) {
-        // Scrolling down - hide filter section
         if (isFilterVisible.current) {
           isFilterVisible.current = false;
           Animated.timing(filterSectionHeight, {
@@ -441,7 +451,6 @@ export default function HomeScreen() {
           }).start();
         }
       } else if (scrollDiff < 0) {
-        // Scrolling up - show filter section
         if (!isFilterVisible.current) {
           isFilterVisible.current = true;
           Animated.timing(filterSectionHeight, {
@@ -494,7 +503,7 @@ export default function HomeScreen() {
       filteredReports.sort((a, b) => {
         const dateA = a.createdAt?.seconds ? a.createdAt.toDate() : new Date(a.createdAt);
         const dateB = b.createdAt?.seconds ? b.createdAt.toDate() : new Date(b.createdAt);
-        return dateB.getTime() - dateA.getTime(); // Most recent first
+        return dateB.getTime() - dateA.getTime();
       });
     }
 
@@ -648,13 +657,12 @@ export default function HomeScreen() {
           
           <TouchableOpacity
             onPress={() => {
-              // Don't change selectedCategory - just navigate to Panic
               navigation.navigate("Panic");
             }}
             style={[
               styles.category, 
               { 
-                backgroundColor: "transparent", // Always keep it unselected
+                backgroundColor: "transparent",
                 borderColor: themeColors.border
               }
             ]}
@@ -673,7 +681,7 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Filters Button - Updated to show sort indicator */}
+        {/* Filters Button */}
         <View style={styles.filtersContainer}>
           <TouchableOpacity 
             style={[styles.filtersButton, { backgroundColor: themeColors.primary }]}
@@ -694,13 +702,21 @@ export default function HomeScreen() {
         </View>
       </Animated.View>
 
-      {/* Report List */}
+      {/* Report List with Pull to Refresh */}
       <ScrollView 
         style={styles.list}
         contentContainerStyle={Platform.OS === 'android' ? { paddingBottom: 90 } : {}}
         onScroll={handleScroll}
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={themeColors.primary}
+            colors={[themeColors.primary]}
+          />
+        }
       >
         {filtered.length === 0 ? (
           <Text style={{ textAlign: "center", color: "#666", marginTop: 16 }}>No reports found</Text>
@@ -780,7 +796,7 @@ export default function HomeScreen() {
         )}
       </ScrollView>
 
-      {/* Filter Modal - Updated with sort options */}
+      {/* Filter Modal */}
       <FilterModal 
         visible={showFilterModal}
         onClose={() => setShowFilterModal(false)}

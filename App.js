@@ -20,6 +20,7 @@ import { AuthProvider } from "./context/AuthContext";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
 import { collection, query, onSnapshot, orderBy, getDoc, doc } from 'firebase/firestore';
 import { Audio } from 'expo-av';
+import ThemedStatusBar from './components/ThemedStatusBar';
 
 // Screens
 import HomeScreen from "./Screens/HomeScreen.jsx";

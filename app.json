@@ -50,15 +50,15 @@
       ]
     ],
     "extra": {
-      "FIREBASE_API_KEY": "your_firebase_api_key_here",
-      "FIREBASE_AUTH_DOMAIN": "your_project.firebaseapp.com",
-      "FIREBASE_PROJECT_ID": "your_project_id",
-      "FIREBASE_STORAGE_BUCKET": "your_project.firebasestorage.app",
-      "FIREBASE_MESSAGING_SENDER_ID": "your_messaging_sender_id",
-      "FIREBASE_APP_ID": "your_app_id",
-      "FIREBASE_MEASUREMENT_ID": "your_measurement_id",
-      "API_URL": "http://your_local_ip:5000",
-      "GOOGLE_MAPS_API_KEY": "your_google_maps_api_key_here"
+      "FIREBASE_API_KEY": "AIzaSyDM9ajCTkROObUtA4QM8V6J9zRWSV964HY",
+      "FIREBASE_AUTH_DOMAIN": "findsos.firebaseapp.com",
+      "FIREBASE_PROJECT_ID": "findsos",
+      "FIREBASE_STORAGE_BUCKET": "findsos.firebasestorage.app",
+      "FIREBASE_MESSAGING_SENDER_ID": "633214674311",
+      "FIREBASE_APP_ID": "1:633214674311:web:981141b66deac72c995f22",
+      "FIREBASE_MEASUREMENT_ID": "G-77M5D3DF0R",
+      "API_URL": "http://10.250.152.87:5000",
+      "GOOGLE_MAPS_API_KEY": "AIzaSyBNkhpJ5AKndXYUZ4G5aMYZ3oVc3jKqssQ"
     }
   }
 }

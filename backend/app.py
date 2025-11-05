@@ -13,7 +13,9 @@ from tensorflow.keras.applications import MobileNetV2
 from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
 from scipy.spatial.distance import cosine
 
+
 app = Flask(__name__)
+
 
 CORS(app, resources={
     r"/*": {
@@ -23,21 +25,27 @@ CORS(app, resources={
     }
 })
 
+
 # Initialize Google Vision
 print("🔄 Initializing Google Vision API...")
 vision_client = None
 try:
-    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = './findsos-24a5c9e5a256.json'
-    if os.path.exists('./findsos-24a5c9e5a256.json'):
+    # UPDATED: Use the backup service account key
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = './service-account-key-backup.json'
+    if os.path.exists('./service-account-key-backup.json'):
         vision_client = vision.ImageAnnotatorClient()
         print("✓ Google Vision API initialized")
+    else:
+        print("⚠️ Service account key file not found")
 except Exception as e:
     print(f"⚠️ Google Vision unavailable: {e}")
+
 
 # Load MobileNetV2
 print("📦 Loading MobileNetV2...")
 feature_extractor = MobileNetV2(weights='imagenet', include_top=False, pooling='avg')
 print("✓ MobileNetV2 loaded")
+
 
 def extract_features(img_array):
     """Extract deep learning features"""
@@ -47,6 +55,7 @@ def extract_features(img_array):
     img_preprocessed = preprocess_input(img_expanded)
     features = feature_extractor.predict(img_preprocessed, verbose=0)
     return features.flatten()
+
 
 def compare_faces_hybrid(img1, img2, img1_data, img2_data):
     """
@@ -180,6 +189,7 @@ def compare_faces_hybrid(img1, img2, img1_data, img2_data):
     
     return final_similarity, confidence_level, confidence_description, is_match
 
+
 @app.route('/health', methods=['GET'])
 def health_check():
     return jsonify({
@@ -191,6 +201,7 @@ def health_check():
         'accuracy': '98%+ (hybrid ensemble)',
         'version': '3.0 - Hybrid Face Matching'
     }), 200
+
 
 @app.route('/detect', methods=['POST', 'OPTIONS'])
 def detect_objects():
@@ -247,6 +258,7 @@ def detect_objects():
         
     except Exception as e:
         return jsonify({"error": str(e), "status": "error"}), 500
+
 
 @app.route('/compare', methods=['POST', 'OPTIONS'])
 def compare_images():
@@ -387,6 +399,7 @@ def compare_images():
         traceback.print_exc()
         print("=" * 70)
         return jsonify({"error": str(e), "status": "error"}), 500
+
 
 if __name__ == '__main__':
     print("=" * 70)
